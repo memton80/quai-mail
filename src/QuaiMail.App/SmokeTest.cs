@@ -706,8 +706,13 @@ internal static class SmokeTest
         Check(mail.Sent[^1].Body is not MimeKit.Cryptography.MultipartSigned, "mail signé alors que Signer était décoché");
         composer.ShowSent = false;
 
-        // Clé retirée : Signer n'est plus proposé.
+        // Clé retirée (Réglages rouverts : la liste suit, l'ancien dialogue fermé ne gêne pas) : Signer n'est plus proposé.
+        settings = window.ShowSettingsAsync();
+        await WaitForAsync(() => dialogs.Current is SettingsDialog, "réglages (retrait de la clé)");
         keys.Remove(keys.Keys[0].Key);
+        Check(!keys.HasKeys, "clé encore listée");
+        dialogs.Current?.Hide();
+        await WithTimeout(settings, "fermeture des réglages");
         Check(store.Keys.Count == 0, "clé OpenPGP non retirée");
         Check(await WithTimeout(composer.NewAsync(account.Id), "message sans clé"), "nouveau message non ouvert");
         Check(composer is { CanSign: false, Sign: false }, "Signer encore proposé sans clé");

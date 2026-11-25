@@ -42,7 +42,7 @@
                     Style="{StaticResource DialogHintStyle}"
                     Text="{l:Str Key=Pgp_NoKey}"
                     Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Keys.HasKeys), Mode=OneWay}" />
-                <ItemsRepeater ItemsSource="{x:Bind Keys.Keys}">
+                <ItemsRepeater x:Name="KeysRepeater" ItemsSource="{x:Bind Keys.Keys}">
                     <ItemsRepeater.Layout>
                         <StackLayout Spacing="8" />
                     </ItemsRepeater.Layout>

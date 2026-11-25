@@ -17,6 +17,14 @@ public sealed partial class SettingsDialog : ContentDialog
         Keys = keys;
         _mailbox = mailbox;
         InitializeComponent();
+
+        // Les view-models vivent plus longtemps que le dialogue : une fois fermé, il ne doit plus suivre leurs changements
+        // (sinon la liste des clés d'un dialogue fermé reçoit encore les ajouts et retraits, et plante).
+        Closed += (_, _) =>
+        {
+            KeysRepeater.ItemsSource = null;
+            Bindings.StopTracking();
+        };
     }
 
     public SettingsViewModel Settings { get; }
