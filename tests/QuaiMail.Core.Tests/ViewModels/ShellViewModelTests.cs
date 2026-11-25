@@ -162,5 +162,25 @@ public sealed class ShellViewModelTests : IDisposable
         Assert.Null(shell.SelectedFolderPath);
     }
 
+    [Fact]
+    public void The_most_recent_kept_draft_is_reopened_at_startup()
+    {
+        _drafts.Save(new Draft { Subject = "Ancien" });
+        Thread.Sleep(20);
+        var recent = new Draft { Subject = "Récent" };
+        _drafts.Save(recent);
+        var shell = Create();
+
+        Assert.True(shell.ReopenKeptDraft());
+        Assert.Equal(recent.Id, shell.CurrentDraft!.Id);
+        Assert.False(shell.ReopenKeptDraft());
+    }
+
+    [Fact]
+    public void Nothing_is_reopened_without_a_kept_draft()
+    {
+        Assert.False(Create().ReopenKeptDraft());
+    }
+
     private ShellViewModel Create() => new(_dialogs, new KeyStrings(), _drafts, _state);
 }

@@ -178,6 +178,88 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
             }
         }, cancellationToken);
 
+    public async Task<SendOutcome> SendAsync(Account account, MimeKit.MimeMessage message, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        var password = _credentials.GetPassword(account.Id)
+            ?? throw new MailConnectionException(MailError.MissingPassword, Describe(account.Smtp), "SMTP");
+        using (var smtp = new SmtpClient { Timeout = (int)Timeout.TotalMilliseconds, ServerCertificateValidationCallback = _certificateValidation, CheckCertificateRevocation = true })
+        {
+            await ConnectAsync(smtp, account.Smtp, "SMTP", account.UserName, password, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await smtp.SendAsync(new SendRequest(message), cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (Classify(ex) is { } error)
+            {
+                _logger.LogWarning("SMTP {Server} : envoi refusé ({Error}, {Type})", Describe(account.Smtp), error, ex.GetType().Name);
+                throw new MailConnectionException(error, Describe(account.Smtp), "SMTP", ex);
+            }
+            finally
+            {
+                if (smtp.IsConnected)
+                {
+                    await smtp.DisconnectAsync(true, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+        }
+
+        _logger.LogInformation("Mail envoyé par {Server}", Describe(account.Smtp));
+        if (ServerKeepsSentCopy(account))
+        {
+            return new SendOutcome(null, ServerKeepsCopy: true);
+        }
+
+        try
+        {
+            var folder = await WithImapAsync(account, async (client, ct) =>
+            {
+                if (await FindSpecialAsync(client, FolderRole.Sent, ct).ConfigureAwait(false) is not { } sent)
+                {
+                    return null;
+                }
+
+                await sent.AppendAsync(new AppendRequest(message, MessageFlags.Seen), ct).ConfigureAwait(false);
+                return sent.FullName;
+            }, cancellationToken).ConfigureAwait(false);
+            return new SendOutcome(folder);
+        }
+        catch (MailConnectionException)
+        {
+            // Le mail est parti : seule sa copie manque. Déjà journalisé.
+            return new SendOutcome(null);
+        }
+    }
+
+    public Task<ServerCopy?> SaveDraftAsync(Account account, MimeKit.MimeMessage message, ServerCopy? previous, CancellationToken cancellationToken = default) =>
+        WithImapAsync(account, async (client, ct) =>
+        {
+            if (await FindSpecialAsync(client, FolderRole.Drafts, ct).ConfigureAwait(false) is not { } drafts)
+            {
+                return null;
+            }
+
+            var uid = await drafts.AppendAsync(new AppendRequest(message, MessageFlags.Draft | MessageFlags.Seen), ct).ConfigureAwait(false);
+            if (previous is { Uid: { } old } && previous.Folder == drafts.FullName)
+            {
+                await RemoveAsync(client, drafts, old, ct).ConfigureAwait(false);
+            }
+
+            return (ServerCopy?)new ServerCopy(drafts.FullName, uid?.Id);
+        }, cancellationToken);
+
+    public Task DeleteDraftAsync(Account account, ServerCopy copy, CancellationToken cancellationToken = default) =>
+        WithImapAsync(account, async (client, ct) =>
+        {
+            if (copy.Uid is { } uid)
+            {
+                var folder = await client.GetFolderAsync(copy.Folder, ct).ConfigureAwait(false);
+                await RemoveAsync(client, folder, uid, ct).ConfigureAwait(false);
+            }
+
+            return true;
+        }, cancellationToken);
+
     public async Task DisconnectAsync(string accountId)
     {
         if (_sessions.TryRemove(accountId, out var session))
@@ -204,6 +286,53 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         await mailFolder.OpenAsync(access, cancellationToken).ConfigureAwait(false);
         return mailFolder;
     }
+
+    /// <summary>
+    /// Retire un seul mail (le brouillon remplacé) : drapeau \\Deleted, puis UID EXPUNGE de ce seul UID si le serveur
+    /// le permet (UIDPLUS). Jamais d'EXPUNGE général : un autre mail marqué supprimé ailleurs n'est pas touché.
+    /// </summary>
+    private static async Task RemoveAsync(ImapClient client, IMailFolder folder, uint uid, CancellationToken cancellationToken)
+    {
+        await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var id = new UniqueId(uid);
+            await folder.StoreAsync(id, new StoreFlagsRequest(StoreAction.Add, MessageFlags.Deleted), cancellationToken).ConfigureAwait(false);
+            if (client.Capabilities.Contains(ImapCapability.UidPlus))
+            {
+                await folder.ExpungeAsync([id], new ExpungeRequest(), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await CloseAsync(client, folder).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Dossier Brouillons ou Envoyés : annoncé par le serveur (SPECIAL-USE), sinon reconnu à son nom.</summary>
+    private static async Task<IMailFolder?> FindSpecialAsync(ImapClient client, FolderRole role, CancellationToken cancellationToken)
+    {
+        var attribute = role == FolderRole.Drafts ? FolderAttributes.Drafts : FolderAttributes.Sent;
+        string[] names = role == FolderRole.Drafts
+            ? ["Drafts", "Brouillons", "Draft", "Brouillon", "INBOX.Drafts", "INBOX/Drafts", "INBOX.Brouillons"]
+            : ["Sent", "Envoyés", "Sent Items", "Sent Messages", "Éléments envoyés", "Messages envoyés", "INBOX.Sent", "INBOX/Sent", "INBOX.Envoyés"];
+        var folders = new List<IMailFolder>();
+        var namespaces = client.PersonalNamespaces.Count > 0 ? client.PersonalNamespaces : [new FolderNamespace('/', string.Empty)];
+        foreach (var ns in namespaces)
+        {
+            folders.AddRange(await client.GetFoldersAsync(ns, StatusItems.None, subscribedOnly: false, cancellationToken).ConfigureAwait(false));
+        }
+
+        return folders.FirstOrDefault(f => f.Attributes.HasFlag(attribute))
+            ?? names.Select(n => folders.FirstOrDefault(f => string.Equals(f.FullName, n, StringComparison.OrdinalIgnoreCase))).FirstOrDefault(f => f is not null);
+    }
+
+    /// <summary>Gmail et Outlook.com rangent eux-mêmes une copie de chaque mail envoyé : pas de doublon.</summary>
+    internal static bool ServerKeepsSentCopy(Account account) =>
+        account.Smtp.Host.EndsWith("gmail.com", StringComparison.OrdinalIgnoreCase)
+        || account.Smtp.Host.EndsWith("googlemail.com", StringComparison.OrdinalIgnoreCase)
+        || account.Smtp.Host.EndsWith("outlook.com", StringComparison.OrdinalIgnoreCase)
+        || account.Smtp.Host.EndsWith("office365.com", StringComparison.OrdinalIgnoreCase);
 
     private static async Task CloseAsync(ImapClient client, IMailFolder folder)
     {

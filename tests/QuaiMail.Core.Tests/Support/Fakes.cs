@@ -156,6 +156,51 @@ public sealed class FakeMailService : QuaiMail.Core.Mail.IMailService
         return Failure is null ? Task.CompletedTask : Task.FromException(Failure);
     }
 
+    /// <summary>Mails « envoyés » (gardés en mémoire, jamais acheminés).</summary>
+    public List<MimeKit.MimeMessage> Sent { get; } = [];
+
+    public List<QuaiMail.Core.Mail.ServerCopy> SavedDrafts { get; } = [];
+
+    public List<QuaiMail.Core.Mail.ServerCopy> DeletedDrafts { get; } = [];
+
+    public QuaiMail.Core.Mail.MailConnectionException? SendFailure { get; set; }
+
+    private uint _nextDraftUid = 100;
+
+    public Task<QuaiMail.Core.Mail.SendOutcome> SendAsync(QuaiMail.Core.Accounts.Account account, MimeKit.MimeMessage message, CancellationToken cancellationToken = default)
+    {
+        if (SendFailure is not null)
+        {
+            return Task.FromException<QuaiMail.Core.Mail.SendOutcome>(SendFailure);
+        }
+
+        Sent.Add(message);
+        return Task.FromResult(new QuaiMail.Core.Mail.SendOutcome("Envoyés"));
+    }
+
+    public Task<QuaiMail.Core.Mail.ServerCopy?> SaveDraftAsync(QuaiMail.Core.Accounts.Account account, MimeKit.MimeMessage message, QuaiMail.Core.Mail.ServerCopy? previous, CancellationToken cancellationToken = default)
+    {
+        if (Failure is not null)
+        {
+            return Task.FromException<QuaiMail.Core.Mail.ServerCopy?>(Failure);
+        }
+
+        if (previous is not null)
+        {
+            DeletedDrafts.Add(previous);
+        }
+
+        var copy = new QuaiMail.Core.Mail.ServerCopy("Brouillons", _nextDraftUid++);
+        SavedDrafts.Add(copy);
+        return Task.FromResult<QuaiMail.Core.Mail.ServerCopy?>(copy);
+    }
+
+    public Task DeleteDraftAsync(QuaiMail.Core.Accounts.Account account, QuaiMail.Core.Mail.ServerCopy copy, CancellationToken cancellationToken = default)
+    {
+        DeletedDrafts.Add(copy);
+        return Task.CompletedTask;
+    }
+
     public Task DisconnectAsync(string accountId)
     {
         Calls.Add("disconnect " + accountId);
@@ -175,6 +220,10 @@ public sealed class FakeFileDialogs : QuaiMail.Core.Services.IFileDialogs
         Suggested.Add(suggestedFileName);
         return Task.FromResult(Answer);
     }
+
+    public List<string> ToAttach { get; } = [];
+
+    public Task<IReadOnlyList<string>> PickFilesToAttachAsync() => Task.FromResult<IReadOnlyList<string>>([.. ToAttach]);
 }
 
 /// <summary>Navigateur factice : note ce qui aurait été ouvert.</summary>

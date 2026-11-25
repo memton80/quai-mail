@@ -4,8 +4,9 @@ using QuaiMail.Core.Reading;
 namespace QuaiMail.Core.Mail;
 
 /// <summary>
-/// Accès aux serveurs d'un compte : lecture, et seulement les drapeaux lu / non lu et étoile côté serveur ; aucun envoi.
-/// Les erreurs de connexion arrivent en <see cref="MailConnectionException"/>.
+/// Accès aux serveurs d'un compte : lecture, drapeaux lu / non lu et étoile, copies dans Brouillons et Envoyés, et
+/// l'envoi, uniquement par <see cref="SendAsync"/> (appelé seulement par le bouton Envoyer). Les erreurs de connexion
+/// arrivent en <see cref="MailConnectionException"/>.
 /// </summary>
 public interface IMailService
 {
@@ -26,6 +27,30 @@ public interface IMailService
     /// <summary>Marque un mail lu ou non lu, avec ou sans étoile (<c>null</c> : inchangé).</summary>
     Task SetFlagsAsync(Account account, string folder, uint uid, bool? seen, bool? flagged, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Envoie un mail par le serveur SMTP du compte, puis en garde une copie dans le dossier Envoyés (sauf chez les
+    /// fournisseurs qui le font eux-mêmes). Seul le bouton Envoyer y mène.
+    /// </summary>
+    Task<SendOutcome> SendAsync(Account account, MimeKit.MimeMessage message, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Copie un brouillon dans le dossier Brouillons du serveur et retire sa copie précédente (par son UID seulement).
+    /// </summary>
+    /// <returns>La copie, ou <c>null</c> si le serveur n'a pas de dossier Brouillons.</returns>
+    Task<ServerCopy?> SaveDraftAsync(Account account, MimeKit.MimeMessage message, ServerCopy? previous, CancellationToken cancellationToken = default);
+
+    /// <summary>Retire un brouillon du serveur (envoyé ou abandonné), par son UID seulement.</summary>
+    Task DeleteDraftAsync(Account account, ServerCopy copy, CancellationToken cancellationToken = default);
+
     /// <summary>Ferme la connexion gardée ouverte pour ce compte (compte supprimé, fermeture de l'application).</summary>
     Task DisconnectAsync(string accountId);
 }
+
+/// <summary>Un mail copié dans un dossier du serveur.</summary>
+/// <param name="Uid">UID donné par le serveur (extension UIDPLUS), sinon <c>null</c>.</param>
+public sealed record ServerCopy(string Folder, uint? Uid);
+
+/// <summary>Résultat d'un envoi : le mail est parti ; sa copie dans Envoyés a-t-elle été faite ?</summary>
+/// <param name="SentCopy">Dossier où la copie a été rangée, <c>null</c> si elle n'a pas pu l'être.</param>
+/// <param name="ServerKeepsCopy">Le fournisseur range lui-même les mails envoyés (Gmail, Outlook.com).</param>
+public sealed record SendOutcome(string? SentCopy, bool ServerKeepsCopy = false);

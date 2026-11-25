@@ -13,6 +13,22 @@ internal sealed class FileDialogs : IFileDialogs
     /// <summary>Test de fumée : dossier où « choisir » l'emplacement sans ouvrir le sélecteur.</summary>
     public string? SmokeDirectory { get; set; }
 
+    /// <summary>Test de fumée : fichiers « choisis » à joindre, sans ouvrir le sélecteur.</summary>
+    public List<string> SmokeAttachments { get; } = [];
+
+    public async Task<IReadOnlyList<string>> PickFilesToAttachAsync()
+    {
+        if (SmokeDirectory is not null)
+        {
+            return [.. SmokeAttachments];
+        }
+
+        var picker = new FileOpenPicker(WindowId) { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
+        picker.FileTypeFilter.Add("*");
+        var results = await picker.PickMultipleFilesAsync();
+        return results is null ? [] : [.. results.Select(r => r.Path)];
+    }
+
     public async Task<string?> PickSaveLocationAsync(string suggestedFileName)
     {
         if (SmokeDirectory is { } smoke)

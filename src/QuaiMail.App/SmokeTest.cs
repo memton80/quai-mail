@@ -293,6 +293,7 @@ internal static class SmokeTest
         await CaptureAsync(hwnd, directory, "8-boite-de-reception.png", report);
 
         await ReadingAsync(window, services, dialogs, hwnd, directory, report);
+        await ComposeAsync(window, services, dialogs, hwnd, directory, report);
 
         await WithTimeout(messages.LoadMoreCommand.ExecuteAsync(null), "mails plus anciens");
         Check(messages.Messages.Count == 2 * MessageListViewModel.PageSize, $"page suivante : {messages.Messages.Count} mails");
@@ -406,6 +407,79 @@ internal static class SmokeTest
         Check(messages.Messages[0] is { IsFlagged: true, IsRead: false }, "étoile et non lu dans la liste");
         Check(mail.FlagChanges.Contains((SmokeMailService.TrappedUid, null, true)) && mail.FlagChanges.Contains((SmokeMailService.TrappedUid, false, null)), "drapeaux envoyés au serveur");
         report.Add("Lu / non lu et étoile : OK");
+    }
+
+    /// <summary>
+    /// Écrire (serveur de test en mémoire, aucun réseau, rien n'est acheminé) : réponse au mail lu (destinataire, objet,
+    /// citation) puis « Garder ce brouillon ? » → Supprimer, transfert avec ses pièces jointes, nouveau message avec une
+    /// pièce jointe, brouillon enregistré en local et copié dans Brouillons, destinataire invalide refusé, puis envoi par
+    /// le bouton Envoyer : copie dans Envoyés, brouillon effacé partout.
+    /// </summary>
+    private static async Task ComposeAsync(MainWindow window, IServiceProvider services, DialogService dialogs, IntPtr hwnd, string directory, List<string> report)
+    {
+        var composer = window.Composer;
+        var reader = window.Reader.Reader;
+        var mail = (SmokeMailService)services.GetRequiredService<IMailService>();
+        var drafts = services.GetRequiredService<DraftStore>();
+        var files = services.GetRequiredService<FileDialogs>();
+        Check(reader is { Content: not null, Account: not null }, "un mail ouvert est attendu pour y répondre");
+        var account = reader.Account!;
+
+        // Réponse.
+        Check(await WithTimeout(composer.ReplyAsync(reader.Content!, account, all: false), "réponse"), "réponse non préparée");
+        Check(composer is { IsOpen: true, To: "Service client <contact1@example.org>", Subject: "Re: Votre facture de novembre" }, $"réponse : « {composer.To} » / « {composer.Subject} »");
+        Check(composer.Body.Contains("> Votre facture de novembre.", StringComparison.Ordinal), "citation du mail d'origine");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "13-reponse.png", report);
+        await DiscardAsync(composer, dialogs);
+
+        // Transfert : les pièces jointes suivent.
+        Check(await WithTimeout(composer.ForwardAsync(reader.Content!, account), "transfert"), "transfert non préparé");
+        Check(composer is { Subject: "TR: Votre facture de novembre", To: "" } && composer.Attachments.Count == 2, $"transfert : « {composer.Subject} », {composer.Attachments.Count} pièce(s) jointe(s)");
+        await DiscardAsync(composer, dialogs);
+        Check(mail.Sent.Count == 0, "rien ne doit être envoyé sans le bouton Envoyer");
+        report.Add("Réponse et transfert : préparés (destinataire, objet, citation, pièces jointes), supprimés sans rien envoyer");
+
+        // Nouveau message, avec une pièce jointe.
+        Check(await WithTimeout(composer.NewAsync(account.Id), "nouveau message"), "nouveau message non ouvert");
+        composer.To = "pas-une-adresse";
+        composer.Subject = "Test d'envoi de Quai Mail";
+        composer.Body = "Bonjour,\nceci est un test (aucun réseau, rien n'est acheminé).";
+        var file = Path.Combine(directory, "piece-jointe.txt");
+        File.WriteAllText(file, "pièce jointe de test");
+        files.SmokeAttachments.Add(file);
+        await WithTimeout(composer.AttachCommand.ExecuteAsync(null), "pièce jointe");
+        Check(composer.Attachments.Count == 1, "pièce jointe ajoutée");
+        await WithTimeout(composer.AutoSaveAsync(), "enregistrement automatique");
+        var draftId = composer.Draft!.Id;
+        Check(drafts.Load(draftId)?.Subject == "Test d'envoi de Quai Mail", "brouillon enregistré en local");
+        Check(mail.SavedDrafts.Count >= 1, "brouillon copié dans Brouillons");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "14-nouveau-message.png", report);
+
+        await WithTimeout(composer.SendCommand.ExecuteAsync(null), "envoi refusé");
+        Check(composer.HasError && composer.IsOpen && mail.Sent.Count == 0, "un destinataire invalide doit tout arrêter");
+
+        composer.To = "Destinataire <destinataire@example.org>";
+        await WithTimeout(composer.SendCommand.ExecuteAsync(null), "envoi");
+        var sent = mail.Sent.SingleOrDefault() ?? throw new InvalidOperationException("Vérification en échec : aucun mail envoyé");
+        Check(sent.To.Mailboxes.Single().Address == "destinataire@example.org" && sent.Attachments.Count() == 1, "mail envoyé incomplet");
+        Check(!composer.IsOpen && drafts.Load(draftId) is null && mail.DeletedDrafts.Count >= 1, "brouillon non effacé après l'envoi");
+        Check(composer.ShowSent, "bandeau « Mail envoyé » absent");
+        await Task.Delay(600);
+        await CaptureAsync(hwnd, directory, "15-envoye.png", report);
+        composer.ShowSent = false;
+        report.Add("Nouveau message : brouillon enregistré (local et Brouillons), destinataire invalide refusé, envoyé par le bouton Envoyer, brouillon effacé");
+    }
+
+    /// <summary>Ferme le message en cours : « Garder ce brouillon ? » → Supprimer.</summary>
+    private static async Task DiscardAsync(ComposerViewModel composer, DialogService dialogs)
+    {
+        var closing = composer.CloseCommand.ExecuteAsync(null);
+        await WaitForAsync(() => dialogs.Current is not null, "« Garder ce brouillon ? »");
+        dialogs.Choose(ContentDialogResult.Secondary);
+        await WithTimeout(closing, "brouillon supprimé");
+        Check(!composer.IsOpen, "message encore ouvert après « Supprimer »");
     }
 
     /// <summary>Bandeau de mise à jour : une release plus récente (fictive, sans réseau) l'affiche.</summary>

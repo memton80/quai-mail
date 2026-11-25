@@ -94,6 +94,16 @@ internal static class AppServices
         }
 
         services.AddSingleton<ReaderViewModel>();
+        services.AddSingleton(provider => new ComposerViewModel(
+            provider.GetRequiredService<AccountStore>(),
+            provider.GetRequiredService<DraftStore>(),
+            provider.GetRequiredService<IMailService>(),
+            provider.GetRequiredService<ShellViewModel>(),
+            provider.GetRequiredService<IDialogService>(),
+            provider.GetRequiredService<IFileDialogs>(),
+            provider.GetRequiredService<IStrings>(),
+            TimeProvider.System,
+            provider.GetService<ILogger<ComposerViewModel>>()));
         services.AddTransient<AccountEditorViewModel>();
 
         // Mises à jour (comme Quai) : une requête à l'API publique de GitHub, puis, sur demande, le téléchargement de

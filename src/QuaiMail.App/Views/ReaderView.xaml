@@ -35,6 +35,30 @@
             </StackPanel>
             <StackPanel Grid.Column="1" Style="{StaticResource ReaderActionsStyle}">
                 <Button
+                    AutomationProperties.Name="{l:Str Key=Reader_Reply}"
+                    Click="OnReplyClick"
+                    IsEnabled="{x:Bind ui:UiHelpers.IsSet(Reader.Content), Mode=OneWay}"
+                    Style="{StaticResource ReaderActionButtonStyle}"
+                    ToolTipService.ToolTip="{l:Str Key=Reader_Reply}">
+                    <FontIcon Glyph="&#xE8CA;" Style="{StaticResource ButtonIconStyle}" />
+                </Button>
+                <Button
+                    AutomationProperties.Name="{l:Str Key=Reader_ReplyAll}"
+                    Click="OnReplyAllClick"
+                    IsEnabled="{x:Bind ui:UiHelpers.IsSet(Reader.Content), Mode=OneWay}"
+                    Style="{StaticResource ReaderActionButtonStyle}"
+                    ToolTipService.ToolTip="{l:Str Key=Reader_ReplyAll}">
+                    <FontIcon Glyph="&#xE8C2;" Style="{StaticResource ButtonIconStyle}" />
+                </Button>
+                <Button
+                    AutomationProperties.Name="{l:Str Key=Reader_Forward}"
+                    Click="OnForwardClick"
+                    IsEnabled="{x:Bind ui:UiHelpers.IsSet(Reader.Content), Mode=OneWay}"
+                    Style="{StaticResource ReaderActionButtonStyle}"
+                    ToolTipService.ToolTip="{l:Str Key=Reader_Forward}">
+                    <FontIcon Glyph="&#xE89C;" Style="{StaticResource ButtonIconStyle}" />
+                </Button>
+                <Button
                     AutomationProperties.Name="{x:Bind ui:UiHelpers.ReadToggleText(Reader.IsRead), Mode=OneWay}"
                     Command="{x:Bind Reader.ToggleReadCommand}"
                     Style="{StaticResource ReaderActionButtonStyle}"

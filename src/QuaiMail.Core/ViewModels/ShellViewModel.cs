@@ -188,6 +188,23 @@ public sealed partial class ShellViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>
+    /// Démarrage normal : le brouillon gardé le plus récent (« Garder » en quittant, ou fermeture brutale) est rouvert,
+    /// comme promis par la question « Garder ce brouillon ? ».
+    /// </summary>
+    /// <returns><c>true</c> si un brouillon a été rouvert.</returns>
+    public bool ReopenKeptDraft()
+    {
+        if (CurrentDraft is not null || _drafts.List().FirstOrDefault(d => !d.IsEmpty) is not { } draft)
+        {
+            return false;
+        }
+
+        CurrentDraft = draft;
+        _logger.LogInformation("Brouillon gardé rouvert au démarrage");
+        return true;
+    }
+
     private static string Has(string? value) => value is null ? "non" : "oui";
 
     private void DeleteQuietly(string id)

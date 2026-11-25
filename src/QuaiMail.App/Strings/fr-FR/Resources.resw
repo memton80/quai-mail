@@ -422,4 +422,91 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="Size_Megabytes" xml:space="preserve">
     <value>{0} Mo</value>
   </data>
+  <data name="Toolbar_NewMessage" xml:space="preserve">
+    <value>Nouveau message</value>
+  </data>
+  <data name="Toolbar_NewMessageTooltip" xml:space="preserve">
+    <value>Écrire un nouveau message (Ctrl+N)</value>
+  </data>
+  <data name="Reader_Reply" xml:space="preserve">
+    <value>Répondre</value>
+  </data>
+  <data name="Reader_ReplyAll" xml:space="preserve">
+    <value>Répondre à tous</value>
+  </data>
+  <data name="Reader_Forward" xml:space="preserve">
+    <value>Transférer</value>
+  </data>
+  <data name="Composer_Send" xml:space="preserve">
+    <value>Envoyer</value>
+  </data>
+  <data name="Composer_SendTooltip" xml:space="preserve">
+    <value>Envoyer ce message maintenant</value>
+  </data>
+  <data name="Composer_Attach" xml:space="preserve">
+    <value>Joindre</value>
+  </data>
+  <data name="Composer_Close" xml:space="preserve">
+    <value>Fermer le message</value>
+  </data>
+  <data name="Composer_From" xml:space="preserve">
+    <value>De</value>
+  </data>
+  <data name="Composer_To" xml:space="preserve">
+    <value>À</value>
+  </data>
+  <data name="Composer_ToPlaceholder" xml:space="preserve">
+    <value>Adresses séparées par des virgules</value>
+  </data>
+  <data name="Composer_Copies" xml:space="preserve">
+    <value>Cc / Cci</value>
+  </data>
+  <data name="Composer_Cc" xml:space="preserve">
+    <value>Cc</value>
+  </data>
+  <data name="Composer_Bcc" xml:space="preserve">
+    <value>Cci (copie cachée)</value>
+  </data>
+  <data name="Composer_Subject" xml:space="preserve">
+    <value>Objet</value>
+  </data>
+  <data name="Composer_Body" xml:space="preserve">
+    <value>Texte du message</value>
+  </data>
+  <data name="Composer_RemoveAttachment" xml:space="preserve">
+    <value>Retirer cette pièce jointe</value>
+  </data>
+  <data name="Composer_RemoveAttachmentName" xml:space="preserve">
+    <value>Retirer {0}</value>
+  </data>
+  <data name="Composer_SavedLocal" xml:space="preserve">
+    <value>Brouillon enregistré à {0}</value>
+  </data>
+  <data name="Composer_SavedServer" xml:space="preserve">
+    <value>Brouillon enregistré à {0}, aussi dans Brouillons</value>
+  </data>
+  <data name="Composer_SavedLocalOnly" xml:space="preserve">
+    <value>Brouillon enregistré sur cet ordinateur à {0} (serveur injoignable)</value>
+  </data>
+  <data name="Composer_SaveFailed" xml:space="preserve">
+    <value>Brouillon non enregistré : vérifiez l'espace disque.</value>
+  </data>
+  <data name="Composer_NoAccount" xml:space="preserve">
+    <value>Choisissez le compte d'envoi.</value>
+  </data>
+  <data name="Composer_NoRecipient" xml:space="preserve">
+    <value>Ajoutez au moins un destinataire.</value>
+  </data>
+  <data name="Composer_InvalidRecipients" xml:space="preserve">
+    <value>Adresses invalides : {0}</value>
+  </data>
+  <data name="Composer_Sent" xml:space="preserve">
+    <value>Mail envoyé.</value>
+  </data>
+  <data name="Composer_SentNoCopy" xml:space="preserve">
+    <value>Mail envoyé (sa copie n'a pas pu être rangée dans Envoyés).</value>
+  </data>
+  <data name="Composer_AttachFailed" xml:space="preserve">
+    <value>« {0} » n'a pas pu être joint.</value>
+  </data>
 </root>

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="QuaiMail.App.Views.ComposerView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:accounts="using:QuaiMail.Core.Accounts"
+    xmlns:drafts="using:QuaiMail.Core.Drafts"
+    xmlns:l="using:QuaiMail.App.Localization"
+    xmlns:ui="using:QuaiMail.App">
+
+    <Grid Style="{StaticResource ComposerStyle}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Actions : Envoyer (le seul chemin d'envoi), joindre, fermer. -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button
+                x:Name="SendButton"
+                AutomationProperties.Name="{l:Str Key=Composer_Send}"
+                Command="{x:Bind Composer.SendCommand}"
+                Style="{StaticResource ComposerSendButtonStyle}"
+                ToolTipService.ToolTip="{l:Str Key=Composer_SendTooltip}">
+                <StackPanel Style="{StaticResource ButtonContentStyle}">
+                    <FontIcon Glyph="&#xE724;" Style="{StaticResource ButtonIconStyle}" />
+                    <TextBlock Text="{l:Str Key=Composer_Send}" />
+                </StackPanel>
+            </Button>
+            <Button
+                Grid.Column="1"
+                AutomationProperties.Name="{l:Str Key=Composer_Attach}"
+                Command="{x:Bind Composer.AttachCommand}"
+                Style="{StaticResource ComposerButtonStyle}"
+                ToolTipService.ToolTip="{l:Str Key=Composer_Attach}">
+                <StackPanel Style="{StaticResource ButtonContentStyle}">
+                    <FontIcon Glyph="&#xE723;" Style="{StaticResource ButtonIconStyle}" />
+                    <TextBlock Text="{l:Str Key=Composer_Attach}" />
+                </StackPanel>
+            </Button>
+            <TextBlock
+                Grid.Column="2"
+                Style="{StaticResource ComposerStatusStyle}"
+                Text="{x:Bind Composer.Status, Mode=OneWay}" />
+            <Button
+                Grid.Column="3"
+                AutomationProperties.Name="{l:Str Key=Composer_Close}"
+                Command="{x:Bind Composer.CloseCommand}"
+                Style="{StaticResource ReaderActionButtonStyle}"
+                ToolTipService.ToolTip="{l:Str Key=Composer_Close}">
+                <FontIcon Glyph="&#xE711;" Style="{StaticResource ButtonIconStyle}" />
+            </Button>
+        </Grid>
+
+        <InfoBar
+            Grid.Row="1"
+            IsClosable="False"
+            IsOpen="{x:Bind Composer.HasError, Mode=OneWay}"
+            Message="{x:Bind Composer.ErrorMessage, Mode=OneWay}"
+            Severity="Error" />
+
+        <!-- En-têtes du message. -->
+        <StackPanel Grid.Row="2" Style="{StaticResource ComposerFieldsStyle}">
+            <ComboBox
+                Header="{l:Str Key=Composer_From}"
+                ItemsSource="{x:Bind Composer.Accounts}"
+                SelectedIndex="{x:Bind Composer.AccountIndex, Mode=TwoWay}"
+                Style="{StaticResource ComposerFromStyle}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="accounts:Account">
+                        <TextBlock Text="{x:Bind ui:UiHelpers.AccountLine(Title, Address)}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Grid Style="{StaticResource ServerRowStyle}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox
+                    x:Name="ToBox"
+                    Header="{l:Str Key=Composer_To}"
+                    InputScope="EmailSmtpAddress"
+                    PlaceholderText="{l:Str Key=Composer_ToPlaceholder}"
+                    Text="{x:Bind Composer.To, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <ToggleButton
+                    Grid.Column="1"
+                    Content="{l:Str Key=Composer_Copies}"
+                    IsChecked="{x:Bind Composer.ShowCopies, Mode=TwoWay}"
+                    Style="{StaticResource ComposerCopiesToggleStyle}" />
+            </Grid>
+            <TextBox
+                Header="{l:Str Key=Composer_Cc}"
+                InputScope="EmailSmtpAddress"
+                Text="{x:Bind Composer.Cc, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                Visibility="{x:Bind ui:UiHelpers.VisibleIf(Composer.ShowCopies), Mode=OneWay}" />
+            <TextBox
+                Header="{l:Str Key=Composer_Bcc}"
+                InputScope="EmailSmtpAddress"
+                Text="{x:Bind Composer.Bcc, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                Visibility="{x:Bind ui:UiHelpers.VisibleIf(Composer.ShowCopies), Mode=OneWay}" />
+            <TextBox Header="{l:Str Key=Composer_Subject}" Text="{x:Bind Composer.Subject, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        </StackPanel>
+
+        <!-- Texte du message (texte brut). -->
+        <TextBox
+            x:Name="BodyBox"
+            Grid.Row="3"
+            AutomationProperties.Name="{l:Str Key=Composer_Body}"
+            Style="{StaticResource ComposerBodyStyle}"
+            Text="{x:Bind Composer.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+        <!-- Pièces jointes (copiées dans le brouillon). -->
+        <ScrollViewer
+            Grid.Row="4"
+            Style="{StaticResource AttachmentsScrollerStyle}"
+            Visibility="{x:Bind ui:UiHelpers.VisibleIf(Composer.HasAttachments), Mode=OneWay}">
+            <ItemsRepeater ItemsSource="{x:Bind Composer.Attachments}">
+                <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="8" />
+                </ItemsRepeater.Layout>
+                <ItemsRepeater.ItemTemplate>
+                    <DataTemplate x:DataType="drafts:DraftAttachment">
+                        <Button
+                            AutomationProperties.Name="{x:Bind ui:UiHelpers.RemoveAttachmentName(FileName)}"
+                            Click="OnRemoveAttachmentClick"
+                            Style="{StaticResource AttachmentButtonStyle}"
+                            ToolTipService.ToolTip="{l:Str Key=Composer_RemoveAttachment}">
+                            <StackPanel Style="{StaticResource ButtonContentStyle}">
+                                <FontIcon Glyph="&#xE723;" Style="{StaticResource ButtonIconStyle}" />
+                                <TextBlock Style="{StaticResource AttachmentNameStyle}" Text="{x:Bind FileName}" />
+                                <TextBlock Style="{StaticResource AttachmentSizeStyle}" Text="{x:Bind ui:UiHelpers.FileSize(Size)}" />
+                                <FontIcon Glyph="&#xE711;" Style="{StaticResource SmallIconStyle}" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsRepeater.ItemTemplate>
+            </ItemsRepeater>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

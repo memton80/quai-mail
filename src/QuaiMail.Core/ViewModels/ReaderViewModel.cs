@@ -32,6 +32,7 @@ public sealed partial class ReaderViewModel : ObservableObject
     private string? _folder;
     private MessageHeader? _header;
     private bool _imagesAllowed;
+    private MessageContent? _content;
 
     public ReaderViewModel(
         IMailService mail,
@@ -64,8 +65,15 @@ public sealed partial class ReaderViewModel : ObservableObject
     /// <summary>Lu / non lu ou étoile changé : la liste et le cache suivent.</summary>
     public event EventHandler<MessageHeader>? HeaderChanged;
 
-    /// <summary>Mail affiché (pour servir ses images jointes à la WebView2).</summary>
-    public MessageContent? Content { get; private set; }
+    /// <summary>Compte du mail affiché (pour y répondre).</summary>
+    public Account? Account => _account;
+
+    /// <summary>Mail affiché (pour servir ses images jointes à la WebView2, et y répondre).</summary>
+    public MessageContent? Content
+    {
+        get => _content;
+        private set => SetProperty(ref _content, value);
+    }
 
     /// <summary>Page HTML complète à afficher (gabarit, politique CSP, corps nettoyé).</summary>
     public string? Page { get; private set; }

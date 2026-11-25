@@ -78,6 +78,37 @@ internal sealed class SmokeMailService : IMailService
         return Task.CompletedTask;
     }
 
+    /// <summary>Mails « envoyés » (gardés en mémoire, jamais acheminés : aucun réseau pendant le test de fumée).</summary>
+    public List<MimeMessage> Sent { get; } = [];
+
+    public List<ServerCopy> SavedDrafts { get; } = [];
+
+    public List<ServerCopy> DeletedDrafts { get; } = [];
+
+    public Task<SendOutcome> SendAsync(Account account, MimeMessage message, CancellationToken cancellationToken = default)
+    {
+        Sent.Add(message);
+        return Task.FromResult(new SendOutcome("Envoyés"));
+    }
+
+    public Task<ServerCopy?> SaveDraftAsync(Account account, MimeMessage message, ServerCopy? previous, CancellationToken cancellationToken = default)
+    {
+        if (previous is not null)
+        {
+            DeletedDrafts.Add(previous);
+        }
+
+        var copy = new ServerCopy("Brouillons", (uint)(SavedDrafts.Count + 1));
+        SavedDrafts.Add(copy);
+        return Task.FromResult<ServerCopy?>(copy);
+    }
+
+    public Task DeleteDraftAsync(Account account, ServerCopy copy, CancellationToken cancellationToken = default)
+    {
+        DeletedDrafts.Add(copy);
+        return Task.CompletedTask;
+    }
+
     public Task DisconnectAsync(string accountId) => Task.CompletedTask;
 
     /// <summary>

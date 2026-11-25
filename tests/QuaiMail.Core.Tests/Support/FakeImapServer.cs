@@ -8,6 +8,10 @@ namespace QuaiMail.Core.Tests.Support;
 /// <summary>Un mail du faux serveur.</summary>
 public sealed record FakeMessage(uint Uid, string Subject, string FromName, string FromAddress, DateTimeOffset Date, bool Seen = false, bool Flagged = false, int Size = 1200)
 {
+    public bool Deleted { get; init; }
+
+    public bool Draft { get; init; }
+
     /// <summary>Mail complet (MIME) ; à défaut, un simple mail texte est fabriqué.</summary>
     public byte[]? Raw { get; init; }
 
@@ -161,6 +165,30 @@ public sealed partial class FakeImapServer : FakeServer
                     await connection.WriteAsync(Fetch(selected, args[1], byUid: true) + $"{tag} OK UID FETCH terminé\r\n", cancellationToken);
                     break;
 
+                case "APPEND" when authenticated && args.Count >= 3 && Find(args[1]) is { } target:
+                    var appended = Append(target, args);
+                    await connection.WriteAsync($"{tag} OK [APPENDUID {target.UidValidity} {appended}] APPEND terminé\r\n", cancellationToken);
+                    break;
+
+                case "UID EXPUNGE" when selected is not null && args.Count >= 2:
+                    var max = selected.Messages.Count == 0 ? 0 : selected.Messages.Max(m => m.Uid);
+                    for (var i = selected.Messages.Count - 1; i >= 0; i--)
+                    {
+                        if (selected.Messages[i].Deleted && InSet(args[1], selected.Messages[i].Uid, max))
+                        {
+                            await connection.WriteAsync($"* {i + 1} EXPUNGE\r\n", cancellationToken);
+                            selected.Messages.RemoveAt(i);
+                        }
+                    }
+
+                    await connection.WriteAsync($"{tag} OK UID EXPUNGE terminé\r\n", cancellationToken);
+                    break;
+
+                case "EXPUNGE" when selected is not null:
+                    // Effacement général : noté (les tests vérifient qu'il n'est jamais demandé), puis refusé.
+                    await connection.WriteAsync($"{tag} NO EXPUNGE général refusé par le faux serveur\r\n", cancellationToken);
+                    break;
+
                 case "CLOSE" or "UNSELECT" when selected is not null:
                     selected = null;
                     await connection.WriteAsync($"{tag} OK {command} terminé\r\n", cancellationToken);
@@ -175,7 +203,7 @@ public sealed partial class FakeImapServer : FakeServer
 
     private static string Capabilities(Connection connection, bool authenticated) =>
         !connection.IsTls ? "IMAP4rev1 STARTTLS LOGINDISABLED"
-        : authenticated ? "IMAP4rev1 UNSELECT"
+        : authenticated ? "IMAP4rev1 UNSELECT UIDPLUS"
         : "IMAP4rev1 AUTH=PLAIN SASL-IR";
 
     private bool CheckPlain(string base64)
@@ -244,6 +272,24 @@ public sealed partial class FakeImapServer : FakeServer
         return builder.ToString();
     }
 
+    /// <summary>APPEND dossier [(drapeaux)] [date] message : le mail est ajouté avec un nouvel UID.</summary>
+    private static uint Append(FakeFolder folder, List<string> args)
+    {
+        var raw = args[^1];
+        var flags = args.Skip(2).Take(args.Count - 3).FirstOrDefault(a => a.StartsWith('(')) ?? string.Empty;
+        var bytes = Encoding.UTF8.GetBytes(raw);
+        var mime = MimeKit.MimeMessage.Load(new MemoryStream(bytes));
+        var from = mime.From.Mailboxes.FirstOrDefault();
+        var uid = folder.Messages.Count == 0 ? 1 : folder.Messages.Max(m => m.Uid) + 1;
+        folder.Messages.Add(new FakeMessage(uid, mime.Subject ?? string.Empty, from?.Name ?? string.Empty, from?.Address ?? "inconnu@example.org", mime.Date,
+            Seen: flags.Contains("\\Seen", StringComparison.OrdinalIgnoreCase), Size: bytes.Length)
+        {
+            Raw = bytes,
+            Draft = flags.Contains("\\Draft", StringComparison.OrdinalIgnoreCase),
+        });
+        return uid;
+    }
+
     private static async Task WriteBodiesAsync(Connection connection, FakeFolder folder, string set, CancellationToken cancellationToken)
     {
         var max = folder.Messages.Count == 0 ? 0 : folder.Messages.Max(m => m.Uid);
@@ -276,10 +322,12 @@ public sealed partial class FakeImapServer : FakeServer
 
             var seen = flags.Contains("\\Seen", StringComparison.OrdinalIgnoreCase);
             var flagged = flags.Contains("\\Flagged", StringComparison.OrdinalIgnoreCase);
+            var deleted = flags.Contains("\\Deleted", StringComparison.OrdinalIgnoreCase);
             folder.Messages[index] = message with
             {
                 Seen = seen ? add || (!remove && message.Seen) : message.Seen,
                 Flagged = flagged ? add || (!remove && message.Flagged) : message.Flagged,
+                Deleted = deleted ? add || (!remove && message.Deleted) : message.Deleted,
             };
         }
     }

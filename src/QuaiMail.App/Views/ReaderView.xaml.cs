@@ -373,6 +373,27 @@ public sealed partial class ReaderView : UserControl
         }
     }
 
+    private void OnReplyClick(object sender, RoutedEventArgs e) => Respond(c => c.ReplyAsync(Reader.Content!, Reader.Account!, all: false));
+
+    private void OnReplyAllClick(object sender, RoutedEventArgs e) => Respond(c => c.ReplyAsync(Reader.Content!, Reader.Account!, all: true));
+
+    private void OnForwardClick(object sender, RoutedEventArgs e) => Respond(c => c.ForwardAsync(Reader.Content!, Reader.Account!));
+
+    private async void Respond(Func<ComposerViewModel, Task<bool>> action)
+    {
+        try
+        {
+            if (Reader.Content is not null && Reader.Account is not null)
+            {
+                await action(App.Current.Services.GetRequiredService<ComposerViewModel>());
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Réponse impossible à préparer");
+        }
+    }
+
     private async void OnAttachmentClick(object sender, RoutedEventArgs e)
     {
         try

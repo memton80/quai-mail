@@ -19,6 +19,8 @@ public sealed partial class MainWindow : Window
     private readonly DialogService _dialogs;
     private readonly SettingsViewModel _settings;
 
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _autoSave;
+
     // Fermeture : question en cours, puis fermeture accordée (brouillon gardé ou supprimé).
     private bool _closeRequested;
     private bool _closeAllowed;
@@ -29,6 +31,7 @@ public sealed partial class MainWindow : Window
         Shell = _services.GetRequiredService<ShellViewModel>();
         Updates = _services.GetRequiredService<UpdateBannerViewModel>();
         Mailbox = _services.GetRequiredService<MailboxViewModel>();
+        Composer = _services.GetRequiredService<ComposerViewModel>();
         _settings = _services.GetRequiredService<SettingsViewModel>();
         _dialogs = _services.GetRequiredService<DialogService>();
         _logger = _services.GetRequiredService<ILogger<MainWindow>>();
@@ -52,6 +55,25 @@ public sealed partial class MainWindow : Window
 
         AppWindow.Closing += OnClosing;
         Closed += (_, _) => ReaderPane.Shutdown();
+
+        // Brouillon enregistré en local toutes les 5 secondes (et copié sur le serveur toutes les 30 s).
+        _autoSave = DispatcherQueue.CreateTimer();
+        _autoSave.Interval = TimeSpan.FromSeconds(5);
+        _autoSave.Tick += async (_, _) =>
+        {
+            try
+            {
+                if (Composer.IsOpen)
+                {
+                    await Composer.AutoSaveAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Enregistrement automatique du brouillon interrompu");
+            }
+        };
+        _autoSave.Start();
         ResizeForDpi(1240, 820);
     }
 
@@ -63,6 +85,9 @@ public sealed partial class MainWindow : Window
 
     /// <summary>Volet des comptes et dossiers.</summary>
     public MailboxViewModel Mailbox { get; }
+
+    /// <summary>Message en cours d'écriture.</summary>
+    public ComposerViewModel Composer { get; }
 
     /// <summary>Liste des mails du dossier choisi.</summary>
     public MessageListViewModel Messages => Mailbox.Messages;
@@ -109,6 +134,12 @@ public sealed partial class MainWindow : Window
             if (!await Shell.ConfirmCloseDraftAsync())
             {
                 return;
+            }
+
+            // Gardé : aussi dans Brouillons du serveur (au mieux, sans faire attendre plus de 10 s).
+            if (Shell.HasDraft)
+            {
+                await Task.WhenAny(Composer.SyncServerAsync(), Task.Delay(TimeSpan.FromSeconds(10)));
             }
         }
         catch (Exception ex)
@@ -157,6 +188,18 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             _logger.LogError(ex, "Réglages impossibles à afficher");
+        }
+    }
+
+    private async void OnNewMessageClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await Composer.NewAsync(Mailbox.Messages.AccountId ?? Mailbox.SelectedItem?.AccountId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Nouveau message impossible");
         }
     }
 

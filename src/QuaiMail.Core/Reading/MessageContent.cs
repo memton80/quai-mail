@@ -25,6 +25,12 @@ public sealed class MessageContent
         FromAddress = from?.Address ?? string.Empty;
         To = Describe(message.To);
         Cc = Describe(message.Cc);
+        ReplyTo = Describe(message.ReplyTo);
+        MessageId = message.MessageId;
+        References = [.. message.References];
+        ToAddresses = [.. message.To.Mailboxes.Select(m => new MailboxAddress(m.Name, m.Address))];
+        CcAddresses = [.. message.Cc.Mailboxes.Select(m => new MailboxAddress(m.Name, m.Address))];
+        ReplyToAddresses = [.. message.ReplyTo.Mailboxes.Select(m => new MailboxAddress(m.Name, m.Address))];
         Date = message.Date;
         Html = message.HtmlBody;
         Text = message.TextBody;
@@ -62,6 +68,20 @@ public sealed class MessageContent
     public string To { get; }
 
     public string Cc { get; }
+
+    /// <summary>Adresse de réponse demandée par l'expéditeur (vide si aucune).</summary>
+    public string ReplyTo { get; }
+
+    /// <summary>Identifiant du mail (Message-Id, sans chevrons), pour le fil des réponses.</summary>
+    public string? MessageId { get; }
+
+    public IReadOnlyList<string> References { get; }
+
+    public IReadOnlyList<MailboxAddress> ToAddresses { get; }
+
+    public IReadOnlyList<MailboxAddress> CcAddresses { get; }
+
+    public IReadOnlyList<MailboxAddress> ReplyToAddresses { get; }
 
     public DateTimeOffset Date { get; }
 

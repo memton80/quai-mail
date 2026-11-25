@@ -79,6 +79,12 @@ public partial class App : Application
             RestoreAfterUpdate();
         }
 
+        if (_smokeTestDirectory is null && _updateTestDirectory is null)
+        {
+            // Brouillon gardé en quittant (ou après une fermeture brutale) : rouvert, comme promis.
+            ReopenKeptDraft();
+        }
+
         // Comptes et dossiers : le cache tout de suite, puis les serveurs (après la restauration, qui choisit le dossier).
         _ = LoadMailboxAsync();
 
@@ -118,6 +124,18 @@ public partial class App : Application
         catch (Exception ex)
         {
             _logger.LogError(ex, "Chargement des comptes impossible");
+        }
+    }
+
+    private void ReopenKeptDraft()
+    {
+        try
+        {
+            Services.GetRequiredService<ShellViewModel>().ReopenKeptDraft();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Brouillon gardé non rouvert");
         }
     }
 

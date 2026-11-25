@@ -70,4 +70,12 @@ public static class UiHelpers
         < 1024 * 1024 => Loc.Format("Size_Kilobytes", Math.Max(1, (int)Math.Round(bytes / 1024.0))),
         _ => Loc.Format("Size_Megabytes", Math.Round(bytes / (1024.0 * 1024.0), 1)),
     };
+
+    /// <summary>« Alice Martin (alice@example.org) », ou l'adresse seule.</summary>
+    public static string AccountLine(string title, string address) =>
+        string.Equals(title, address, StringComparison.OrdinalIgnoreCase) ? address : $"{title} ({address})";
+
+    public static string RemoveAttachmentName(string fileName) => Loc.Format("Composer_RemoveAttachmentName", fileName);
+
+    public static bool IsSet(object? value) => value is not null;
 }

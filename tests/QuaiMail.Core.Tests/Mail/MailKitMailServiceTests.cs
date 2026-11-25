@@ -209,6 +209,69 @@ public sealed class MailKitMailServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Sending_goes_through_smtp_then_a_copy_is_filed_in_sent()
+    {
+        _smtp.AcceptMail = true;
+        var account = Stored();
+        var message = new MimeKit.MimeMessage([new MimeKit.MailboxAddress("Alice", "alice@example.org")], [new MimeKit.MailboxAddress("Léa", "lea@example.org")], "Bonjour", new MimeKit.TextPart("plain") { Text = "Coucou" });
+        message.Bcc.Add(new MimeKit.MailboxAddress("Cachée", "cache@example.org"));
+
+        var outcome = await _service.SendAsync(account, message, TestContext.Current.CancellationToken);
+
+        var received = Assert.Single(_smtp.Received);
+        Assert.Equal("alice@example.org", received.From);
+        Assert.Equal(["lea@example.org", "cache@example.org"], received.To);
+        Assert.DoesNotContain("cache@example.org", System.Text.Encoding.UTF8.GetString(received.Data), StringComparison.Ordinal);
+        Assert.Equal("Envoyés", outcome.SentCopy);
+        var copy = Assert.Single(_imap.Folder("Envoyés").Messages);
+        Assert.Equal("Bonjour", copy.Subject);
+        Assert.True(copy.Seen);
+    }
+
+    [Fact]
+    public async Task A_refused_send_says_why_and_files_nothing()
+    {
+        // Le faux serveur refuse tout envoi par défaut.
+        var account = Stored();
+        var message = new MimeKit.MimeMessage([new MimeKit.MailboxAddress("Alice", "alice@example.org")], [new MimeKit.MailboxAddress("Léa", "lea@example.org")], "Bonjour", new MimeKit.TextPart("plain") { Text = "Coucou" });
+
+        var error = await Assert.ThrowsAsync<MailConnectionException>(() => _service.SendAsync(account, message, TestContext.Current.CancellationToken));
+
+        Assert.Equal("SMTP", error.Protocol);
+        Assert.Empty(_imap.Folder("Envoyés").Messages);
+    }
+
+    [Fact]
+    public async Task A_draft_copy_replaces_the_previous_one_and_nothing_else()
+    {
+        var account = Stored();
+        var drafts = _imap.Folder("Brouillons");
+        // Un mail marqué supprimé par un autre logiciel : il ne doit jamais être effacé par Quai Mail.
+        drafts.Messages.Add(new FakeMessage(1, "Autre brouillon", "Alice", "alice@example.org", Newest) { Deleted = true });
+        MimeKit.MimeMessage Draft(string body) => new([new MimeKit.MailboxAddress("Alice", "alice@example.org")], [], "Brouillon", new MimeKit.TextPart("plain") { Text = body });
+
+        var first = await _service.SaveDraftAsync(account, Draft("v1"), null, TestContext.Current.CancellationToken);
+        var second = await _service.SaveDraftAsync(account, Draft("v2"), first, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new ServerCopy("Brouillons", 2), first);
+        Assert.Equal(new ServerCopy("Brouillons", 3), second);
+        Assert.Equal([1u, 3u], drafts.Messages.Select(m => m.Uid));
+        Assert.True(drafts.Messages[1].Draft);
+
+        await _service.DeleteDraftAsync(account, second!, TestContext.Current.CancellationToken);
+        Assert.Equal([1u], drafts.Messages.Select(m => m.Uid));
+        Assert.DoesNotContain(_imap.Commands, c => c.Equals("EXPUNGE", StringComparison.OrdinalIgnoreCase) || c.StartsWith("CLOSE", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Gmail_and_outlook_keep_their_own_sent_copy()
+    {
+        Assert.True(MailKitMailService.ServerKeepsSentCopy(Account() with { Smtp = new MailServer { Host = "smtp.gmail.com", Port = 465 } }));
+        Assert.True(MailKitMailService.ServerKeepsSentCopy(Account() with { Smtp = new MailServer { Host = "smtp-mail.outlook.com", Port = 587 } }));
+        Assert.False(MailKitMailService.ServerKeepsSentCopy(Account()));
+    }
+
+    [Fact]
     public async Task Without_a_stored_password_nothing_is_attempted()
     {
         var account = Account();

@@ -31,27 +31,36 @@
             Nouvelle version publiée sur GitHub (repris de Quai) : téléchargement, vérification, installation et
             redémarrage. Fermé, le bandeau est retiré de la mise en page.
         -->
-        <InfoBar
-            Grid.Row="1"
-            IsOpen="{x:Bind Updates.IsOpen, Mode=TwoWay}"
-            Message="{x:Bind Updates.Message, Mode=OneWay}"
-            Severity="{x:Bind ui:UiHelpers.WarningIf(Updates.HasFailed), Mode=OneWay}"
-            Style="{StaticResource UpdateInfoBarStyle}"
-            Title="{l:Str Key=Update_Title}"
-            Visibility="{x:Bind ui:UiHelpers.VisibleIf(Updates.IsOpen), Mode=OneWay}">
-            <InfoBar.ActionButton>
-                <Button
-                    Click="OnUpdateActionClick"
-                    Content="{x:Bind Updates.ActionText, Mode=OneWay}"
-                    IsEnabled="{x:Bind Updates.IsActionEnabled, Mode=OneWay}" />
-            </InfoBar.ActionButton>
-            <ProgressBar
-                AutomationProperties.Name="{l:Str Key=Update_ProgressName}"
-                Maximum="100"
-                Style="{StaticResource UpdateProgressStyle}"
-                Visibility="{x:Bind ui:UiHelpers.VisibleIf(Updates.IsDownloading), Mode=OneWay}"
-                Value="{x:Bind Updates.Progress, Mode=OneWay}" />
-        </InfoBar>
+        <StackPanel Grid.Row="1">
+            <InfoBar
+                IsOpen="{x:Bind Updates.IsOpen, Mode=TwoWay}"
+                Message="{x:Bind Updates.Message, Mode=OneWay}"
+                Severity="{x:Bind ui:UiHelpers.WarningIf(Updates.HasFailed), Mode=OneWay}"
+                Style="{StaticResource UpdateInfoBarStyle}"
+                Title="{l:Str Key=Update_Title}"
+                Visibility="{x:Bind ui:UiHelpers.VisibleIf(Updates.IsOpen), Mode=OneWay}">
+                <InfoBar.ActionButton>
+                    <Button
+                        Click="OnUpdateActionClick"
+                        Content="{x:Bind Updates.ActionText, Mode=OneWay}"
+                        IsEnabled="{x:Bind Updates.IsActionEnabled, Mode=OneWay}" />
+                </InfoBar.ActionButton>
+                <ProgressBar
+                    AutomationProperties.Name="{l:Str Key=Update_ProgressName}"
+                    Maximum="100"
+                    Style="{StaticResource UpdateProgressStyle}"
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Updates.IsDownloading), Mode=OneWay}"
+                    Value="{x:Bind Updates.Progress, Mode=OneWay}" />
+            </InfoBar>
+
+            <!-- Mail envoyé (seul le bouton Envoyer y mène). -->
+            <InfoBar
+                IsOpen="{x:Bind Composer.ShowSent, Mode=TwoWay}"
+                Message="{x:Bind Composer.SentMessage, Mode=OneWay}"
+                Severity="Success"
+                Style="{StaticResource UpdateInfoBarStyle}"
+                Visibility="{x:Bind ui:UiHelpers.VisibleIf(Composer.ShowSent), Mode=OneWay}" />
+        </StackPanel>
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
@@ -64,11 +73,27 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <Grid>
+                <Button
+                    AutomationProperties.Name="{l:Str Key=Toolbar_NewMessage}"
+                    Click="OnNewMessageClick"
+                    IsEnabled="{x:Bind Mailbox.HasAccounts, Mode=OneWay}"
+                    Style="{StaticResource NewMessageButtonStyle}"
+                    ToolTipService.ToolTip="{l:Str Key=Toolbar_NewMessageTooltip}">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="N" Modifiers="Control" />
+                    </Button.KeyboardAccelerators>
+                    <StackPanel Style="{StaticResource ButtonContentStyle}">
+                        <FontIcon Glyph="&#xE710;" Style="{StaticResource ButtonIconStyle}" />
+                        <TextBlock Text="{l:Str Key=Toolbar_NewMessage}" />
+                    </StackPanel>
+                </Button>
+
+                <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -89,7 +114,7 @@
                 </Grid>
 
                 <InfoBar
-                    Grid.Row="1"
+                    Grid.Row="2"
                     IsOpen="{x:Bind Mailbox.HasError, Mode=OneWay}"
                     Message="{x:Bind Mailbox.ErrorMessage, Mode=OneWay}"
                     Severity="Warning"
@@ -97,7 +122,7 @@
 
                 <ListView
                     x:Name="NavList"
-                    Grid.Row="2"
+                    Grid.Row="3"
                     AutomationProperties.Name="{l:Str Key=Pane_Accounts}"
                     ItemsSource="{x:Bind Mailbox.Items}"
                     SelectedItem="{x:Bind Mailbox.SelectedItem, Mode=OneWay}"
@@ -141,7 +166,7 @@
                 </ListView>
 
                 <StackPanel
-                    Grid.Row="2"
+                    Grid.Row="3"
                     Style="{StaticResource EmptyStatePanelStyle}"
                     Visibility="{x:Bind ui:UiHelpers.VisibleIf(Mailbox.HasNoAccount), Mode=OneWay}">
                     <FontIcon Glyph="&#xE716;" Style="{StaticResource EmptyStateIconStyle}" />
@@ -149,7 +174,7 @@
                     <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Pane_NoAccountHint}" />
                 </StackPanel>
 
-                <StackPanel Grid.Row="3" Style="{StaticResource PaneButtonsStyle}">
+                <StackPanel Grid.Row="4" Style="{StaticResource PaneButtonsStyle}">
                     <Button
                         AutomationProperties.Name="{l:Str Key=Toolbar_AddAccount}"
                         Click="OnAddAccountClick"
@@ -278,15 +303,13 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <!-- Brouillon en cours (gardé et rouvert après une mise à jour). -->
-                        <Border Style="{StaticResource DraftCardStyle}" Visibility="{x:Bind ui:UiHelpers.VisibleIf(Shell.HasDraft), Mode=OneWay}">
-                            <StackPanel Style="{StaticResource DraftCardPanelStyle}">
-                                <TextBlock Style="{StaticResource DraftCardLabelStyle}" Text="{l:Str Key=Draft_Current}" />
-                                <TextBlock Style="{StaticResource DraftCardTitleStyle}" Text="{x:Bind Shell.DraftTitle, Mode=OneWay}" />
-                            </StackPanel>
-                        </Border>
+                        <views:ReaderView x:Name="ReaderPane" Grid.RowSpan="2" />
 
-                        <views:ReaderView x:Name="ReaderPane" Grid.Row="1" />
+                        <!-- Message en cours d'écriture (brouillon gardé et rouvert après une mise à jour compris). -->
+                        <views:ComposerView
+                            x:Name="ComposerPane"
+                            Grid.RowSpan="2"
+                            Visibility="{x:Bind ui:UiHelpers.VisibleIf(Composer.IsOpen), Mode=OneWay}" />
                     </Grid>
                 </Grid>
             </Border>

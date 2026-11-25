@@ -76,12 +76,18 @@ public sealed class DraftStore
         }
     }
 
-    /// <returns><c>true</c> si un fichier a été supprimé.</returns>
+    /// <returns><c>true</c> si un fichier a été supprimé (pièces jointes copiées comprises).</returns>
     public bool Delete(string id)
     {
         if (!Draft.IsValidId(id))
         {
             return false;
+        }
+
+        var files = FilesOf(id);
+        if (System.IO.Directory.Exists(files))
+        {
+            System.IO.Directory.Delete(files, recursive: true);
         }
 
         var path = PathOf(id);
@@ -93,6 +99,45 @@ public sealed class DraftStore
         File.Delete(path);
         return true;
     }
+
+    /// <summary>
+    /// Joint un fichier au brouillon : son contenu est copié d'un bloc dans le dossier du brouillon (le brouillon ne
+    /// dépend plus du fichier d'origine, qui peut être déplacé ou effacé).
+    /// </summary>
+    public async Task<DraftAttachment> AddAttachmentAsync(Draft draft, string fileName, Func<Stream, CancellationToken, Task> write, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+        if (!Draft.IsValidId(draft.Id))
+        {
+            throw new ArgumentException("Identifiant de brouillon invalide.", nameof(draft));
+        }
+
+        var files = FilesOf(draft.Id);
+        System.IO.Directory.CreateDirectory(files);
+        var stored = Guid.NewGuid().ToString("N");
+        var path = Path.Combine(files, stored);
+        await AtomicFile.WriteAsync(path, write, cancellationToken).ConfigureAwait(false);
+        var attachment = new DraftAttachment(Reading.AttachmentRules.SafeFileName(fileName), stored, new FileInfo(path).Length);
+        draft.Attachments.Add(attachment);
+        return attachment;
+    }
+
+    /// <summary>Retire une pièce jointe du brouillon (et sa copie).</summary>
+    public void RemoveAttachment(Draft draft, DraftAttachment attachment)
+    {
+        draft.Attachments.Remove(attachment);
+        var path = AttachmentPath(draft, attachment);
+        if (path is not null && File.Exists(path))
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>Fichier copié d'une pièce jointe ; <c>null</c> si son nom n'est pas l'un des nôtres.</summary>
+    public string? AttachmentPath(Draft draft, DraftAttachment attachment) =>
+        Draft.IsValidId(draft.Id) && Draft.IsValidId(attachment.StoredName)
+            ? Path.Combine(FilesOf(draft.Id), attachment.StoredName)
+            : null;
 
     /// <summary>Brouillons gardés, du plus récent au plus ancien (les fichiers illisibles sont ignorés).</summary>
     public IReadOnlyList<Draft> List()
@@ -110,4 +155,6 @@ public sealed class DraftStore
     }
 
     private string PathOf(string id) => Path.Combine(_directory, id + ".json");
+
+    private string FilesOf(string id) => Path.Combine(_directory, id + ".files");
 }

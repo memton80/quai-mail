@@ -4,8 +4,9 @@ using QuaiMail.Core.Accounts;
 namespace QuaiMail.Core.Tests.Support;
 
 /// <summary>
-/// Faux serveur SMTP minimal : TLS (ou STARTTLS), EHLO, AUTH PLAIN / LOGIN, QUIT. Il n'accepte aucun envoi : toute
-/// commande d'envoi (MAIL, RCPT, DATA…) est refusée et notée, pour prouver qu'aucun mail n'est jamais envoyé.
+/// Faux serveur SMTP minimal, local : TLS (ou STARTTLS), EHLO, AUTH PLAIN / LOGIN, QUIT. Par défaut il n'accepte aucun
+/// envoi : toute commande d'envoi (MAIL, RCPT, DATA…) est refusée et notée, pour prouver qu'aucun mail n'est envoyé.
+/// Avec <see cref="AcceptMail"/>, il reçoit le mail (en mémoire, il ne l'achemine nulle part) pour tester l'envoi.
 /// </summary>
 public sealed class FakeSmtpServer(MailSecurity security = MailSecurity.SslOnConnect) : FakeServer(security)
 {
@@ -15,8 +16,17 @@ public sealed class FakeSmtpServer(MailSecurity security = MailSecurity.SslOnCon
 
     public int SendAttempts { get; private set; }
 
+    /// <summary>Accepter les envois (tests de l'envoi) : le mail est gardé dans <see cref="Received"/>, jamais acheminé.</summary>
+    public bool AcceptMail { get; set; }
+
+    /// <summary>Mails reçus (expéditeur d'enveloppe, destinataires, contenu brut).</summary>
+    public List<(string From, List<string> To, byte[] Data)> Received { get; } = [];
+
     protected override async Task ServeAsync(Connection connection, CancellationToken cancellationToken)
     {
+        var authenticated = false;
+        string? from = null;
+        var to = new List<string>();
         await connection.WriteAsync("220 localhost Faux serveur SMTP\r\n", cancellationToken);
         while (await connection.ReadLineAsync(cancellationToken) is { } line)
         {
@@ -50,7 +60,38 @@ public sealed class FakeSmtpServer(MailSecurity security = MailSecurity.SslOnCon
                         ok = user == UserName && password == Password;
                     }
 
+                    authenticated = ok;
                     await connection.WriteAsync(ok ? "235 2.7.0 Identifié\r\n" : "535 5.7.8 Identifiants refusés\r\n", cancellationToken);
+                    break;
+
+                case "MAIL" when AcceptMail && authenticated:
+                    SendAttempts++;
+                    from = Address(line);
+                    to.Clear();
+                    await connection.WriteAsync("250 2.1.0 OK\r\n", cancellationToken);
+                    break;
+
+                case "RCPT" when AcceptMail && authenticated && from is not null:
+                    to.Add(Address(line));
+                    await connection.WriteAsync("250 2.1.5 OK\r\n", cancellationToken);
+                    break;
+
+                case "DATA" when AcceptMail && authenticated && from is not null && to.Count > 0:
+                    await connection.WriteAsync("354 Envoyez le message, terminé par <CRLF>.<CRLF>\r\n", cancellationToken);
+                    var data = new MemoryStream();
+                    while (await connection.ReadLineAsync(cancellationToken) is { } dataLine && dataLine != ".")
+                    {
+                        var bytes = Encoding.UTF8.GetBytes((dataLine.StartsWith("..", StringComparison.Ordinal) ? dataLine[1..] : dataLine) + "\r\n");
+                        data.Write(bytes);
+                    }
+
+                    lock (Received)
+                    {
+                        Received.Add((from, [.. to], data.ToArray()));
+                    }
+
+                    from = null;
+                    await connection.WriteAsync("250 2.0.0 Reçu (gardé en mémoire, acheminé nulle part)\r\n", cancellationToken);
                     break;
 
                 case "NOOP" or "RSET":
@@ -71,6 +112,13 @@ public sealed class FakeSmtpServer(MailSecurity security = MailSecurity.SslOnCon
                     break;
             }
         }
+    }
+
+    private static string Address(string line)
+    {
+        var start = line.IndexOf('<');
+        var end = line.IndexOf('>', Math.Max(0, start));
+        return start >= 0 && end > start ? line[(start + 1)..end] : string.Empty;
     }
 
     private static async Task<string> Ask(Connection connection, string challenge, CancellationToken cancellationToken)
