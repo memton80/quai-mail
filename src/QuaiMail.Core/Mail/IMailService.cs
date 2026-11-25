@@ -42,6 +42,21 @@ public interface IMailService
     /// <summary>Retire un brouillon du serveur (envoyé ou abandonné), par son UID seulement.</summary>
     Task DeleteDraftAsync(Account account, ServerCopy copy, CancellationToken cancellationToken = default);
 
+    /// <summary>Déplace un mail vers un autre dossier du même compte.</summary>
+    Task MoveAsync(Account account, string folder, uint uid, string target, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Supprimer, première étape : vers la corbeille du serveur.
+    /// </summary>
+    /// <returns><c>false</c> s'il n'y a pas de corbeille ou si le mail y est déjà : il faut alors une suppression définitive, après confirmation.</returns>
+    Task<bool> MoveToTrashAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default);
+
+    /// <summary>Suppression définitive (après confirmation) : ce seul mail, par son UID ; jamais d'effacement général.</summary>
+    Task DeletePermanentlyAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default);
+
+    /// <summary>Recherche sur le serveur dans un dossier (objet, expéditeur, texte) : les plus récents d'abord.</summary>
+    Task<IReadOnlyList<MessageHeader>> SearchAsync(Account account, string folder, string text, int limit, CancellationToken cancellationToken = default);
+
     /// <summary>Ferme la connexion gardée ouverte pour ce compte (compte supprimé, fermeture de l'application).</summary>
     Task DisconnectAsync(string accountId);
 }

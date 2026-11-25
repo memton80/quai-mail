@@ -57,7 +57,7 @@ public sealed partial class MailboxViewModel : ObservableObject
                 OnMessageSelected(Messages.SelectedMessage);
             }
         };
-        Reader.HeaderChanged += (_, header) => OnHeaderChanged(header);
+        Reader.HeaderChanged += (_, change) => OnHeaderChanged(change);
     }
 
     public ObservableCollection<NavItemViewModel> Items { get; } = [];
@@ -254,37 +254,123 @@ public sealed partial class MailboxViewModel : ObservableObject
 
     private void OnMessageSelected(MessageItemViewModel? message)
     {
-        if (message is null)
+        if (message is null || _accounts.Find(message.AccountId) is not { } account)
         {
             return;
         }
 
-        if (_accounts.Find(Messages.AccountId) is not { } account || Messages.FolderName is not { } folder)
-        {
-            return;
-        }
-
-        if (Reader.Content?.Uid == message.Uid && Reader.HasMessage)
+        if (Reader.HasMessage && Reader.Uid == message.Uid && Reader.Account?.Id == account.Id && Reader.Folder == message.Folder)
         {
             return;
         }
 
         _shell.OpenMessageId = message.Uid.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        _ = Reader.ShowAsync(account, folder, message.Header);
+        _ = Reader.ShowAsync(account, message.Folder, message.Header);
     }
 
     /// <summary>Lu / non lu changé : ligne de la liste, cache et compteur du dossier.</summary>
-    private void OnHeaderChanged(MessageHeader header)
+    private void OnHeaderChanged(MessageChange change)
     {
-        if (Messages.UpdateHeader(header) is not { } previous || previous.IsRead == header.IsRead)
+        if (Messages.UpdateHeader(change.AccountId, change.Folder, change.Header) is not { } previous || previous.IsRead == change.Header.IsRead)
         {
             return;
         }
 
-        if (Items.FirstOrDefault(i => i.AccountId == Messages.AccountId && i.Folder?.FullName == Messages.FolderName) is { } item)
+        AdjustUnread(change.AccountId, change.Folder, change.Header.IsRead ? -1 : 1);
+    }
+
+    private void AdjustUnread(string accountId, string folder, int delta)
+    {
+        if (Items.FirstOrDefault(i => i.AccountId == accountId && i.Folder?.FullName == folder) is { } item)
         {
-            item.Unread = Math.Max(0, item.Unread + (header.IsRead ? -1 : 1));
+            item.Unread = Math.Max(0, item.Unread + delta);
         }
+    }
+
+    /// <summary>Dossiers vers lesquels un mail peut être déplacé (même compte, sauf son dossier).</summary>
+    public IReadOnlyList<NavItemViewModel> MoveTargets(MessageItemViewModel message) =>
+        [.. Items.Where(i => i.AccountId == message.AccountId && i.CanSelect && i.Folder!.FullName != message.Folder)];
+
+    /// <summary>
+    /// Supprimer : vers la corbeille du serveur ; s'il n'y en a pas, ou si le mail y est déjà, suppression définitive
+    /// seulement après confirmation (« Annuler » par défaut).
+    /// </summary>
+    /// <returns><c>true</c> si le mail a quitté le dossier.</returns>
+    public async Task<bool> DeleteAsync(MessageItemViewModel message)
+    {
+        if (_accounts.Find(message.AccountId) is not { } account)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (!await _mail.MoveToTrashAsync(account, message.Folder, message.Uid))
+            {
+                var confirmed = await _dialogs.ConfirmAsync(
+                    _strings.Get("DeleteForever_Title"),
+                    _strings.Format("DeleteForever_Message", message.Subject),
+                    _strings.Get("DeleteForever_Confirm"),
+                    isDestructive: true);
+                if (!confirmed)
+                {
+                    return false;
+                }
+
+                await _mail.DeletePermanentlyAsync(account, message.Folder, message.Uid);
+            }
+        }
+        catch (MailConnectionException ex)
+        {
+            ErrorMessage = _strings.Format("Mailbox_AccountError", account.Title, MailErrors.Describe(_strings, ex));
+            return false;
+        }
+
+        Removed(message);
+        return true;
+    }
+
+    /// <summary>Déplace un mail vers un autre dossier de son compte.</summary>
+    public async Task<bool> MoveAsync(MessageItemViewModel message, NavItemViewModel target)
+    {
+        if (_accounts.Find(message.AccountId) is not { } account || target.Folder is not { } folder || target.AccountId != account.Id)
+        {
+            return false;
+        }
+
+        try
+        {
+            await _mail.MoveAsync(account, message.Folder, message.Uid, folder.FullName);
+        }
+        catch (MailConnectionException ex)
+        {
+            ErrorMessage = _strings.Format("Mailbox_AccountError", account.Title, MailErrors.Describe(_strings, ex));
+            return false;
+        }
+
+        Removed(message);
+        if (!message.IsRead)
+        {
+            target.Unread++;
+        }
+
+        return true;
+    }
+
+    private void Removed(MessageItemViewModel message)
+    {
+        if (Reader.HasMessage && Reader.Uid == message.Uid && Reader.Folder == message.Folder && Reader.Account?.Id == message.AccountId)
+        {
+            Reader.Clear();
+            _shell.OpenMessageId = null;
+        }
+
+        if (!message.IsRead)
+        {
+            AdjustUnread(message.AccountId, message.Folder, -1);
+        }
+
+        Messages.Remove(message);
     }
 
     private bool CanRefresh() => !IsRefreshing;

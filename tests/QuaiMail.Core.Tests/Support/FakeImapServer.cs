@@ -170,6 +170,33 @@ public sealed partial class FakeImapServer : FakeServer
                     await connection.WriteAsync($"{tag} OK [APPENDUID {target.UidValidity} {appended}] APPEND terminé\r\n", cancellationToken);
                     break;
 
+                case "UID MOVE" when selected is not null && args.Count >= 3 && Find(args[2]) is { } destination:
+                    var moveMax = selected.Messages.Count == 0 ? 0 : selected.Messages.Max(m => m.Uid);
+                    for (var i = selected.Messages.Count - 1; i >= 0; i--)
+                    {
+                        if (InSet(args[1], selected.Messages[i].Uid, moveMax))
+                        {
+                            var moved = selected.Messages[i];
+                            var newUid = destination.Messages.Count == 0 ? 1 : destination.Messages.Max(m => m.Uid) + 1;
+                            destination.Messages.Add(moved with { Uid = newUid });
+                            selected.Messages.RemoveAt(i);
+                            await connection.WriteAsync($"* {i + 1} EXPUNGE\r\n", cancellationToken);
+                        }
+                    }
+
+                    await connection.WriteAsync($"{tag} OK UID MOVE terminé\r\n", cancellationToken);
+                    break;
+
+                case "UID SEARCH" when selected is not null:
+                    // Recherche simplifiée : un mail correspond si l'un des textes cherchés est dans son objet, son expéditeur ou son corps.
+                    var texts = Tokenize(rest).Skip(2).Where(t => !t.All(char.IsUpper) && !t.Equals("UTF-8", StringComparison.OrdinalIgnoreCase)).ToList();
+                    var found = selected.Messages
+                        .Where(m => texts.Any(t => m.Subject.Contains(t, StringComparison.OrdinalIgnoreCase) || m.FromName.Contains(t, StringComparison.OrdinalIgnoreCase)
+                            || Encoding.UTF8.GetString(m.Mime()).Contains(t, StringComparison.OrdinalIgnoreCase)))
+                        .Select(m => m.Uid.ToString(CultureInfo.InvariantCulture));
+                    await connection.WriteAsync($"* SEARCH {string.Join(' ', found)}\r\n{tag} OK UID SEARCH terminé\r\n", cancellationToken);
+                    break;
+
                 case "UID EXPUNGE" when selected is not null && args.Count >= 2:
                     var max = selected.Messages.Count == 0 ? 0 : selected.Messages.Max(m => m.Uid);
                     for (var i = selected.Messages.Count - 1; i >= 0; i--)
@@ -203,7 +230,7 @@ public sealed partial class FakeImapServer : FakeServer
 
     private static string Capabilities(Connection connection, bool authenticated) =>
         !connection.IsTls ? "IMAP4rev1 STARTTLS LOGINDISABLED"
-        : authenticated ? "IMAP4rev1 UNSELECT UIDPLUS"
+        : authenticated ? "IMAP4rev1 UNSELECT UIDPLUS MOVE"
         : "IMAP4rev1 AUTH=PLAIN SASL-IR";
 
     private bool CheckPlain(string base64)

@@ -7,8 +7,10 @@ namespace QuaiMail.Core.ViewModels;
 /// <summary>Une ligne de la liste des mails (lu / non lu et étoile suivent les changements faits à la lecture).</summary>
 public sealed partial class MessageItemViewModel : ObservableObject
 {
-    public MessageItemViewModel(MessageHeader header, string noSubject, DateTimeOffset now)
+    public MessageItemViewModel(string accountId, string folder, MessageHeader header, string noSubject, DateTimeOffset now)
     {
+        AccountId = accountId;
+        Folder = folder;
         Header = header;
         Subject = string.IsNullOrWhiteSpace(header.Subject) ? noSubject : header.Subject.Trim();
         DateText = ShortDate(header.Date, now);
@@ -18,6 +20,12 @@ public sealed partial class MessageItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsRead))]
     [NotifyPropertyChangedFor(nameof(IsFlagged))]
     public partial MessageHeader Header { get; set; }
+
+    /// <summary>Compte du mail (une recherche ou la boîte de réception unifiée mêlent plusieurs comptes).</summary>
+    public string AccountId { get; }
+
+    /// <summary>Dossier du mail.</summary>
+    public string Folder { get; }
 
     public uint Uid => Header.Uid;
 

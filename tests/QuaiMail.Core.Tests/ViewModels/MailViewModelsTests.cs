@@ -422,6 +422,108 @@ public sealed class MailViewModelsTests : IDisposable
         new([new MimeKit.MailboxAddress("Bob", "bob@example.org")], [], $"Objet {uid}", new MimeKit.TextPart("html") { Text = html });
 
     [Fact]
+    public async Task Deleting_goes_to_the_trash_first_and_leaves_the_list()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        _mail.Folders[account.Id].Add(new MailFolderInfo("Corbeille", "Corbeille", 0, FolderRole.Trash, true, 0, 0));
+        await mailbox.RefreshAsync();
+        var message = mailbox.Messages.Messages.First(m => !m.IsRead);
+        var unread = mailbox.Items.Single(i => i.Role == FolderRole.Inbox).Unread;
+        mailbox.Messages.SelectedMessage = message;
+        await WaitForAsync(() => mailbox.Reader.HasMessage && !mailbox.Reader.IsLoading);
+        mailbox.Reader.ToggleReadCommand.Execute(null);
+        await WaitForAsync(() => !message.IsRead);
+
+        Assert.True(await mailbox.DeleteAsync(message));
+
+        Assert.Equal([(message.Uid, "INBOX", "Corbeille")], _mail.Moves);
+        Assert.Empty(_dialogs.Confirmations);
+        Assert.DoesNotContain(message, mailbox.Messages.Messages);
+        Assert.False(mailbox.Reader.HasMessage);
+        Assert.Equal(unread, mailbox.Items.Single(i => i.Role == FolderRole.Inbox).Unread + 1);
+        Assert.Null(_cache.GetMessages(account.Id, "INBOX", 0, 10).FirstOrDefault(m => m.Uid == message.Uid));
+    }
+
+    [Fact]
+    public async Task Without_a_trash_deleting_for_good_needs_a_confirmation()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        _mail.Trash = null;
+        var message = mailbox.Messages.Messages[0];
+
+        _dialogs.ConfirmAnswer = false;
+        Assert.False(await mailbox.DeleteAsync(message));
+        Assert.Contains(message, mailbox.Messages.Messages);
+        Assert.Empty(_mail.PermanentlyDeleted);
+        Assert.True(Assert.Single(_dialogs.Confirmations).Destructive);
+
+        _dialogs.ConfirmAnswer = true;
+        Assert.True(await mailbox.DeleteAsync(message));
+        Assert.Equal([("INBOX", message.Uid)], _mail.PermanentlyDeleted);
+        Assert.DoesNotContain(message, mailbox.Messages.Messages);
+    }
+
+    [Fact]
+    public async Task A_message_can_be_moved_to_another_folder_of_its_account()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        _mail.Folders[account.Id].Add(new MailFolderInfo("Archives", "Archives", 0, FolderRole.Archive, true, 0, 0));
+        await mailbox.RefreshAsync();
+        var message = mailbox.Messages.Messages[0];
+
+        var targets = mailbox.MoveTargets(message);
+        Assert.Equal(["Archives"], targets.Select(t => t.Folder!.FullName));
+        Assert.True(await mailbox.MoveAsync(message, targets[0]));
+
+        Assert.Equal([(message.Uid, "INBOX", "Archives")], _mail.Moves);
+        Assert.DoesNotContain(message, mailbox.Messages.Messages);
+    }
+
+    [Fact]
+    public async Task Search_finds_cached_mails_ignoring_accents_and_case_then_on_the_server()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        _cache.SaveMessages(account.Id, "Archives", 1, [new MessageHeader(7, "Réunion budgétaire", "Léa", "lea@example.org", Now.AddDays(-40), true, false, 10)]);
+        var list = mailbox.Messages;
+
+        await list.SearchAsync("reunion BUDGET");
+
+        Assert.True(list.IsSearching);
+        Assert.Equal("Search_Title(reunion BUDGET)", list.Title);
+        var hit = Assert.Single(list.Messages);
+        Assert.Equal(("Archives", 7u, account.Id), (hit.Folder, hit.Uid, hit.AccountId));
+
+        // Ouvrir un résultat ouvre bien le mail de son dossier.
+        list.SelectedMessage = hit;
+        await WaitForAsync(() => mailbox.Reader.Content is { Uid: 7 });
+        Assert.Contains("message Archives 7", _mail.Calls);
+
+        // Le texte d'un mail lu devient cherchable.
+        await list.SearchAsync("Corps");
+        Assert.Contains(list.Messages, m => m.Uid == 7);
+
+        _mail.ServerSearchResults.Add(new MessageHeader(999, "Trouvé sur le serveur", "Bob", "bob@example.org", Now, false, false, 10));
+        await list.SearchServerCommand.ExecuteAsync(null);
+        Assert.Contains("search INBOX Corps", _mail.Calls);
+        Assert.Contains(list.Messages, m => m.Uid == 999 && m.Folder == "INBOX");
+
+        await list.EndSearchAsync();
+        await WaitForAsync(() => !list.IsLoading);
+        Assert.False(list.IsSearching);
+        Assert.Equal("Folder_Inbox", list.Title);
+        Assert.Equal(4, list.Messages.Count);
+    }
+
+    [Theory]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
+    [InlineData("facture", "\"facture\"*")]
+    [InlineData("a\"b OR c*", "\"a\"\"b\"* \"OR\"* \"c\"*")]
+    [InlineData("subject:(x) NEAR", "\"subject:(x\"* \"NEAR\"*")]
+    public void Search_text_is_never_interpreted_as_fts_syntax(string text, string expected) =>
+        Assert.Equal(expected, QuaiMail.Core.Cache.MailCache.FtsQuery(text));
+
+    [Fact]
     public void Dates_are_short_and_readable()
     {
         var now = new DateTimeOffset(2026, 11, 25, 15, 0, 0, TimeSpan.Zero);
@@ -444,7 +546,7 @@ public sealed class MailViewModelsTests : IDisposable
         new(_accounts, _credentials, _mail, _cache, _shell, new MessageListViewModel(_mail, _cache, new KeyStrings(), new FixedTime(Now)), Reader(), _dialogs, new KeyStrings());
 
     private ReaderViewModel Reader() =>
-        new(_mail, _settings, _dialogs, Files, Launcher, new KeyStrings(), new QuaiMail.Core.Reading.ReaderTemplate(File.ReadAllText(Reading.HtmlCleanerTests.TemplatePath())));
+        new(_mail, _settings, _dialogs, Files, Launcher, new KeyStrings(), new QuaiMail.Core.Reading.ReaderTemplate(File.ReadAllText(Reading.HtmlCleanerTests.TemplatePath())), null, _cache);
 
     private Account AddAccount(string address)
     {

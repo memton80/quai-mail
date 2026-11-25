@@ -264,6 +264,38 @@ public sealed class MailKitMailServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Deleting_moves_to_the_trash_and_only_then_deletes_for_good()
+    {
+        var account = Stored();
+        var inbox = _imap.Folder("INBOX");
+        var trash = _imap.Folder("Corbeille");
+
+        Assert.True(await _service.MoveToTrashAsync(account, "INBOX", 120, TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(inbox.Messages, m => m.Uid == 120);
+        var trashed = Assert.Single(trash.Messages);
+        Assert.Equal("Message 120", trashed.Subject);
+
+        // Déjà dans la corbeille : pas de corbeille de la corbeille, la suppression définitive est à confirmer.
+        Assert.False(await _service.MoveToTrashAsync(account, "Corbeille", trashed.Uid, TestContext.Current.CancellationToken));
+        await _service.DeletePermanentlyAsync(account, "Corbeille", trashed.Uid, TestContext.Current.CancellationToken);
+        Assert.Empty(trash.Messages);
+        Assert.Equal(119, inbox.Messages.Count);
+        Assert.DoesNotContain(_imap.Commands, c => c.Equals("EXPUNGE", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task A_message_moves_to_another_folder_and_the_server_search_finds_mails()
+    {
+        var account = Stored();
+
+        await _service.MoveAsync(account, "INBOX", 119, "Archives/2026", TestContext.Current.CancellationToken);
+        Assert.Contains(_imap.Folder("Archives/2026").Messages, m => m.Subject == "Message 119");
+
+        var found = await _service.SearchAsync(account, "INBOX", "Message 11", 5, TestContext.Current.CancellationToken);
+        Assert.Equal([118u, 117u, 116u, 115u, 114u], found.Select(h => h.Uid));
+    }
+
+    [Fact]
     public void Gmail_and_outlook_keep_their_own_sent_copy()
     {
         Assert.True(MailKitMailService.ServerKeepsSentCopy(Account() with { Smtp = new MailServer { Host = "smtp.gmail.com", Port = 465 } }));

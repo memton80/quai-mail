@@ -260,6 +260,62 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
             return true;
         }, cancellationToken);
 
+    public Task MoveAsync(Account account, string folder, uint uid, string target, CancellationToken cancellationToken = default) =>
+        WithImapAsync(account, async (client, ct) =>
+        {
+            var destination = await FolderAsync(client, target, ct).ConfigureAwait(false);
+            await MoveOneAsync(client, folder, uid, destination, ct).ConfigureAwait(false);
+            return true;
+        }, cancellationToken);
+
+    public Task<bool> MoveToTrashAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default) =>
+        WithImapAsync(account, async (client, ct) =>
+        {
+            if (await FindSpecialAsync(client, FolderRole.Trash, ct).ConfigureAwait(false) is not { } trash
+                || string.Equals(trash.FullName, folder, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            await MoveOneAsync(client, folder, uid, trash, ct).ConfigureAwait(false);
+            return true;
+        }, cancellationToken);
+
+    public Task DeletePermanentlyAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default) =>
+        WithImapAsync(account, async (client, ct) =>
+        {
+            await RemoveAsync(client, await FolderAsync(client, folder, ct).ConfigureAwait(false), uid, ct).ConfigureAwait(false);
+            return true;
+        }, cancellationToken);
+
+    public Task<IReadOnlyList<MessageHeader>> SearchAsync(Account account, string folder, string text, int limit, CancellationToken cancellationToken = default) =>
+        WithImapAsync(account, async (client, ct) =>
+        {
+            var mailFolder = await OpenAsync(client, folder, FolderAccess.ReadOnly, ct).ConfigureAwait(false);
+            try
+            {
+                var query = MailKit.Search.SearchQuery.SubjectContains(text)
+                    .Or(MailKit.Search.SearchQuery.FromContains(text))
+                    .Or(MailKit.Search.SearchQuery.BodyContains(text));
+                var uids = await mailFolder.SearchAsync(query, ct).ConfigureAwait(false);
+                var newest = uids.OrderByDescending(u => u.Id).Take(limit).ToList();
+                if (newest.Count == 0)
+                {
+                    return (IReadOnlyList<MessageHeader>)[];
+                }
+
+                var request = new FetchRequest(
+                    MessageSummaryItems.UniqueId | MessageSummaryItems.Envelope | MessageSummaryItems.Flags
+                    | MessageSummaryItems.InternalDate | MessageSummaryItems.Size);
+                var summaries = await mailFolder.FetchAsync(newest, request, ct).ConfigureAwait(false);
+                return (IReadOnlyList<MessageHeader>)[.. summaries.Select(ToHeader).OrderByDescending(h => h.Uid)];
+            }
+            finally
+            {
+                await CloseAsync(client, mailFolder).ConfigureAwait(false);
+            }
+        }, cancellationToken);
+
     public async Task DisconnectAsync(string accountId)
     {
         if (_sessions.TryRemove(accountId, out var session))
@@ -278,13 +334,30 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
 
     internal static string Describe(MailServer server) => $"{server.Host}:{server.Port}";
 
-    private static async Task<IMailFolder> OpenAsync(ImapClient client, string folder, FolderAccess access, CancellationToken cancellationToken)
-    {
-        var mailFolder = string.Equals(folder, "INBOX", StringComparison.OrdinalIgnoreCase)
+    private static async Task<IMailFolder> FolderAsync(ImapClient client, string folder, CancellationToken cancellationToken) =>
+        string.Equals(folder, "INBOX", StringComparison.OrdinalIgnoreCase)
             ? client.Inbox
             : await client.GetFolderAsync(folder, cancellationToken).ConfigureAwait(false);
+
+    private static async Task<IMailFolder> OpenAsync(ImapClient client, string folder, FolderAccess access, CancellationToken cancellationToken)
+    {
+        var mailFolder = await FolderAsync(client, folder, cancellationToken).ConfigureAwait(false);
         await mailFolder.OpenAsync(access, cancellationToken).ConfigureAwait(false);
         return mailFolder;
+    }
+
+    /// <summary>MOVE si le serveur le permet ; sinon MailKit copie, marque \\Deleted et n'efface que ce mail (UIDPLUS).</summary>
+    private static async Task MoveOneAsync(ImapClient client, string folder, uint uid, IMailFolder destination, CancellationToken cancellationToken)
+    {
+        var source = await OpenAsync(client, folder, FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await source.MoveToAsync([new UniqueId(uid)], new MoveRequest(destination), cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await CloseAsync(client, source).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -309,13 +382,15 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         }
     }
 
-    /// <summary>Dossier Brouillons ou Envoyés : annoncé par le serveur (SPECIAL-USE), sinon reconnu à son nom.</summary>
+    /// <summary>Dossier Brouillons, Envoyés ou Corbeille : annoncé par le serveur (SPECIAL-USE), sinon reconnu à son nom.</summary>
     private static async Task<IMailFolder?> FindSpecialAsync(ImapClient client, FolderRole role, CancellationToken cancellationToken)
     {
-        var attribute = role == FolderRole.Drafts ? FolderAttributes.Drafts : FolderAttributes.Sent;
-        string[] names = role == FolderRole.Drafts
-            ? ["Drafts", "Brouillons", "Draft", "Brouillon", "INBOX.Drafts", "INBOX/Drafts", "INBOX.Brouillons"]
-            : ["Sent", "Envoyés", "Sent Items", "Sent Messages", "Éléments envoyés", "Messages envoyés", "INBOX.Sent", "INBOX/Sent", "INBOX.Envoyés"];
+        var (attribute, names) = role switch
+        {
+            FolderRole.Drafts => (FolderAttributes.Drafts, new[] { "Drafts", "Brouillons", "Draft", "Brouillon", "INBOX.Drafts", "INBOX/Drafts", "INBOX.Brouillons" }),
+            FolderRole.Sent => (FolderAttributes.Sent, ["Sent", "Envoyés", "Sent Items", "Sent Messages", "Éléments envoyés", "Messages envoyés", "INBOX.Sent", "INBOX/Sent", "INBOX.Envoyés"]),
+            _ => (FolderAttributes.Trash, ["Trash", "Corbeille", "Deleted Items", "Deleted Messages", "Éléments supprimés", "INBOX.Trash", "INBOX/Trash", "INBOX.Corbeille"]),
+        };
         var folders = new List<IMailFolder>();
         var namespaces = client.PersonalNamespaces.Count > 0 ? client.PersonalNamespaces : [new FolderNamespace('/', string.Empty)];
         foreach (var ns in namespaces)

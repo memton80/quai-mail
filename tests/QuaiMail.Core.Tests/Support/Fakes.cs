@@ -201,6 +201,49 @@ public sealed class FakeMailService : QuaiMail.Core.Mail.IMailService
         return Task.CompletedTask;
     }
 
+    /// <summary>Dossier corbeille du faux serveur (<c>null</c> : pas de corbeille).</summary>
+    public string? Trash { get; set; } = "Corbeille";
+
+    public List<(uint Uid, string From, string To)> Moves { get; } = [];
+
+    public List<(string Folder, uint Uid)> PermanentlyDeleted { get; } = [];
+
+    public Task MoveAsync(QuaiMail.Core.Accounts.Account account, string folder, uint uid, string target, CancellationToken cancellationToken = default)
+    {
+        if (Failure is not null)
+        {
+            return Task.FromException(Failure);
+        }
+
+        Moves.Add((uid, folder, target));
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> MoveToTrashAsync(QuaiMail.Core.Accounts.Account account, string folder, uint uid, CancellationToken cancellationToken = default)
+    {
+        if (Trash is null || Trash == folder)
+        {
+            return Task.FromResult(false);
+        }
+
+        Moves.Add((uid, folder, Trash));
+        return Task.FromResult(true);
+    }
+
+    public Task DeletePermanentlyAsync(QuaiMail.Core.Accounts.Account account, string folder, uint uid, CancellationToken cancellationToken = default)
+    {
+        PermanentlyDeleted.Add((folder, uid));
+        return Task.CompletedTask;
+    }
+
+    public List<QuaiMail.Core.Mail.MessageHeader> ServerSearchResults { get; } = [];
+
+    public Task<IReadOnlyList<QuaiMail.Core.Mail.MessageHeader>> SearchAsync(QuaiMail.Core.Accounts.Account account, string folder, string text, int limit, CancellationToken cancellationToken = default)
+    {
+        Calls.Add($"search {folder} {text}");
+        return Task.FromResult<IReadOnlyList<QuaiMail.Core.Mail.MessageHeader>>([.. ServerSearchResults]);
+    }
+
     public Task DisconnectAsync(string accountId)
     {
         Calls.Add("disconnect " + accountId);

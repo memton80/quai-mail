@@ -28,6 +28,7 @@ public sealed partial class MessageListViewModel : ObservableObject
     private MailFolderInfo? _folder;
     private int _total;
     private uint _uidValidity;
+    private string? _folderTitle;
 
     public MessageListViewModel(IMailService mail, MailCache cache, IStrings strings, TimeProvider? time = null, ILogger<MessageListViewModel>? logger = null)
     {
@@ -86,7 +87,11 @@ public sealed partial class MessageListViewModel : ObservableObject
 
         _account = account;
         _folder = folder;
+        _folderTitle = title;
         _total = 0;
+        IsSearching = false;
+        SearchText = null;
+        CanSearchServer = false;
         Title = title;
         HasFolder = true;
         ErrorMessage = null;
@@ -153,7 +158,7 @@ public sealed partial class MessageListViewModel : ObservableObject
             var now = _time.GetUtcNow();
             foreach (var header in page.Messages.Where(h => known.Add(h.Uid)))
             {
-                Messages.Add(new MessageItemViewModel(header, _strings.Get("Draft_NoSubject"), now));
+                Messages.Add(new MessageItemViewModel(account.Id, folder.FullName, header, _strings.Get("Draft_NoSubject"), now));
             }
 
             HasMore = page.Messages.Count > 0 && _total > Messages.Count;
@@ -178,21 +183,151 @@ public sealed partial class MessageListViewModel : ObservableObject
     /// Lu / non lu ou étoile changé à la lecture : la ligne et le cache suivent.
     /// </summary>
     /// <returns>L'en-tête d'avant, ou <c>null</c> si ce mail n'est pas dans la liste.</returns>
-    public MessageHeader? UpdateHeader(MessageHeader header)
+    public MessageHeader? UpdateHeader(string accountId, string folder, MessageHeader header)
     {
-        if (Messages.FirstOrDefault(m => m.Uid == header.Uid) is not { } item)
+        if (Find(accountId, folder, header.Uid) is not { } item)
         {
             return null;
         }
 
         var previous = item.Header;
         item.Header = header;
-        if (_account is { } account && _folder is { } folder && _uidValidity != 0)
+        if (_account?.Id == accountId && _folder?.FullName == folder && _uidValidity != 0)
         {
-            _cache.SaveMessages(account.Id, folder.FullName, _uidValidity, [header]);
+            _cache.SaveMessages(accountId, folder, _uidValidity, [header]);
         }
 
         return previous;
+    }
+
+    public MessageItemViewModel? Find(string accountId, string folder, uint uid) =>
+        Messages.FirstOrDefault(m => m.Uid == uid && m.AccountId == accountId && m.Folder == folder);
+
+    /// <summary>Mail déplacé ou supprimé : retiré de la liste (et du cache).</summary>
+    public void Remove(MessageItemViewModel item)
+    {
+        if (SelectedMessage == item)
+        {
+            SelectedMessage = null;
+        }
+
+        Messages.Remove(item);
+        _cache.RemoveMessage(item.AccountId, item.Folder, item.Uid);
+        if (_total > 0)
+        {
+            _total--;
+        }
+
+        OnPropertyChanged(nameof(IsEmpty));
+    }
+
+    /// <summary>Recherche en cours (résultats affichés à la place du dossier).</summary>
+    [ObservableProperty]
+    public partial bool IsSearching { get; set; }
+
+    /// <summary>Texte cherché.</summary>
+    [ObservableProperty]
+    public partial string? SearchText { get; set; }
+
+    /// <summary>La recherche peut aussi être faite sur le serveur, dans le dossier d'où elle est partie.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SearchServerCommand))]
+    public partial bool CanSearchServer { get; set; }
+
+    /// <summary>
+    /// Recherche plein texte dans le cache (tous comptes et dossiers : en-têtes, et texte des mails déjà lus), sans
+    /// connexion. Un texte vide revient au dossier.
+    /// </summary>
+    public async Task SearchAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            await EndSearchAsync();
+            return;
+        }
+
+        Restart();
+        SearchText = text.Trim();
+        IsSearching = true;
+        HasMore = false;
+        ErrorMessage = null;
+        Title = _strings.Format("Search_Title", SearchText);
+        Messages.Clear();
+        SelectedMessage = null;
+        var now = _time.GetUtcNow();
+        foreach (var hit in _cache.Search(SearchText, 200))
+        {
+            Messages.Add(new MessageItemViewModel(hit.AccountId, hit.Folder, hit.Header, _strings.Get("Draft_NoSubject"), now));
+        }
+
+        HasFolder = true;
+        CanSearchServer = _account is not null && _folder is not null;
+        OnPropertyChanged(nameof(IsEmpty));
+    }
+
+    /// <summary>Même recherche sur le serveur, dans le dossier d'où elle est partie (texte complet de tous les mails).</summary>
+    [RelayCommand(CanExecute = nameof(CanSearchServer))]
+    public async Task SearchServerAsync()
+    {
+        if (_account is not { } account || _folder is not { } folder || SearchText is not { } text)
+        {
+            return;
+        }
+
+        var cancellation = Restart();
+        IsLoading = true;
+        try
+        {
+            var found = await _mail.SearchAsync(account, folder.FullName, text, 200, cancellation.Token);
+            if (cancellation.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var now = _time.GetUtcNow();
+            foreach (var header in found.Where(h => Find(account.Id, folder.FullName, h.Uid) is null))
+            {
+                Messages.Add(new MessageItemViewModel(account.Id, folder.FullName, header, _strings.Get("Draft_NoSubject"), now));
+            }
+
+            CanSearchServer = false;
+        }
+        catch (MailConnectionException ex) when (!cancellation.IsCancellationRequested)
+        {
+            ErrorMessage = MailErrors.Describe(_strings, ex);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (!cancellation.IsCancellationRequested)
+            {
+                IsLoading = false;
+                OnPropertyChanged(nameof(IsEmpty));
+            }
+        }
+    }
+
+    /// <summary>Fin de la recherche : retour au dossier.</summary>
+    public async Task EndSearchAsync()
+    {
+        if (!IsSearching)
+        {
+            return;
+        }
+
+        IsSearching = false;
+        SearchText = null;
+        CanSearchServer = false;
+        if (_account is { } account && _folder is { } folder)
+        {
+            await ShowAsync(account, folder, _folderTitle ?? folder.Name);
+        }
+        else
+        {
+            Clear();
+        }
     }
 
     /// <summary>Plus aucun dossier choisi (compte supprimé…).</summary>
@@ -228,11 +363,11 @@ public sealed partial class MessageListViewModel : ObservableObject
         var noSubject = _strings.Get("Draft_NoSubject");
         foreach (var header in headers)
         {
-            Messages.Add(new MessageItemViewModel(header, noSubject, now));
+            Messages.Add(new MessageItemViewModel(_account!.Id, _folder!.FullName, header, noSubject, now));
         }
 
         // Liste rafraîchie (cache puis serveur) : le mail ouvert reste choisi.
-        SelectedMessage = Messages.FirstOrDefault(m => m.Uid == selected);
+        SelectedMessage = selected is { } uid ? Find(_account!.Id, _folder!.FullName, uid) : null;
         OnPropertyChanged(nameof(IsEmpty));
     }
 }

@@ -20,6 +20,7 @@ namespace QuaiMail.Core.ViewModels;
 public sealed partial class ReaderViewModel : ObservableObject
 {
     private readonly IMailService _mail;
+    private readonly Cache.MailCache? _cache;
     private readonly ISettingsService _settings;
     private readonly IDialogService _dialogs;
     private readonly IFileDialogs _files;
@@ -42,9 +43,11 @@ public sealed partial class ReaderViewModel : ObservableObject
         ILauncher launcher,
         IStrings strings,
         ReaderTemplate template,
-        ILogger<ReaderViewModel>? logger = null)
+        ILogger<ReaderViewModel>? logger = null,
+        Cache.MailCache? cache = null)
     {
         _mail = mail;
+        _cache = cache;
         _settings = settings;
         _dialogs = dialogs;
         _files = files;
@@ -63,10 +66,16 @@ public sealed partial class ReaderViewModel : ObservableObject
     public event EventHandler? PageChanged;
 
     /// <summary>Lu / non lu ou étoile changé : la liste et le cache suivent.</summary>
-    public event EventHandler<MessageHeader>? HeaderChanged;
+    public event EventHandler<MessageChange>? HeaderChanged;
 
     /// <summary>Compte du mail affiché (pour y répondre).</summary>
     public Account? Account => _account;
+
+    /// <summary>Dossier du mail affiché.</summary>
+    public string? Folder => _folder;
+
+    /// <summary>UID du mail affiché.</summary>
+    public uint? Uid => _header?.Uid;
 
     /// <summary>Mail affiché (pour servir ses images jointes à la WebView2, et y répondre).</summary>
     public MessageContent? Content
@@ -189,6 +198,9 @@ public sealed partial class ReaderViewModel : ObservableObject
 
             HasAttachments = Attachments.Count > 0;
             Render();
+
+            // Texte gardé en cache pour la recherche plein texte (sur cet ordinateur seulement).
+            _cache?.IndexBody(account.Id, folder, header.Uid, $"{content.From} {content.To} {content.Cc}\n{Compose.ReplyBuilder.PlainText(content)}");
         }
         catch (MailConnectionException ex) when (!cancellation.IsCancellationRequested)
         {
@@ -364,6 +376,9 @@ public sealed partial class ReaderViewModel : ObservableObject
         _header = updated;
         IsRead = updated.IsRead;
         IsFlagged = updated.IsFlagged;
-        HeaderChanged?.Invoke(this, updated);
+        HeaderChanged?.Invoke(this, new MessageChange(account.Id, folder, updated));
     }
 }
+
+/// <summary>Un mail dont lu / non lu ou l'étoile a changé.</summary>
+public sealed record MessageChange(string AccountId, string Folder, MessageHeader Header);
