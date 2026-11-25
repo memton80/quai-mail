@@ -17,6 +17,9 @@ public static class UiHelpers
     public static Microsoft.UI.Xaml.Controls.InfoBarSeverity WarningIf(bool value) =>
         value ? Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning : Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational;
 
+    public static Microsoft.UI.Xaml.Controls.InfoBarSeverity ErrorIf(bool value) =>
+        value ? Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error : Microsoft.UI.Xaml.Controls.InfoBarSeverity.Success;
+
     public static string VersionText(string version) => Loc.Format("Settings_Version", version);
 
     /// <summary>Retrait d'une ligne du volet de gauche : les dossiers sous leur compte, les sous-dossiers sous leur parent.</summary>

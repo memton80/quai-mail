@@ -5,34 +5,97 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:l="using:QuaiMail.App.Localization"
     xmlns:ui="using:QuaiMail.App"
+    xmlns:vm="using:QuaiMail.Core.ViewModels"
     Title="{l:Str Key=Settings_Title}"
     CloseButtonText="{l:Str Key=Common_Close}"
     DefaultButton="Close">
 
-    <StackPanel Style="{StaticResource DialogFormStyle}">
-        <RadioButtons Header="{l:Str Key=Settings_Theme}" SelectedIndex="{x:Bind Settings.ThemeIndex, Mode=TwoWay}">
-            <RadioButton Content="{l:Str Key=Settings_ThemeSystem}" />
-            <RadioButton Content="{l:Str Key=Settings_ThemeLight}" />
-            <RadioButton Content="{l:Str Key=Settings_ThemeDark}" />
-        </RadioButtons>
-        <StackPanel>
-            <ToggleSwitch Header="{l:Str Key=Settings_RemoteImages}" IsOn="{x:Bind Settings.BlockRemoteImages, Mode=TwoWay}" />
-            <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_RemoteImagesDescription}" />
+    <ScrollViewer Style="{StaticResource DialogScrollStyle}">
+        <StackPanel Style="{StaticResource DialogFormStyle}">
+            <RadioButtons Header="{l:Str Key=Settings_Theme}" SelectedIndex="{x:Bind Settings.ThemeIndex, Mode=TwoWay}">
+                <RadioButton Content="{l:Str Key=Settings_ThemeSystem}" />
+                <RadioButton Content="{l:Str Key=Settings_ThemeLight}" />
+                <RadioButton Content="{l:Str Key=Settings_ThemeDark}" />
+            </RadioButtons>
+            <StackPanel>
+                <ToggleSwitch Header="{l:Str Key=Settings_RemoteImages}" IsOn="{x:Bind Settings.BlockRemoteImages, Mode=TwoWay}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_RemoteImagesDescription}" />
+            </StackPanel>
+            <StackPanel>
+                <ToggleSwitch Header="{l:Str Key=Settings_Notifications}" IsOn="{x:Bind Settings.ShowNotifications, Mode=TwoWay}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_NotificationsDescription}" />
+            </StackPanel>
+            <StackPanel>
+                <ToggleSwitch Header="{l:Str Key=Settings_Updates}" IsOn="{x:Bind Settings.CheckForUpdates, Mode=TwoWay}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_UpdatesDescription}" />
+            </StackPanel>
+            <StackPanel>
+                <Button Click="OnClearCacheClick" Content="{l:Str Key=Settings_ClearCache}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_ClearCacheDescription}" />
+            </StackPanel>
+
+            <!-- Signature des mails : clés secrètes importées de GnuPG ou de Kleopatra. -->
+            <StackPanel Style="{StaticResource PgpSectionStyle}">
+                <TextBlock Style="{StaticResource DialogSectionStyle}" Text="{l:Str Key=Pgp_Section}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Pgp_Intro}" />
+                <TextBlock
+                    Style="{StaticResource DialogHintStyle}"
+                    Text="{l:Str Key=Pgp_NoKey}"
+                    Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Keys.HasKeys), Mode=OneWay}" />
+                <ItemsRepeater ItemsSource="{x:Bind Keys.Keys}">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="8" />
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PgpKeyItem">
+                            <Grid Style="{StaticResource PgpKeyRowStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource PgpKeyNameStyle}" Text="{x:Bind UserId}" />
+                                    <TextBlock Style="{StaticResource PgpFingerprintStyle}" Text="{x:Bind Fingerprint}" />
+                                    <TextBlock Style="{StaticResource DialogHintStyle}" Text="{x:Bind Details}" />
+                                </StackPanel>
+                                <Button
+                                    Grid.Column="1"
+                                    AutomationProperties.Name="{l:Str Key=Pgp_Remove}"
+                                    Style="{StaticResource ReaderActionButtonStyle}"
+                                    ToolTipService.ToolTip="{l:Str Key=Pgp_Remove}">
+                                    <FontIcon Glyph="&#xE74D;" Style="{StaticResource ButtonIconStyle}" />
+                                    <Button.Flyout>
+                                        <Flyout>
+                                            <StackPanel Style="{StaticResource PgpConfirmStyle}">
+                                                <TextBlock Style="{StaticResource DialogBodyStyle}" Text="{x:Bind RemoveMessage}" />
+                                                <Button
+                                                    Click="OnRemoveKeyConfirmed"
+                                                    Content="{l:Str Key=Pgp_RemoveConfirm}"
+                                                    Style="{StaticResource AccentButtonStyle}"
+                                                    Tag="{x:Bind Key}" />
+                                            </StackPanel>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
+                <StackPanel Style="{StaticResource PgpButtonsStyle}">
+                    <Button Click="OnImportKeyClick" Content="{l:Str Key=Pgp_Import}" />
+                    <Button Click="OnForgetPassphrasesClick" Content="{l:Str Key=Pgp_Forget}" />
+                </StackPanel>
+                <InfoBar
+                    IsClosable="False"
+                    IsOpen="{x:Bind Keys.HasMessage, Mode=OneWay}"
+                    Message="{x:Bind Keys.Message, Mode=OneWay}"
+                    Severity="{x:Bind ui:UiHelpers.ErrorIf(Keys.IsError), Mode=OneWay}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Pgp_HowTo}" />
+            </StackPanel>
+
+            <TextBlock Style="{StaticResource DialogHintStyle}" Text="{x:Bind ui:UiHelpers.VersionText(Settings.Version)}" />
+            <TextBlock Style="{StaticResource DialogHintStyle}" Text="{x:Bind Settings.DataDirectory}" />
+            <HyperlinkButton Click="OnOpenLogsClick" Content="{l:Str Key=Settings_OpenLogs}" />
         </StackPanel>
-        <StackPanel>
-            <ToggleSwitch Header="{l:Str Key=Settings_Notifications}" IsOn="{x:Bind Settings.ShowNotifications, Mode=TwoWay}" />
-            <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_NotificationsDescription}" />
-        </StackPanel>
-        <StackPanel>
-            <ToggleSwitch Header="{l:Str Key=Settings_Updates}" IsOn="{x:Bind Settings.CheckForUpdates, Mode=TwoWay}" />
-            <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_UpdatesDescription}" />
-        </StackPanel>
-        <StackPanel>
-            <Button Click="OnClearCacheClick" Content="{l:Str Key=Settings_ClearCache}" />
-            <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_ClearCacheDescription}" />
-        </StackPanel>
-        <TextBlock Style="{StaticResource DialogHintStyle}" Text="{x:Bind ui:UiHelpers.VersionText(Settings.Version)}" />
-        <TextBlock Style="{StaticResource DialogHintStyle}" Text="{x:Bind Settings.DataDirectory}" />
-        <HyperlinkButton Click="OnOpenLogsClick" Content="{l:Str Key=Settings_OpenLogs}" />
-    </StackPanel>
+    </ScrollViewer>
 </ContentDialog>

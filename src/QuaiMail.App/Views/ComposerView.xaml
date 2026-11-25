@@ -17,9 +17,10 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Actions : Envoyer (le seul chemin d'envoi), joindre, fermer. -->
+        <!-- Actions : Envoyer (le seul chemin d'envoi), joindre, signer, fermer. -->
         <Grid>
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -47,12 +48,27 @@
                     <TextBlock Text="{l:Str Key=Composer_Attach}" />
                 </StackPanel>
             </Button>
-            <TextBlock
+            <!-- Signature OpenPGP : active dès qu'une clé existe pour l'adresse d'envoi (Réglages). -->
+            <ToggleButton
+                x:Name="SignButton"
                 Grid.Column="2"
+                AutomationProperties.HelpText="{x:Bind Composer.SignTooltip, Mode=OneWay}"
+                AutomationProperties.Name="{l:Str Key=Composer_Sign}"
+                IsChecked="{x:Bind Composer.Sign, Mode=TwoWay}"
+                IsEnabled="{x:Bind Composer.CanSign, Mode=OneWay}"
+                Style="{StaticResource ComposerToggleStyle}"
+                ToolTipService.ToolTip="{x:Bind Composer.SignTooltip, Mode=OneWay}">
+                <StackPanel Style="{StaticResource ButtonContentStyle}">
+                    <FontIcon Glyph="&#xE8D7;" Style="{StaticResource ButtonIconStyle}" />
+                    <TextBlock Text="{l:Str Key=Composer_Sign}" />
+                </StackPanel>
+            </ToggleButton>
+            <TextBlock
+                Grid.Column="3"
                 Style="{StaticResource ComposerStatusStyle}"
                 Text="{x:Bind Composer.Status, Mode=OneWay}" />
             <Button
-                Grid.Column="3"
+                Grid.Column="4"
                 AutomationProperties.Name="{l:Str Key=Composer_Close}"
                 Command="{x:Bind Composer.CloseCommand}"
                 Style="{StaticResource ReaderActionButtonStyle}"

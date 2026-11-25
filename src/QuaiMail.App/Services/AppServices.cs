@@ -8,6 +8,7 @@ using QuaiMail.Core.Cache;
 using QuaiMail.Core.Drafts;
 using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
+using QuaiMail.Core.Pgp;
 using QuaiMail.Core.Reading;
 using QuaiMail.Core.Services;
 using QuaiMail.Core.Storage;
@@ -129,6 +130,14 @@ internal static class AppServices
             provider.GetRequiredService<ReaderTemplate>(),
             provider.GetService<ILogger<ReaderViewModel>>(),
             provider.GetRequiredService<MailCache>()));
+        // Signature OpenPGP : trousseau de Quai Mail (clés importées), phrases de passe en mémoire seulement.
+        services.AddSingleton(provider => new PgpKeyStore(paths, provider.GetService<ILogger<PgpKeyStore>>()));
+        services.AddSingleton(provider => new PgpKeysViewModel(
+            provider.GetRequiredService<PgpKeyStore>(),
+            provider.GetRequiredService<IFileDialogs>(),
+            provider.GetRequiredService<IStrings>(),
+            TimeProvider.System,
+            provider.GetService<ILogger<PgpKeysViewModel>>()));
         services.AddSingleton(provider => new ComposerViewModel(
             provider.GetRequiredService<AccountStore>(),
             provider.GetRequiredService<DraftStore>(),
@@ -138,7 +147,8 @@ internal static class AppServices
             provider.GetRequiredService<IFileDialogs>(),
             provider.GetRequiredService<IStrings>(),
             TimeProvider.System,
-            provider.GetService<ILogger<ComposerViewModel>>()));
+            provider.GetService<ILogger<ComposerViewModel>>(),
+            provider.GetRequiredService<PgpKeyStore>()));
         services.AddTransient<AccountEditorViewModel>();
 
         // Mises à jour (comme Quai) : une requête à l'API publique de GitHub, puis, sur demande, le téléchargement de

@@ -1,6 +1,6 @@
 # Guide de Quai Mail
 
-> **Version 0.6.** Comptes IMAP / SMTP, lecture sûre, écriture, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail. La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir ») et arrive dans une prochaine version.
+> **Version 0.7 : mails signés avec OpenPGP (GPG).** Comptes IMAP / SMTP, lecture sûre, écriture, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail, et maintenant la **signature OpenPGP** de vos mails avec votre clé GnuPG / Kleopatra. La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir »).
 
 ## La fenêtre
 
@@ -78,6 +78,21 @@ Le contenu d'un mail vient de l'extérieur : Quai Mail le traite comme tel.
 
 Ce que vous écrivez est enregistré sur cet ordinateur toutes les 5 secondes, et copié dans le dossier Brouillons de votre compte toutes les 30 secondes (sans connexion, la copie attend ; l'heure du dernier enregistrement s'affiche en haut du message). Fermer le message (croix) demande **« Garder ce brouillon ? »** : **Garder** le conserve (sur l'ordinateur et dans Brouillons) et Quai Mail le rouvre au prochain démarrage ; **Supprimer** l'efface partout ; **Annuler** le laisse ouvert. Une mise à jour ou un plantage ne le perd jamais.
 
+## Signer vos mails (OpenPGP / GPG)
+
+Une signature OpenPGP prouve à vos correspondants que le mail vient bien de vous et qu'il n'a pas été modifié en route (Thunderbird, Kleopatra, GnuPG, Mailvelope… la vérifient). Quai Mail signe avec **votre clé existante**, sans rien installer de plus.
+
+1. **Exportez votre clé secrète** :
+   - Kleopatra : clic droit sur votre clé, **Sauvegarder les clés secrètes…**, format armuré (`.asc`) ;
+   - ligne de commande : `gpg --export-secret-keys --armor vous@exemple.fr > cle.asc`.
+2. Quai Mail, **Réglages**, **Signature des mails (OpenPGP / GPG)**, **Importer une clé…**, choisissez ce fichier. La clé apparaît avec son identité, son empreinte et sa date d'expiration. Supprimez ensuite le fichier exporté.
+3. Écrivez un message depuis l'adresse de la clé : le bouton **Signer** de la rédaction est activé d'office (cliquez dessus pour l'enlever, pour ce message). Sa bulle indique la clé utilisée.
+4. **Envoyer** : Quai Mail demande la **phrase de passe** de la clé, signe, puis envoie. Une phrase refusée est redemandée ; **Annuler** n'envoie rien.
+
+La phrase de passe n'est jamais enregistrée : Quai Mail la garde en mémoire jusqu'à sa fermeture (**Oublier les phrases de passe** dans les Réglages pour qu'elle soit redemandée). La clé importée reste protégée par cette phrase de passe, dans `%LOCALAPPDATA%\QuaiMail\pgp`. **Retirer cette clé** (Réglages) l'enlève de Quai Mail ; elle reste intacte dans GnuPG ou Kleopatra.
+
+Format : PGP/MIME (le standard des clients mail), empreinte SHA-256. Clés RSA, Ed25519 (celles de GnuPG récent), ECDSA, DSA. Une clé expirée, révoquée, ou gardée seulement sur une carte à puce (YubiKey…) ne peut pas signer.
+
 ## Pièces jointes
 
 Elles apparaissent sous les en-têtes du mail. Un clic **enregistre** la pièce jointe là où vous le choisissez ; Quai Mail ne l'ouvre jamais lui-même. Les fichiers qui peuvent lancer un programme (`.exe`, `.msi`, scripts, raccourcis, documents à macros…) sont signalés par une icône d'avertissement, et Quai Mail demande confirmation avant de les enregistrer.
@@ -121,6 +136,7 @@ Quai Mail pose la même question **« Garder ce brouillon ? »**. Si l'enregistr
 - Comptes : `%LOCALAPPDATA%\QuaiMail\accounts.json` (adresse, serveurs, identifiant ; **aucun mot de passe**). Mots de passe : coffre de Windows (Gestionnaire d'identification, « QuaiMail »).
 - Cache : `%LOCALAPPDATA%\QuaiMail\cache\mail.db` (dossiers et en-têtes), effaçable à tout moment.
 - Affichage des mails : `%LOCALAPPDATA%\QuaiMail\webview`, effacé à chaque démarrage et fermeture (aucun cookie gardé).
+- Clés OpenPGP importées : `%LOCALAPPDATA%\QuaiMail\pgp`, protégées par leur phrase de passe (jamais enregistrée).
 - Brouillons : `%LOCALAPPDATA%\QuaiMail\drafts`, un fichier par brouillon (et ses pièces jointes copiées), effacé une fois le mail envoyé ou le brouillon supprimé.
 - Journaux : `%LOCALAPPDATA%\QuaiMail\logs` (7 jours). Jamais de mot de passe, d'objet, de contenu ni d'adresse de correspondant.
 - Mise à jour en cours : `%LOCALAPPDATA%\QuaiMail\updates` (installateur, effacé au démarrage suivant ; `reopen.txt`, l'état de la fenêtre à restaurer, effacé dès qu'il a servi).
@@ -132,6 +148,6 @@ Quai Mail ne se connecte qu'aux serveurs mail de vos comptes, aux sites des imag
 
 ## Limites actuelles
 
-Version 0.6 : pas encore de connexion à Gmail / Outlook.com par le navigateur (boutons grisés « à venir ») ; Gmail fonctionne avec un mot de passe d'application, Outlook.com et Hotmail pas encore. La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes ne peuvent pas encore être autorisées pour un expéditeur.
+Version 0.7 : la signature OpenPGP ne chiffre pas les mails et ne vérifie pas encore les signatures reçues (la signature d'un mail reçu apparaît comme une pièce jointe `signature.asc`) ; pas de clé sur carte à puce. Pas encore de connexion à Gmail / Outlook.com par le navigateur (boutons grisés « à venir ») ; Gmail fonctionne avec un mot de passe d'application, Outlook.com et Hotmail pas encore. La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes ne peuvent pas encore être autorisées pour un expéditeur.
 
 Affichage : le moteur WebView2 de Microsoft (déjà présent sur Windows 11 et la plupart des Windows 10) est nécessaire. S'il manque, Quai Mail le dit et donne le lien officiel.

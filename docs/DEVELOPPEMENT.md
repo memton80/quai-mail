@@ -4,7 +4,7 @@
 
 | Dossier | Contenu |
 |---|---|
-| `src/QuaiMail.Core` | sans interface : comptes et détection des réglages (`Accounts/`), connexion OAuth2 par le navigateur (`Accounts/OAuth/` : PKCE, retour local, jetons), lecture (`Reading/` : nettoyage du HTML, gabarit, pièces jointes), rédaction (`Compose/` : réponses, destinataires, MIME ; `ViewModels/ComposerViewModel.cs`), IMAP / SMTP par MailKit (`Mail/MailKitMailService.cs`), réception en direct (`Mail/MailWatcher.cs`), cache SQLite et recherche FTS5 (`Cache/`), mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
+| `src/QuaiMail.Core` | sans interface : comptes et détection des réglages (`Accounts/`), connexion OAuth2 par le navigateur (`Accounts/OAuth/` : PKCE, retour local, jetons), lecture (`Reading/` : nettoyage du HTML, gabarit, pièces jointes), rédaction (`Compose/` : réponses, destinataires, MIME ; `ViewModels/ComposerViewModel.cs`), IMAP / SMTP par MailKit (`Mail/MailKitMailService.cs`), réception en direct (`Mail/MailWatcher.cs`), cache SQLite et recherche FTS5 (`Cache/`), signature OpenPGP (`Pgp/PgpKeyStore.cs`, `ViewModels/PgpKeysViewModel.cs`), mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
 | `src/QuaiMail.App` | WinUI 3 : fenêtre et ses trois volets, ajout de compte (`Views/AccountDialog.xaml`), lecture dans la WebView2 verrouillée (`Views/ReaderView.xaml.cs`), rédaction (`Views/ComposerView.xaml`), coffre de Windows (`Services/PasswordVaultCredentialStore.cs`), identifiants OAuth2 intégrés et fournisseur simulé du test de fumée (`Services/BrowserSignIn.cs`), bandeau de mise à jour, dialogues, réglages, installation des mises à jour (`Services/UpdateInstaller.cs`), test de fumée (`SmokeTest.cs`, `Services/SmokeMailService.cs`), gabarit de lecture des mails (`Assets/Mail`) |
 | `tests/QuaiMail.Core.Tests` | xUnit : nettoyage du HTML avec des mails piégés (`Reading/HtmlCleanerTests.cs`), comptes et détection, service MailKit contre de faux serveurs IMAP / SMTP locaux en TLS (`Support/FakeImapServer.cs`, `FakeSmtpServer.cs`), cache SQLite, view-models, mises à jour, réglages, brouillons, état de la fenêtre, clés de traduction |
 | `installer/QuaiMail.iss` | installateur Inno Setup (par utilisateur, sans droits administrateur) |
@@ -34,6 +34,10 @@ La variable d'environnement `QUAI_MAIL_DATA_DIR` redirige toutes les données (r
 | `--unregister-notifications` | passé par le désinstallateur : retire Quai Mail des notifications de Windows, sans fenêtre |
 | `mailto:…` | lien mail (Quai Mail choisi pour les liens mail) : nouveau message prérempli ; si Quai Mail est déjà ouvert, le lien lui est passé (instance unique, `Program.cs`) |
 | `--purge-secrets` | passé par le désinstallateur (effacement des données) : retire du coffre de Windows tous les mots de passe de Quai Mail, sans fenêtre |
+
+## Signature OpenPGP
+
+`PgpKeyStore` (MimeKit.Cryptography, sur BouncyCastle) : trousseau dans `pgp/` (format de MimeKit, `pubring.gpg` / `secring.gpg`), clé de signature choisie selon ses drapeaux, sa date d'expiration et sa révocation, signature PGP/MIME (SHA-256) du corps au moment d'envoyer (`ComposerViewModel.SendAsync`) ; la copie dans Brouillons n'est jamais signée. Les tests créent leurs clés pendant le test (aucune clé privée dans le dépôt) et vérifient la signature avec la clé publique seule ; si `gpg` est installé, un test crée une clé Ed25519 avec GnuPG, la fait signer par Quai Mail et vérifie avec `gpg --verify`. Le test de fumée importe une clé, envoie un mail signé (phrase refusée puis acceptée) et vérifie sa signature.
 
 ## Connexion par le navigateur (OAuth2)
 

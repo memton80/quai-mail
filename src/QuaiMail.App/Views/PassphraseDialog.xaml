@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="QuaiMail.App.Views.PassphraseDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:l="using:QuaiMail.App.Localization"
+    Title="{l:Str Key=Passphrase_Title}"
+    CloseButtonText="{l:Str Key=Common_Cancel}"
+    DefaultButton="Primary"
+    PrimaryButtonText="{l:Str Key=Passphrase_Sign}">
+
+    <StackPanel Style="{StaticResource DialogFormStyle}">
+        <InfoBar
+            IsClosable="False"
+            IsOpen="{x:Bind Retry}"
+            Message="{l:Str Key=Passphrase_Retry}"
+            Severity="Error" />
+        <TextBlock Style="{StaticResource DialogBodyStyle}" Text="{x:Bind Message}" />
+        <PasswordBox x:Name="PassphraseBox" Header="{l:Str Key=Passphrase_Label}" />
+        <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Passphrase_Hint}" />
+    </StackPanel>
+</ContentDialog>

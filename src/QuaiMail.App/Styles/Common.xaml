@@ -510,6 +510,58 @@
         <Setter Property="IsTextSelectionEnabled" Value="True" />
     </Style>
 
+    <Style
+        x:Key="DialogBodyStyle"
+        BasedOn="{StaticResource BodyTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- Rédaction : bouton Signer (OpenPGP). -->
+    <Style
+        x:Key="ComposerToggleStyle"
+        BasedOn="{StaticResource DefaultToggleButtonStyle}"
+        TargetType="ToggleButton">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
+
+    <!-- Réglages : signature des mails (OpenPGP). -->
+    <Style x:Key="PgpSectionStyle" TargetType="StackPanel">
+        <Setter Property="Spacing" Value="8" />
+    </Style>
+    <Style x:Key="PgpKeyRowStyle" TargetType="Grid">
+        <Setter Property="ColumnSpacing" Value="8" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+        <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style
+        x:Key="PgpKeyNameStyle"
+        BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style
+        x:Key="PgpFingerprintStyle"
+        BasedOn="{StaticResource CaptionTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+        <Setter Property="IsTextSelectionEnabled" Value="True" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="PgpButtonsStyle" TargetType="StackPanel">
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="Spacing" Value="8" />
+    </Style>
+    <Style x:Key="PgpConfirmStyle" TargetType="StackPanel">
+        <Setter Property="Spacing" Value="12" />
+        <Setter Property="MaxWidth" Value="320" />
+    </Style>
+
     <!-- Ajout de compte : connexion par le navigateur (Gmail, Outlook.com). -->
     <Style x:Key="SignInPanelStyle" TargetType="StackPanel">
         <Setter Property="Spacing" Value="8" />

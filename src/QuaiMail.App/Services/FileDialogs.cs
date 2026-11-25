@@ -16,6 +16,26 @@ internal sealed class FileDialogs : IFileDialogs
     /// <summary>Test de fumée : fichiers « choisis » à joindre, sans ouvrir le sélecteur.</summary>
     public List<string> SmokeAttachments { get; } = [];
 
+    /// <summary>Test de fumée : fichier de clé OpenPGP « choisi », sans ouvrir le sélecteur.</summary>
+    public string? SmokeKeyFile { get; set; }
+
+    public async Task<string?> PickKeyFileAsync()
+    {
+        if (SmokeDirectory is not null)
+        {
+            return SmokeKeyFile;
+        }
+
+        var picker = new FileOpenPicker(WindowId) { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
+        foreach (var extension in (string[])[".asc", ".gpg", ".key", ".pgp"])
+        {
+            picker.FileTypeFilter.Add(extension);
+        }
+
+        var result = await picker.PickSingleFileAsync();
+        return result?.Path;
+    }
+
     public async Task<IReadOnlyList<string>> PickFilesToAttachAsync()
     {
         if (SmokeDirectory is not null)

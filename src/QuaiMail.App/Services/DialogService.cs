@@ -79,11 +79,22 @@ internal sealed class DialogService : IDialogService
             };
         });
 
-    /// <summary>Réglages (thème, mises à jour, images distantes, cache).</summary>
-    public Task ShowSettingsAsync(SettingsViewModel settings, MailboxViewModel mailbox) =>
+    /// <summary>Phrase de passe OpenPGP : rendue seulement si l'utilisateur choisit « Signer et envoyer ».</summary>
+    public Task<string?> AskPassphraseAsync(string key, bool retry) =>
         OnUiAsync(async () =>
         {
-            await ShowAsync(new SettingsDialog(settings, mailbox));
+            var dialog = new PassphraseDialog(Loc.Format("Passphrase_Message", key), retry);
+            var result = await ShowAsync(dialog);
+            var passphrase = result == ContentDialogResult.Primary ? dialog.Passphrase : null;
+            dialog.Passphrase = string.Empty;
+            return passphrase;
+        });
+
+    /// <summary>Réglages (thème, mises à jour, images distantes, cache, clés OpenPGP).</summary>
+    public Task ShowSettingsAsync(SettingsViewModel settings, MailboxViewModel mailbox, PgpKeysViewModel keys) =>
+        OnUiAsync(async () =>
+        {
+            await ShowAsync(new SettingsDialog(settings, mailbox, keys));
             return true;
         });
 

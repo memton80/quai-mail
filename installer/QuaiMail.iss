@@ -76,7 +76,7 @@ UninstallDisplayIcon={app}\{#AppExe}
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [CustomMessages]
-french.RemoveUserData=Supprimer aussi vos données Quai Mail ?%n%nOui : vos comptes, les mots de passe gardés dans le coffre de Windows, les brouillons gardés sur cet ordinateur, le cache, les réglages et les journaux sont effacés.%n%nVos mails restent sur vos serveurs, ils ne sont jamais touchés.
+french.RemoveUserData=Supprimer aussi vos données Quai Mail ?%n%nOui : vos comptes, les mots de passe gardés dans le coffre de Windows, les clés OpenPGP importées, les brouillons gardés sur cet ordinateur, le cache, les réglages et les journaux sont effacés.%n%nVos mails restent sur vos serveurs, ils ne sont jamais touchés.
 
 french.MailtoLink=Lien mail (Quai Mail)
 french.AppDescription=Client mail pour Windows : lire et écrire vos mails, simplement.

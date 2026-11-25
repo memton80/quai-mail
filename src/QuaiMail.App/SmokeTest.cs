@@ -295,6 +295,7 @@ internal static class SmokeTest
 
         await ReadingAsync(window, services, dialogs, hwnd, directory, report);
         await ComposeAsync(window, services, dialogs, hwnd, directory, report);
+        await SignedMailAsync(window, services, dialogs, account, hwnd, directory, report);
 
         await WithTimeout(messages.LoadMoreCommand.ExecuteAsync(null), "mails plus anciens");
         Check(messages.Messages.Count == 2 * MessageListViewModel.PageSize, $"page suivante : {messages.Messages.Count} mails");
@@ -632,6 +633,87 @@ internal static class SmokeTest
         Check(await WithTimeout(removing, "retrait du compte Google"), "compte Google non retiré");
         Check(credentials.GetPassword(account.Id) is null, "jeton de renouvellement resté dans le coffre après le retrait");
         report.Add("Retrait du compte Google : jeton de renouvellement effacé du coffre");
+    }
+
+    /// <summary>
+    /// Signature OpenPGP : clé créée pour le test, importée dans les Réglages, bouton Signer actif pour l'adresse du
+    /// compte, phrase de passe refusée puis acceptée, mail parti signé (PGP/MIME) et vérifié avec la clé publique seule ;
+    /// phrase gardée pour la session, puis la clé retirée.
+    /// </summary>
+    private static async Task SignedMailAsync(MainWindow window, IServiceProvider services, DialogService dialogs, Account account, IntPtr hwnd, string directory, List<string> report)
+    {
+        var composer = window.Composer;
+        var mail = (SmokeMailService)services.GetRequiredService<IMailService>();
+        var files = services.GetRequiredService<FileDialogs>();
+        var keys = services.GetRequiredService<PgpKeysViewModel>();
+        var store = services.GetRequiredService<Core.Pgp.PgpKeyStore>();
+        var keyFile = Path.Combine(directory, "cle-secrete-de-test.asc");
+        var ring = SmokePgp.CreateKey($"Camille <{account.Address}>", keyFile);
+
+        // Réglages : importer la clé.
+        var settings = window.ShowSettingsAsync();
+        await WaitForAsync(() => dialogs.Current is SettingsDialog, "réglages (clé OpenPGP)");
+        files.SmokeKeyFile = keyFile;
+        await WithTimeout(keys.ImportAsync(), "import de la clé OpenPGP");
+        Check(keys is { HasKeys: true, IsError: false } && keys.Keys.Count == 1, $"clé OpenPGP non importée : {keys.Message}");
+        Check(keys.Keys[0].Key.Addresses.Contains(account.Address), "adresse de la clé");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "20-cle-openpgp.png", report);
+        dialogs.Current?.Hide();
+        await WithTimeout(settings, "fermeture des réglages");
+        foreach (var file in Directory.GetFiles(services.GetRequiredService<AppPaths>().PgpDirectory))
+        {
+            Check(!File.ReadAllText(file).Contains(SmokePgp.Passphrase, StringComparison.Ordinal), "phrase de passe écrite sur disque");
+        }
+
+        // Nouveau message : Signer actif d'office ; phrase refusée, puis acceptée.
+        var sent = mail.Sent.Count;
+        Check(await WithTimeout(composer.NewAsync(account.Id), "message signé"), "nouveau message non ouvert");
+        Check(composer is { CanSign: true, Sign: true }, "bouton Signer inactif malgré la clé");
+        composer.To = "Destinataire <destinataire@example.org>";
+        composer.Subject = "Message signé";
+        composer.Body = "Signé avec OpenPGP par le test de fumée.";
+        var sending = composer.SendCommand.ExecuteAsync(null);
+        await WaitForAsync(() => dialogs.Current is PassphraseDialog, "phrase de passe demandée");
+        var first = (PassphraseDialog)dialogs.Current!;
+        first.Passphrase = "pas la bonne";
+        dialogs.Choose(ContentDialogResult.Primary);
+        await WaitForAsync(() => dialogs.Current is PassphraseDialog { Retry: true } again && again != first, "phrase de passe redemandée");
+        Check(mail.Sent.Count == sent, "rien ne doit partir avec une phrase de passe refusée");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "21-phrase-de-passe.png", report);
+        ((PassphraseDialog)dialogs.Current!).Passphrase = SmokePgp.Passphrase;
+        dialogs.Choose(ContentDialogResult.Primary);
+        await WithTimeout(sending, "envoi signé");
+        Check(mail.Sent.Count == sent + 1 && !composer.IsOpen, $"mail signé non envoyé : {composer.ErrorMessage}");
+        Check(SmokePgp.Verify(mail.Sent[^1], ring, Path.Combine(directory, "destinataire-pgp")), "signature OpenPGP absente ou invalide");
+        composer.ShowSent = false;
+        report.Add("Signature OpenPGP : clé importée, phrase refusée puis acceptée, mail parti en PGP/MIME, signature vérifiée avec la clé publique");
+
+        // Pendant la session, plus de question ; décoché, le mail part sans signature.
+        Check(await WithTimeout(composer.NewAsync(account.Id), "deuxième message signé"), "nouveau message non ouvert");
+        composer.To = "destinataire@example.org";
+        composer.Subject = "Deuxième";
+        composer.Body = "Toujours signé.";
+        await WithTimeout(composer.SendCommand.ExecuteAsync(null), "deuxième envoi signé");
+        Check(SmokePgp.Verify(mail.Sent[^1], ring, Path.Combine(directory, "destinataire-pgp")), "deuxième mail non signé");
+        Check(await WithTimeout(composer.NewAsync(account.Id), "message non signé"), "nouveau message non ouvert");
+        composer.Sign = false;
+        composer.To = "destinataire@example.org";
+        composer.Subject = "Sans signature";
+        composer.Body = "Pas signé.";
+        await WithTimeout(composer.SendCommand.ExecuteAsync(null), "envoi sans signature");
+        Check(mail.Sent[^1].Body is not MimeKit.Cryptography.MultipartSigned, "mail signé alors que Signer était décoché");
+        composer.ShowSent = false;
+
+        // Clé retirée : Signer n'est plus proposé.
+        keys.Remove(keys.Keys[0].Key);
+        Check(store.Keys.Count == 0, "clé OpenPGP non retirée");
+        Check(await WithTimeout(composer.NewAsync(account.Id), "message sans clé"), "nouveau message non ouvert");
+        Check(composer is { CanSign: false, Sign: false }, "Signer encore proposé sans clé");
+        composer.Body = "Brouillon sans clé";
+        await DiscardAsync(composer, dialogs);
+        report.Add("Signature OpenPGP : phrase gardée pour la session, Signer décoché respecté, clé retirée");
     }
 
     /// <summary>Ferme le message en cours : « Garder ce brouillon ? » → Supprimer.</summary>
