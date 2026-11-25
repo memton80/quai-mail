@@ -71,12 +71,22 @@ public sealed class MailWatcherTests : IAsyncLifetime
     {
         _imap.SupportsIdle = false;
         _watcher.Watch([_account]);
-        await WaitForAsync(() => _watcher.Connections == 1);
 
+        // Le mail arrive après la première synchronisation : seul un NOOP peut le faire découvrir.
+        int Polls()
+        {
+            lock (_imap.Commands)
+            {
+                return _imap.Commands.Count(c => c == "NOOP");
+            }
+        }
+
+        await WaitForAsync(() => Polls() > 0);
+        var polls = Polls();
         _imap.Folder("INBOX").Messages.Add(new FakeMessage(4, "Relevé", "Banque", "banque@example.org", Now.AddMinutes(3)));
         await WaitForAsync(() => _events.Count == 1);
 
-        Assert.Contains("NOOP", _imap.Commands);
+        Assert.True(Polls() > polls);
     }
 
     [Fact]
