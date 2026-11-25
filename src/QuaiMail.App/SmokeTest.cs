@@ -297,7 +297,6 @@ internal static class SmokeTest
         await ReadingAsync(window, services, dialogs, hwnd, directory, report);
         await ComposeAsync(window, services, dialogs, hwnd, directory, report);
         await SignedMailAsync(window, services, dialogs, account, hwnd, directory, report);
-        await SignedReceivedAsync(window, services, account, hwnd, directory, report);
 
         await WithTimeout(messages.LoadMoreCommand.ExecuteAsync(null), "mails plus anciens");
         Check(messages.Messages.Count == 2 * MessageListViewModel.PageSize, $"page suivante : {messages.Messages.Count} mails");
@@ -305,6 +304,9 @@ internal static class SmokeTest
         mailbox.SelectedItem = mailbox.Items.First(i => i.Folder?.FullName == "Archives/2026");
         await WaitForAsync(() => !messages.IsLoading && messages.Messages.Count == 1 && messages.Title == "2026", "sous-dossier");
         report.Add($"Dossiers : {mailbox.Items.Count - 1}, mails par pages de {MessageListViewModel.PageSize}, sous-dossier : OK");
+
+        // Le mail du sous-dossier est signé par un correspondant : bandeau de signature, clé cherchée.
+        await SignedReceivedAsync(window, services, account, hwnd, directory, report);
 
         // Cache : effacé, il se reconstruit depuis le serveur.
         var cache = services.GetRequiredService<MailCache>();
