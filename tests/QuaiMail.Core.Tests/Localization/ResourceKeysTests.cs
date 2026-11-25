@@ -46,6 +46,18 @@ public sealed partial class ResourceKeysTests
         Assert.True(missing.Count == 0, "Clés absentes de Resources.resw : " + string.Join(", ", missing));
     }
 
+    /// <summary>Clés construites dans le code (« MailError_ » + erreur, « Folder_ » + rôle) : une par valeur.</summary>
+    [Fact]
+    public void Every_error_and_folder_role_has_its_text()
+    {
+        var defined = LoadKeys();
+        var expected = Enum.GetNames<QuaiMail.Core.Mail.MailError>().Select(n => "MailError_" + n)
+            .Concat(Enum.GetNames<QuaiMail.Core.Mail.FolderRole>().Where(n => n != "None").Select(n => "Folder_" + n));
+
+        var missing = expected.Where(k => !defined.Contains(k)).ToList();
+        Assert.True(missing.Count == 0, "Textes absents de Resources.resw : " + string.Join(", ", missing));
+    }
+
     [Fact]
     public void Resource_keys_are_unique_and_values_are_not_empty()
     {

@@ -106,6 +106,162 @@
         <Setter Property="FontSize" Value="16" />
     </Style>
 
+
+    <!-- Volet des comptes et dossiers. -->
+    <Style
+        x:Key="PaneIconButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,8,0,0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style x:Key="PaneInfoBarStyle" TargetType="InfoBar">
+        <Setter Property="IsClosable" Value="False" />
+    </Style>
+
+    <Style x:Key="NavListStyle" TargetType="ListView">
+        <Setter Property="SelectionMode" Value="Single" />
+        <Setter Property="Margin" Value="-12,0,-12,0" />
+    </Style>
+
+    <Style x:Key="NavItemStyle" TargetType="Grid">
+        <Setter Property="ColumnSpacing" Value="10" />
+        <Setter Property="MinHeight" Value="36" />
+    </Style>
+
+    <Style x:Key="NavIconStyle" TargetType="FontIcon">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style
+        x:Key="NavTextStyle"
+        BasedOn="{StaticResource BodyTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+    </Style>
+
+    <Style
+        x:Key="UnreadCountStyle"
+        BasedOn="{StaticResource CaptionTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="PaneButtonsStyle" TargetType="StackPanel">
+        <Setter Property="Spacing" Value="4" />
+    </Style>
+
+    <!-- Liste des mails. -->
+    <Style x:Key="ListBusyBarStyle" TargetType="ProgressBar">
+        <Setter Property="IsIndeterminate" Value="True" />
+        <Setter Property="Margin" Value="16,0" />
+    </Style>
+
+    <Style x:Key="ListInfoBarStyle" TargetType="InfoBar">
+        <Setter Property="Margin" Value="12,0" />
+        <Setter Property="IsClosable" Value="False" />
+    </Style>
+
+    <Style x:Key="MessageListStyle" TargetType="ListView">
+        <Setter Property="SelectionMode" Value="Single" />
+        <Setter Property="Padding" Value="0,0,0,12" />
+    </Style>
+
+    <Style x:Key="MessageItemStyle" TargetType="Grid">
+        <Setter Property="Padding" Value="0,8" />
+        <Setter Property="RowSpacing" Value="2" />
+        <Setter Property="ColumnSpacing" Value="8" />
+    </Style>
+
+    <Style
+        x:Key="MessageSenderStyle"
+        BasedOn="{StaticResource BodyTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+    </Style>
+
+    <Style x:Key="MessageMetaStyle" TargetType="StackPanel">
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="Spacing" Value="6" />
+    </Style>
+
+    <Style x:Key="FlagIconStyle" TargetType="FontIcon">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style
+        x:Key="MessageDateStyle"
+        BasedOn="{StaticResource CaptionTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style
+        x:Key="MessageSubjectStyle"
+        BasedOn="{StaticResource BodyTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+    </Style>
+
+    <Style
+        x:Key="LoadMoreButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,12" />
+    </Style>
+
+    <!-- Ajout d'un compte. -->
+    <Style x:Key="DialogScrollStyle" TargetType="ScrollViewer">
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="Padding" Value="0,0,16,0" />
+    </Style>
+
+    <Style x:Key="DialogExpanderStyle" TargetType="Expander">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <Style
+        x:Key="DialogSectionStyle"
+        BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+        TargetType="TextBlock" />
+
+    <Style x:Key="ServerRowStyle" TargetType="Grid">
+        <Setter Property="ColumnSpacing" Value="8" />
+    </Style>
+
+    <Style x:Key="PortBoxStyle" TargetType="NumberBox">
+        <Setter Property="Width" Value="96" />
+        <Setter Property="Minimum" Value="1" />
+        <Setter Property="Maximum" Value="65535" />
+        <Setter Property="SpinButtonPlacementMode" Value="Hidden" />
+    </Style>
+
+    <Style x:Key="SecurityBoxStyle" TargetType="ComboBox">
+        <Setter Property="MinWidth" Value="132" />
+    </Style>
+
+    <Style x:Key="BusyBarStyle" TargetType="ProgressBar">
+        <Setter Property="IsIndeterminate" Value="True" />
+    </Style>
+
     <!-- Brouillon en cours, dans le volet de lecture. -->
     <Style x:Key="DraftCardStyle" TargetType="Border">
         <Setter Property="Margin" Value="16,0,16,16" />

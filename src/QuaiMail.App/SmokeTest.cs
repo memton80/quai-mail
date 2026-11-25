@@ -3,8 +3,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml.Controls;
 using QuaiMail.App.Localization;
 using QuaiMail.App.Services;
+using QuaiMail.App.Views;
 using QuaiMail.Core;
+using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Cache;
 using QuaiMail.Core.Drafts;
+using QuaiMail.Core.Mail;
 using QuaiMail.Core.Storage;
 using QuaiMail.Core.Updates;
 using QuaiMail.Core.ViewModels;
@@ -14,9 +18,10 @@ namespace QuaiMail.App;
 /// <summary>
 /// Test de fumée lancé par le CI : <c>QuaiMail.exe --smoke-test &lt;dossier&gt;</c>.
 /// Ouvre la fenêtre, les réglages, le thème sombre, un brouillon simulé et la question « Garder ce brouillon ? »,
-/// l'état de la fenêtre noté puis restauré, le bandeau de mise à jour, enregistre des captures, puis quitte avec le
-/// code 0 (fichier <c>smoke-ok.txt</c>) ou 1 (fichier <c>smoke-error.txt</c>). Données dans un dossier jetable ;
-/// jamais de vrai compte mail, aucune connexion réseau.
+/// l'état de la fenêtre noté puis restauré, l'ajout d'un compte (serveur de test en mémoire, coffre de Windows), ses
+/// dossiers et ses mails par pages, le cache vidé, le retrait du compte, le bandeau de mise à jour ; enregistre des
+/// captures, puis quitte avec le code 0 (fichier <c>smoke-ok.txt</c>) ou 1 (fichier <c>smoke-error.txt</c>). Données
+/// dans un dossier jetable ; jamais de vrai compte mail, aucune connexion réseau.
 /// </summary>
 internal static class SmokeTest
 {
@@ -96,6 +101,7 @@ internal static class SmokeTest
 
             await DraftAsync(shell, dialogs, services.GetRequiredService<DraftStore>(), hwnd, directory, report);
             await WindowStateAsync(shell, services.GetRequiredService<AppPaths>(), report);
+            await AccountsAsync(window, services, dialogs, hwnd, directory, report);
             await UpdateBannerAsync(window, services, hwnd, directory, report);
 
             report.Add("Test de fumée : OK");
@@ -239,6 +245,76 @@ internal static class SmokeTest
         shell.SelectedAccountId = null;
         shell.SelectedFolderPath = null;
         shell.OpenMessageId = null;
+    }
+
+    /// <summary>
+    /// Comptes (serveur de test en mémoire, aucun réseau) : formulaire, mot de passe refusé puis accepté, mot de passe
+    /// dans le coffre de Windows et nulle part ailleurs, dossiers, mails par pages, sous-dossier, cache vidé et
+    /// reconstruit, retrait du compte après confirmation.
+    /// </summary>
+    private static async Task AccountsAsync(MainWindow window, IServiceProvider services, DialogService dialogs, IntPtr hwnd, string directory, List<string> report)
+    {
+        var mailbox = window.Mailbox;
+        var messages = window.Messages;
+        await WaitForAsync(() => !mailbox.IsRefreshing, "chargement des comptes");
+        Check(mailbox.HasNoAccount, "aucun compte attendu au départ");
+
+        var adding = window.AddAccountAsync();
+        await WaitForAsync(() => dialogs.Current is AccountDialog, "formulaire d'ajout de compte");
+        var editor = ((AccountDialog)dialogs.Current!).Editor;
+        editor.Address = "camille@example.org";
+        editor.DisplayName = "Camille";
+        await WithTimeout(editor.DetectAsync(), "détection des réglages");
+        Check(editor is { ImapHost: "imap.example.org", ImapPort: 993d, SmtpHost: "smtp.example.org", ShowServerSettings: true }, $"réglages supposés : {editor.ImapHost}:{editor.ImapPort}");
+
+        // Mot de passe refusé : rien n'est enregistré, l'erreur est claire.
+        editor.Password = "mauvais mot de passe";
+        Check(await WithTimeout(editor.SaveAsync(), "vérification refusée") is null, "un mot de passe refusé ne doit rien enregistrer");
+        Check(editor.HasError && mailbox.HasNoAccount, "erreur affichée, aucun compte ajouté");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "7-ajout-compte.png", report);
+
+        editor.Password = SmokeMailService.Password;
+        Check(await WithTimeout(editor.SaveAsync(), "vérification acceptée") is not null, $"compte non enregistré : {editor.ErrorMessage}");
+        dialogs.Current?.Hide();
+        var account = await WithTimeout(adding, "ajout du compte") ?? throw new InvalidOperationException("Compte ajouté introuvable.");
+
+        var credentials = services.GetRequiredService<ICredentialStore>();
+        var paths = services.GetRequiredService<AppPaths>();
+        Check(credentials.GetPassword(account.Id) == SmokeMailService.Password, "mot de passe absent du coffre de Windows");
+        Check(!File.ReadAllText(paths.AccountsFile).Contains(SmokeMailService.Password, StringComparison.Ordinal), "mot de passe écrit dans accounts.json");
+        report.Add("Compte : vérifié, enregistré sans mot de passe dans accounts.json, mot de passe dans le coffre de Windows");
+
+        await WaitForAsync(() => mailbox.Items.Count == 7 && !messages.IsLoading && messages.Messages.Count == MessageListViewModel.PageSize, "dossiers et premiers mails");
+        Check(mailbox.SelectedItem is { Role: FolderRole.Inbox }, "boîte de réception choisie après l'ajout");
+        Check(messages.HasMore && messages.Messages[0].Uid == 120, "mails du plus récent au plus ancien");
+        await Task.Delay(1000);
+        await CaptureAsync(hwnd, directory, "8-boite-de-reception.png", report);
+
+        await WithTimeout(messages.LoadMoreCommand.ExecuteAsync(null), "mails plus anciens");
+        Check(messages.Messages.Count == 2 * MessageListViewModel.PageSize, $"page suivante : {messages.Messages.Count} mails");
+
+        mailbox.SelectedItem = mailbox.Items.First(i => i.Folder?.FullName == "Archives/2026");
+        await WaitForAsync(() => !messages.IsLoading && messages.Messages.Count == 1 && messages.Title == "2026", "sous-dossier");
+        report.Add($"Dossiers : {mailbox.Items.Count - 1}, mails par pages de {MessageListViewModel.PageSize}, sous-dossier : OK");
+
+        // Cache : effacé, il se reconstruit depuis le serveur.
+        var cache = services.GetRequiredService<MailCache>();
+        Check(cache.GetFolders(account.Id).Count == 6, "dossiers en cache");
+        await WithTimeout(mailbox.ClearCacheAsync(), "vider le cache");
+        await WaitForAsync(() => !messages.IsLoading && messages.Messages.Count == 1, "dossier rechargé après le cache vidé");
+        Check(cache.GetFolders(account.Id).Count == 6, "cache reconstruit");
+        report.Add("Cache : vidé puis reconstruit depuis le serveur");
+
+        // Retrait du compte : confirmation, puis plus rien de local (coffre compris).
+        var removing = mailbox.RemoveAccountAsync(account.Id);
+        await WaitForAsync(() => dialogs.Current is not null, "confirmation du retrait du compte");
+        await Task.Delay(600);
+        await CaptureAsync(hwnd, directory, "9-retirer-compte.png", report);
+        dialogs.Choose(ContentDialogResult.Primary);
+        Check(await WithTimeout(removing, "retrait du compte"), "compte non retiré");
+        Check(mailbox.HasNoAccount && credentials.GetPassword(account.Id) is null && cache.GetFolders(account.Id).Count == 0, "le compte retiré a laissé des traces");
+        report.Add("Retrait du compte : confirmé, réglages, mot de passe et cache effacés");
     }
 
     /// <summary>Bandeau de mise à jour : une release plus récente (fictive, sans réseau) l'affiche.</summary>

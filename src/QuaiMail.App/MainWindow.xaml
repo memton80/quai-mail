@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:l="using:QuaiMail.App.Localization"
-    xmlns:ui="using:QuaiMail.App">
+    xmlns:ui="using:QuaiMail.App"
+    xmlns:vm="using:QuaiMail.Core.ViewModels">
 
     <Window.SystemBackdrop>
         <MicaBackdrop />
@@ -61,30 +62,114 @@
             <Grid AutomationProperties.Name="{l:Str Key=Pane_Accounts}" Style="{StaticResource FolderPaneStyle}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Style="{StaticResource PaneHeaderStyle}" Text="{l:Str Key=Pane_Accounts}" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource PaneHeaderStyle}" Text="{l:Str Key=Pane_Accounts}" />
+                    <Button
+                        Grid.Column="1"
+                        AutomationProperties.Name="{l:Str Key=Mailbox_Refresh}"
+                        Command="{x:Bind Mailbox.RefreshCommand}"
+                        Style="{StaticResource PaneIconButtonStyle}"
+                        ToolTipService.ToolTip="{l:Str Key=Mailbox_RefreshTooltip}"
+                        Visibility="{x:Bind ui:UiHelpers.VisibleIf(Mailbox.HasAccounts), Mode=OneWay}">
+                        <Button.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="F5" />
+                        </Button.KeyboardAccelerators>
+                        <FontIcon Glyph="&#xE72C;" Style="{StaticResource ButtonIconStyle}" />
+                    </Button>
+                </Grid>
 
-                <StackPanel Grid.Row="1" Style="{StaticResource EmptyStatePanelStyle}">
+                <InfoBar
+                    Grid.Row="1"
+                    IsOpen="{x:Bind Mailbox.HasError, Mode=OneWay}"
+                    Message="{x:Bind Mailbox.ErrorMessage, Mode=OneWay}"
+                    Severity="Warning"
+                    Style="{StaticResource PaneInfoBarStyle}" />
+
+                <ListView
+                    x:Name="NavList"
+                    Grid.Row="2"
+                    AutomationProperties.Name="{l:Str Key=Pane_Accounts}"
+                    ItemsSource="{x:Bind Mailbox.Items}"
+                    SelectedItem="{x:Bind Mailbox.SelectedItem, Mode=OneWay}"
+                    SelectionChanged="OnNavSelectionChanged"
+                    Style="{StaticResource NavListStyle}"
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Mailbox.HasAccounts), Mode=OneWay}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NavItemViewModel">
+                            <Grid
+                                AutomationProperties.Name="{x:Bind Title}"
+                                Margin="{x:Bind ui:UiHelpers.Indent(Depth, IsAccount)}"
+                                Style="{StaticResource NavItemStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Click="OnRemoveAccountClick" Text="{l:Str Key=Mailbox_RemoveAccount}">
+                                            <MenuFlyoutItem.Icon>
+                                                <FontIcon Glyph="&#xE74D;" />
+                                            </MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                    </MenuFlyout>
+                                </Grid.ContextFlyout>
+                                <FontIcon Glyph="{x:Bind ui:UiHelpers.FolderGlyph(Role, IsAccount)}" Style="{StaticResource NavIconStyle}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    FontWeight="{x:Bind ui:UiHelpers.StrongIf(IsAccount)}"
+                                    Style="{StaticResource NavTextStyle}"
+                                    Text="{x:Bind Title}" />
+                                <TextBlock
+                                    Grid.Column="2"
+                                    Style="{StaticResource UnreadCountStyle}"
+                                    Text="{x:Bind Unread, Mode=OneWay}"
+                                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(HasUnread), Mode=OneWay}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <StackPanel
+                    Grid.Row="2"
+                    Style="{StaticResource EmptyStatePanelStyle}"
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Mailbox.HasNoAccount), Mode=OneWay}">
                     <FontIcon Glyph="&#xE716;" Style="{StaticResource EmptyStateIconStyle}" />
                     <TextBlock Style="{StaticResource EmptyStateTitleStyle}" Text="{l:Str Key=Pane_NoAccountTitle}" />
                     <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Pane_NoAccountHint}" />
                 </StackPanel>
 
-                <Button
-                    x:Name="SettingsButton"
-                    Grid.Row="2"
-                    AutomationProperties.Name="{l:Str Key=Toolbar_Settings}"
-                    Click="OnSettingsClick"
-                    Style="{StaticResource PaneButtonStyle}"
-                    ToolTipService.ToolTip="{l:Str Key=Toolbar_SettingsTooltip}">
-                    <StackPanel Style="{StaticResource ButtonContentStyle}">
-                        <FontIcon Glyph="&#xE713;" Style="{StaticResource ButtonIconStyle}" />
-                        <TextBlock Text="{l:Str Key=Toolbar_Settings}" />
-                    </StackPanel>
-                </Button>
+                <StackPanel Grid.Row="3" Style="{StaticResource PaneButtonsStyle}">
+                    <Button
+                        AutomationProperties.Name="{l:Str Key=Toolbar_AddAccount}"
+                        Click="OnAddAccountClick"
+                        Style="{StaticResource PaneButtonStyle}">
+                        <StackPanel Style="{StaticResource ButtonContentStyle}">
+                            <FontIcon Glyph="&#xE710;" Style="{StaticResource ButtonIconStyle}" />
+                            <TextBlock Text="{l:Str Key=Toolbar_AddAccount}" />
+                        </StackPanel>
+                    </Button>
+                    <Button
+                        x:Name="SettingsButton"
+                        AutomationProperties.Name="{l:Str Key=Toolbar_Settings}"
+                        Click="OnSettingsClick"
+                        Style="{StaticResource PaneButtonStyle}"
+                        ToolTipService.ToolTip="{l:Str Key=Toolbar_SettingsTooltip}">
+                        <StackPanel Style="{StaticResource ButtonContentStyle}">
+                            <FontIcon Glyph="&#xE713;" Style="{StaticResource ButtonIconStyle}" />
+                            <TextBlock Text="{l:Str Key=Toolbar_Settings}" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
             </Grid>
 
             <!-- Volets 2 et 3 : liste des mails et lecture, sur une même surface. -->
@@ -99,13 +184,84 @@
                     <Grid AutomationProperties.Name="{l:Str Key=Pane_Messages}" Style="{StaticResource MessageListPaneStyle}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <TextBlock Style="{StaticResource SurfaceHeaderStyle}" Text="{l:Str Key=Pane_Messages}" />
-                        <StackPanel Grid.Row="1" Style="{StaticResource EmptyStatePanelStyle}">
+                        <TextBlock Style="{StaticResource SurfaceHeaderStyle}" Text="{x:Bind Messages.Title, Mode=OneWay}" />
+                        <ProgressBar
+                            Grid.Row="1"
+                            AutomationProperties.Name="{l:Str Key=Messages_Loading}"
+                            Style="{StaticResource ListBusyBarStyle}"
+                            Visibility="{x:Bind ui:UiHelpers.VisibleIf(Messages.IsLoading), Mode=OneWay}" />
+                        <InfoBar
+                            Grid.Row="2"
+                            IsOpen="{x:Bind Messages.HasError, Mode=OneWay}"
+                            Message="{x:Bind Messages.ErrorMessage, Mode=OneWay}"
+                            Severity="Warning"
+                            Style="{StaticResource ListInfoBarStyle}" />
+
+                        <ListView
+                            x:Name="MessageList"
+                            Grid.Row="3"
+                            AutomationProperties.Name="{l:Str Key=Pane_Messages}"
+                            ItemsSource="{x:Bind Messages.Messages}"
+                            SelectionChanged="OnMessageSelectionChanged"
+                            Style="{StaticResource MessageListStyle}">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MessageItemViewModel">
+                                    <Grid AutomationProperties.Name="{x:Bind ui:UiHelpers.MessageName(Sender, Subject, DateText, IsRead)}" Style="{StaticResource MessageItemStyle}">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock
+                                            FontWeight="{x:Bind ui:UiHelpers.StrongIfUnread(IsRead)}"
+                                            Style="{StaticResource MessageSenderStyle}"
+                                            Text="{x:Bind Sender}" />
+                                        <StackPanel Grid.Column="1" Style="{StaticResource MessageMetaStyle}">
+                                            <FontIcon
+                                                Glyph="&#xE734;"
+                                                Style="{StaticResource FlagIconStyle}"
+                                                Visibility="{x:Bind ui:UiHelpers.VisibleIf(IsFlagged)}" />
+                                            <TextBlock Style="{StaticResource MessageDateStyle}" Text="{x:Bind DateText}" />
+                                        </StackPanel>
+                                        <TextBlock
+                                            Grid.Row="1"
+                                            Grid.ColumnSpan="2"
+                                            FontWeight="{x:Bind ui:UiHelpers.StrongIfUnread(IsRead)}"
+                                            Style="{StaticResource MessageSubjectStyle}"
+                                            Text="{x:Bind Subject}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                            <ListView.Footer>
+                                <Button
+                                    Command="{x:Bind Messages.LoadMoreCommand}"
+                                    Content="{l:Str Key=Messages_LoadMore}"
+                                    Style="{StaticResource LoadMoreButtonStyle}"
+                                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Messages.HasMore), Mode=OneWay}" />
+                            </ListView.Footer>
+                        </ListView>
+
+                        <StackPanel
+                            Grid.Row="3"
+                            Style="{StaticResource EmptyStatePanelStyle}"
+                            Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Messages.HasFolder), Mode=OneWay}">
+                            <FontIcon Glyph="&#xE8C3;" Style="{StaticResource EmptyStateIconStyle}" />
+                            <TextBlock Style="{StaticResource EmptyStateTitleStyle}" Text="{l:Str Key=Pane_NoFolderTitle}" />
+                            <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Pane_NoMessagesHint}" />
+                        </StackPanel>
+                        <StackPanel
+                            Grid.Row="3"
+                            Style="{StaticResource EmptyStatePanelStyle}"
+                            Visibility="{x:Bind ui:UiHelpers.VisibleIf(Messages.IsEmpty), Mode=OneWay}">
                             <FontIcon Glyph="&#xE8C3;" Style="{StaticResource EmptyStateIconStyle}" />
                             <TextBlock Style="{StaticResource EmptyStateTitleStyle}" Text="{l:Str Key=Pane_NoMessagesTitle}" />
-                            <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Pane_NoMessagesHint}" />
                         </StackPanel>
                     </Grid>
 
@@ -137,6 +293,7 @@
                             <FontIcon Glyph="&#xE715;" Style="{StaticResource EmptyStateIconStyle}" />
                             <TextBlock Style="{StaticResource EmptyStateTitleStyle}" Text="{l:Str Key=Reader_EmptyTitle}" />
                             <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Reader_EmptyHint}" />
+                            <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Reader_ComingSoon}" />
                         </StackPanel>
                     </Grid>
                 </Grid>

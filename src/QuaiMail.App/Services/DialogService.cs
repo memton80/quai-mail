@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using QuaiMail.App.Localization;
 using QuaiMail.App.Views;
+using QuaiMail.Core.Accounts;
 using QuaiMail.Core.Services;
 using QuaiMail.Core.ViewModels;
 
@@ -78,12 +79,20 @@ internal sealed class DialogService : IDialogService
             };
         });
 
-    /// <summary>Réglages (thème, mises à jour, images distantes).</summary>
-    public Task ShowSettingsAsync(SettingsViewModel settings) =>
+    /// <summary>Réglages (thème, mises à jour, images distantes, cache).</summary>
+    public Task ShowSettingsAsync(SettingsViewModel settings, MailboxViewModel mailbox) =>
         OnUiAsync(async () =>
         {
-            await ShowAsync(new SettingsDialog(settings));
+            await ShowAsync(new SettingsDialog(settings, mailbox));
             return true;
+        });
+
+    /// <summary>Ajout d'un compte ; retourne le compte vérifié et enregistré, ou <c>null</c> si l'utilisateur renonce.</summary>
+    public Task<Account?> ShowAccountDialogAsync(AccountEditorViewModel editor) =>
+        OnUiAsync(async () =>
+        {
+            await ShowAsync(new AccountDialog(editor));
+            return editor.SavedAccount;
         });
 
     /// <summary>

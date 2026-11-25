@@ -2,8 +2,11 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using QuaiMail.Core;
+using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Cache;
 using QuaiMail.Core.Drafts;
 using QuaiMail.Core.Localization;
+using QuaiMail.Core.Mail;
 using QuaiMail.Core.Services;
 using QuaiMail.Core.Storage;
 using QuaiMail.Core.Updates;
@@ -48,9 +51,34 @@ internal static class AppServices
         services.AddSingleton<IDialogService>(provider => provider.GetRequiredService<DialogService>());
         services.AddSingleton<IClipboard, ClipboardService>();
 
+        // Comptes et mail. Tests de fumée : données de test en mémoire, ressource du coffre à part, aucun réseau.
+        var testing = smokeTest || updateTestInstaller is not null;
+        services.AddSingleton(provider => new AccountStore(paths, provider.GetService<ILogger<AccountStore>>()));
+        services.AddSingleton<ICredentialStore>(new PasswordVaultCredentialStore(testing ? PasswordVaultCredentialStore.SmokeResource : PasswordVaultCredentialStore.DefaultResource));
+        services.AddSingleton(provider => new MailCache(paths.CacheDatabase, provider.GetService<ILogger<MailCache>>()));
+        services.AddSingleton(_ => new ProviderAutoconfig(testing ? new NoNetworkHandler() : null));
+        services.AddSingleton<MailSettingsDiscovery>();
+        if (testing)
+        {
+            services.AddSingleton<IMailService, SmokeMailService>();
+        }
+        else
+        {
+            services.AddSingleton<IMailService>(provider =>
+                new MailKitMailService(provider.GetRequiredService<ICredentialStore>(), provider.GetService<ILogger<MailKitMailService>>()));
+        }
+
         // View-models
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton(provider => new MessageListViewModel(
+            provider.GetRequiredService<IMailService>(),
+            provider.GetRequiredService<MailCache>(),
+            provider.GetRequiredService<IStrings>(),
+            TimeProvider.System,
+            provider.GetService<ILogger<MessageListViewModel>>()));
+        services.AddSingleton<MailboxViewModel>();
+        services.AddTransient<AccountEditorViewModel>();
 
         // Mises à jour (comme Quai) : une requête à l'API publique de GitHub, puis, sur demande, le téléchargement de
         // l'installateur (les tests de fumée n'accèdent pas au réseau).

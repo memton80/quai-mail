@@ -28,7 +28,7 @@
     <value>Aucun compte</value>
   </data>
   <data name="Pane_NoAccountHint" xml:space="preserve">
-    <value>L'ajout d'un compte (IMAP / SMTP) arrive dans la prochaine version de Quai Mail.</value>
+    <value>Ajoutez votre compte mail (IMAP / SMTP) pour voir ses dossiers.</value>
   </data>
   <data name="Pane_Messages" xml:space="preserve">
     <value>Mails</value>
@@ -152,5 +152,182 @@
   </data>
   <data name="Update_ProgressName" xml:space="preserve">
     <value>Progression du téléchargement de la mise à jour</value>
+  </data>
+  <data name="Folder_Inbox" xml:space="preserve">
+    <value>Boîte de réception</value>
+  </data>
+  <data name="Folder_Drafts" xml:space="preserve">
+    <value>Brouillons</value>
+  </data>
+  <data name="Folder_Sent" xml:space="preserve">
+    <value>Envoyés</value>
+  </data>
+  <data name="Folder_Archive" xml:space="preserve">
+    <value>Archives</value>
+  </data>
+  <data name="Folder_Junk" xml:space="preserve">
+    <value>Indésirables</value>
+  </data>
+  <data name="Folder_Trash" xml:space="preserve">
+    <value>Corbeille</value>
+  </data>
+  <data name="Mailbox_AccountError" xml:space="preserve">
+    <value>{0} : {1}</value>
+  </data>
+  <data name="Mailbox_Refresh" xml:space="preserve">
+    <value>Actualiser</value>
+  </data>
+  <data name="Mailbox_RefreshTooltip" xml:space="preserve">
+    <value>Actualiser les dossiers (F5)</value>
+  </data>
+  <data name="Mailbox_RemoveAccount" xml:space="preserve">
+    <value>Retirer ce compte de Quai Mail…</value>
+  </data>
+  <data name="MailError_Format" xml:space="preserve">
+    <value>Serveur {0} {1} : {2}</value>
+  </data>
+  <data name="MailError_HostNotFound" xml:space="preserve">
+    <value>serveur introuvable (vérifiez son nom et la connexion à Internet).</value>
+  </data>
+  <data name="MailError_ConnectionFailed" xml:space="preserve">
+    <value>connexion impossible (vérifiez le port et le chiffrement).</value>
+  </data>
+  <data name="MailError_Timeout" xml:space="preserve">
+    <value>pas de réponse à temps.</value>
+  </data>
+  <data name="MailError_Certificate" xml:space="preserve">
+    <value>certificat de sécurité refusé : la connexion ne serait pas sûre, Quai Mail ne l'utilise pas.</value>
+  </data>
+  <data name="MailError_Tls" xml:space="preserve">
+    <value>chiffrement impossible (le serveur ne propose pas ce type de chiffrement).</value>
+  </data>
+  <data name="MailError_Authentication" xml:space="preserve">
+    <value>identifiant ou mot de passe refusé (certains fournisseurs demandent un mot de passe d'application).</value>
+  </data>
+  <data name="MailError_Protocol" xml:space="preserve">
+    <value>réponse inattendue du serveur.</value>
+  </data>
+  <data name="MailError_MissingPassword" xml:space="preserve">
+    <value>aucun mot de passe enregistré pour ce compte : retirez-le puis ajoutez-le de nouveau.</value>
+  </data>
+  <data name="RemoveAccount_Title" xml:space="preserve">
+    <value>Retirer ce compte ?</value>
+  </data>
+  <data name="RemoveAccount_Message" xml:space="preserve">
+    <value>« {0} » sera retiré de Quai Mail : ses réglages, son mot de passe gardé dans Windows et son cache sur cet ordinateur. Vos mails restent sur le serveur.</value>
+  </data>
+  <data name="RemoveAccount_Confirm" xml:space="preserve">
+    <value>Retirer</value>
+  </data>
+  <data name="AccountEditor_InvalidAddress" xml:space="preserve">
+    <value>Adresse mail invalide.</value>
+  </data>
+  <data name="AccountEditor_MissingPassword" xml:space="preserve">
+    <value>Saisissez le mot de passe du compte.</value>
+  </data>
+  <data name="AccountEditor_InvalidServer" xml:space="preserve">
+    <value>Vérifiez les serveurs : un nom valide et un port de 1 à 65535.</value>
+  </data>
+  <data name="AccountEditor_AlreadyAdded" xml:space="preserve">
+    <value>Ce compte est déjà dans Quai Mail.</value>
+  </data>
+  <data name="AccountEditor_SourceKnown" xml:space="preserve">
+    <value>Réglages de {0}.</value>
+  </data>
+  <data name="AccountEditor_SourceAutoconfig" xml:space="preserve">
+    <value>Réglages publiés par votre fournisseur.</value>
+  </data>
+  <data name="AccountEditor_SourceGuess" xml:space="preserve">
+    <value>Réglages habituels supposés : « Ajouter » les vérifie.</value>
+  </data>
+  <data name="AccountEditor_RequiresOAuth" xml:space="preserve">
+    <value>{0} n'accepte plus les mots de passe : la connexion par le navigateur arrive dans une prochaine version.</value>
+  </data>
+  <data name="AccountEditor_RequiresAppPassword" xml:space="preserve">
+    <value>{0} demande un mot de passe d'application, à créer dans les réglages de sécurité de votre compte.</value>
+  </data>
+  <data name="AccountDialog_Title" xml:space="preserve">
+    <value>Ajouter un compte</value>
+  </data>
+  <data name="AccountDialog_Add" xml:space="preserve">
+    <value>Ajouter</value>
+  </data>
+  <data name="AccountDialog_Address" xml:space="preserve">
+    <value>Adresse mail</value>
+  </data>
+  <data name="AccountDialog_AddressPlaceholder" xml:space="preserve">
+    <value>vous@exemple.fr</value>
+  </data>
+  <data name="AccountDialog_Name" xml:space="preserve">
+    <value>Votre nom (facultatif)</value>
+  </data>
+  <data name="AccountDialog_NamePlaceholder" xml:space="preserve">
+    <value>Affiché à vos correspondants</value>
+  </data>
+  <data name="AccountDialog_Password" xml:space="preserve">
+    <value>Mot de passe</value>
+  </data>
+  <data name="AccountDialog_PasswordHint" xml:space="preserve">
+    <value>Gardé dans le coffre de Windows, jamais dans un fichier.</value>
+  </data>
+  <data name="AccountDialog_Busy" xml:space="preserve">
+    <value>Vérification en cours</value>
+  </data>
+  <data name="AccountDialog_Servers" xml:space="preserve">
+    <value>Réglages du serveur</value>
+  </data>
+  <data name="AccountDialog_Incoming" xml:space="preserve">
+    <value>Réception (IMAP)</value>
+  </data>
+  <data name="AccountDialog_Outgoing" xml:space="preserve">
+    <value>Envoi (SMTP)</value>
+  </data>
+  <data name="AccountDialog_Host" xml:space="preserve">
+    <value>Serveur</value>
+  </data>
+  <data name="AccountDialog_Port" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="AccountDialog_Security" xml:space="preserve">
+    <value>Chiffrement</value>
+  </data>
+  <data name="AccountDialog_SecuritySsl" xml:space="preserve">
+    <value>SSL / TLS</value>
+  </data>
+  <data name="AccountDialog_SecurityStartTls" xml:space="preserve">
+    <value>STARTTLS</value>
+  </data>
+  <data name="AccountDialog_UserName" xml:space="preserve">
+    <value>Identifiant</value>
+  </data>
+  <data name="AccountDialog_ServersHint" xml:space="preserve">
+    <value>« Ajouter » se connecte pour vérifier ces réglages, sans rien envoyer.</value>
+  </data>
+  <data name="Toolbar_AddAccount" xml:space="preserve">
+    <value>Ajouter un compte</value>
+  </data>
+  <data name="Messages_Loading" xml:space="preserve">
+    <value>Chargement des mails</value>
+  </data>
+  <data name="Messages_LoadMore" xml:space="preserve">
+    <value>Afficher les mails plus anciens</value>
+  </data>
+  <data name="Messages_ItemName" xml:space="preserve">
+    <value>{0}, {1}, {2}</value>
+  </data>
+  <data name="Messages_ItemNameUnread" xml:space="preserve">
+    <value>Non lu, {0}, {1}, {2}</value>
+  </data>
+  <data name="Pane_NoFolderTitle" xml:space="preserve">
+    <value>Aucun dossier choisi</value>
+  </data>
+  <data name="Reader_ComingSoon" xml:space="preserve">
+    <value>La lecture des mails arrive dans la prochaine version de Quai Mail.</value>
+  </data>
+  <data name="Settings_ClearCache" xml:space="preserve">
+    <value>Vider le cache</value>
+  </data>
+  <data name="Settings_ClearCacheDescription" xml:space="preserve">
+    <value>Efface les dossiers et en-têtes gardés sur cet ordinateur ; tout est relu sur vos serveurs, rien n'est perdu.</value>
   </data>
 </root>

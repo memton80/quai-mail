@@ -199,6 +199,24 @@ public sealed class MailViewModelsTests : IDisposable
     }
 
     [Fact]
+    public async Task Clearing_the_cache_rebuilds_everything_from_the_server()
+    {
+        var account = AddAccount("alice@example.org");
+        _mail.Folders[account.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 0, 2)];
+        _mail.Messages["INBOX"] = [Header(1), Header(2)];
+        var mailbox = Mailbox();
+        await mailbox.LoadAsync();
+        await WaitForAsync(() => !mailbox.Messages.IsLoading && mailbox.Messages.Messages.Count == 2);
+
+        await mailbox.ClearCacheAsync();
+        await WaitForAsync(() => !mailbox.Messages.IsLoading);
+
+        Assert.Equal(2, mailbox.Items.Count);
+        Assert.Equal([2u, 1u], mailbox.Messages.Messages.Select(m => m.Uid));
+        Assert.Equal(2, _cache.GetMessages(account.Id, "INBOX", 0, 10).Count);
+    }
+
+    [Fact]
     public void Dates_are_short_and_readable()
     {
         var now = new DateTimeOffset(2026, 11, 25, 15, 0, 0, TimeSpan.Zero);

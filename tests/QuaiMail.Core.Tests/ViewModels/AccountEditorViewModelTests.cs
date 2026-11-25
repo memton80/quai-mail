@@ -50,6 +50,7 @@ public sealed class AccountEditorViewModelTests : IAsyncLifetime
         var account = await editor.SaveAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(account);
+        Assert.Same(account, editor.SavedAccount);
         Assert.Null(editor.ErrorMessage);
         Assert.Equal("Alice", account.DisplayName);
         Assert.Equal(MailSecurity.StartTls, account.Smtp.Security);

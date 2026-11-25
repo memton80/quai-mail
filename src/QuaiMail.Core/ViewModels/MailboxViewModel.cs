@@ -173,6 +173,21 @@ public sealed partial class MailboxViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>
+    /// Efface le cache local puis relit tout sur les serveurs : rien n'est perdu, le serveur est la référence.
+    /// </summary>
+    public async Task ClearCacheAsync()
+    {
+        var shown = Messages.AccountId is { } account && Messages.FolderName is { } folder ? (account, folder) : default;
+        _cache.Clear();
+        await RefreshAsync();
+        if (shown != default && Items.FirstOrDefault(i => i.Folder is { } f && (i.AccountId, f.FullName) == shown) is { } item
+            && _accounts.Find(item.AccountId) is { } owner)
+        {
+            await Messages.ShowAsync(owner, item.Folder!, item.Title);
+        }
+    }
+
     /// <summary>Titre affiché d'un dossier : nom français des dossiers particuliers à la racine, sinon son nom.</summary>
     public string FolderTitle(MailFolderInfo folder) =>
         folder.Depth == 0 && folder.Role != FolderRole.None ? _strings.Get("Folder_" + folder.Role) : folder.Name;

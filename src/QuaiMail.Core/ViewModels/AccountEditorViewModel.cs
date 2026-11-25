@@ -98,6 +98,9 @@ public sealed partial class AccountEditorViewModel : ObservableObject
 
     public bool HasError => ErrorMessage is not null;
 
+    /// <summary>Compte enregistré par le dernier <see cref="SaveAsync"/> réussi.</summary>
+    public Account? SavedAccount { get; private set; }
+
     /// <summary>Cherche les réglages de l'adresse saisie (une fois par adresse).</summary>
     public async Task DetectAsync(CancellationToken cancellationToken = default)
     {
@@ -177,6 +180,7 @@ public sealed partial class AccountEditorViewModel : ObservableObject
             _credentials.SetPassword(account.Id, Password);
             _accounts.Save(account);
             Password = string.Empty;
+            SavedAccount = account;
             _logger.LogInformation("Compte {Id} ajouté", account.Id);
             return account;
         }

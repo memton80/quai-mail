@@ -19,6 +19,12 @@ public partial class App : Application
 
     public App()
     {
+        // Désinstallation avec effacement des données : mots de passe retirés du coffre de Windows, sans fenêtre.
+        if (SecretPurge.IsRequested())
+        {
+            Environment.Exit(SecretPurge.Run());
+        }
+
         if (SmokeTest.TryGetOutputDirectory(out var smokeDirectory))
         {
             _smokeTestDirectory = smokeDirectory;
@@ -67,6 +73,15 @@ public partial class App : Application
         MainWindow = new MainWindow();
         MainWindow.Activate();
 
+        if (afterUpdate && _smokeTestDirectory is null && _updateTestDirectory is null)
+        {
+            // Compte, dossier, mail ouvert et brouillon notés juste avant la mise à jour (UpdateInstaller), une seule fois.
+            RestoreAfterUpdate();
+        }
+
+        // Comptes et dossiers : le cache tout de suite, puis les serveurs (après la restauration, qui choisit le dossier).
+        _ = LoadMailboxAsync();
+
         if (_smokeTestDirectory is not null)
         {
             _ = SmokeTest.RunAsync(MainWindow, Services, _logger, _smokeTestDirectory);
@@ -77,12 +92,6 @@ public partial class App : Application
         {
             _ = SmokeTest.RunUpdateAsync(MainWindow, Services, _logger, _updateTestDirectory);
             return;
-        }
-
-        if (afterUpdate)
-        {
-            // Compte, dossier, mail ouvert et brouillon notés juste avant la mise à jour (UpdateInstaller), une seule fois.
-            RestoreAfterUpdate();
         }
 
         _ = CheckForUpdatesAsync();
@@ -97,6 +106,18 @@ public partial class App : Application
         catch (Exception ex)
         {
             _logger.LogError(ex, "État de la fenêtre non restauré après la mise à jour");
+        }
+    }
+
+    private async Task LoadMailboxAsync()
+    {
+        try
+        {
+            await Services.GetRequiredService<MailboxViewModel>().LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Chargement des comptes impossible");
         }
     }
 

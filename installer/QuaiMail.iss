@@ -76,7 +76,7 @@ UninstallDisplayIcon={app}\{#AppExe}
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [CustomMessages]
-french.RemoveUserData=Supprimer aussi vos réglages, brouillons gardés sur cet ordinateur et journaux de Quai Mail ?%n%nVos mails restent sur vos serveurs, ils ne sont jamais touchés.
+french.RemoveUserData=Supprimer aussi vos données Quai Mail ?%n%nOui : vos comptes, les mots de passe gardés dans le coffre de Windows, les brouillons gardés sur cet ordinateur, le cache, les réglages et les journaux sont effacés.%n%nVos mails restent sur vos serveurs, ils ne sont jamais touchés.
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -121,7 +121,13 @@ begin
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
 begin
+  // Avant le retrait des fichiers : l'application efface elle-même ses mots de passe du coffre de Windows (comme Quai).
+  if (CurUninstallStep = usUninstall) and RemoveUserData then
+    Exec(ExpandConstant('{app}\{#AppExe}'), '--purge-secrets', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
   if (CurUninstallStep = usPostUninstall) and RemoveUserData then
     DelTree(ExpandConstant('{localappdata}\{#DataDir}'), True, True, True);
 end;

@@ -2,8 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using QuaiMail.App.Services;
 using QuaiMail.Core;
+using QuaiMail.Core.Accounts;
 using QuaiMail.Core.ViewModels;
 using Windows.Graphics;
 
@@ -12,6 +14,7 @@ namespace QuaiMail.App;
 /// <summary>Fenêtre principale : barre de titre, bandeau de mise à jour, trois volets (comptes et dossiers, liste, lecture).</summary>
 public sealed partial class MainWindow : Window
 {
+    private readonly IServiceProvider _services;
     private readonly ILogger<MainWindow> _logger;
     private readonly DialogService _dialogs;
     private readonly SettingsViewModel _settings;
@@ -22,12 +25,13 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
-        var services = App.Current.Services;
-        Shell = services.GetRequiredService<ShellViewModel>();
-        Updates = services.GetRequiredService<UpdateBannerViewModel>();
-        _settings = services.GetRequiredService<SettingsViewModel>();
-        _dialogs = services.GetRequiredService<DialogService>();
-        _logger = services.GetRequiredService<ILogger<MainWindow>>();
+        _services = App.Current.Services;
+        Shell = _services.GetRequiredService<ShellViewModel>();
+        Updates = _services.GetRequiredService<UpdateBannerViewModel>();
+        Mailbox = _services.GetRequiredService<MailboxViewModel>();
+        _settings = _services.GetRequiredService<SettingsViewModel>();
+        _dialogs = _services.GetRequiredService<DialogService>();
+        _logger = _services.GetRequiredService<ILogger<MainWindow>>();
         InitializeComponent();
 
         Title = AppInfo.DisplayName;
@@ -43,7 +47,7 @@ public sealed partial class MainWindow : Window
 
         // Les boîtes de dialogue ont besoin de la fenêtre.
         _dialogs.Root = RootGrid;
-        services.GetRequiredService<ThemeService>().Attach(this, RootGrid);
+        _services.GetRequiredService<ThemeService>().Attach(this, RootGrid);
 
         AppWindow.Closing += OnClosing;
         ResizeForDpi(1240, 820);
@@ -55,11 +59,30 @@ public sealed partial class MainWindow : Window
     /// <summary>Bandeau « nouvelle version disponible ».</summary>
     public UpdateBannerViewModel Updates { get; }
 
+    /// <summary>Volet des comptes et dossiers.</summary>
+    public MailboxViewModel Mailbox { get; }
+
+    /// <summary>Liste des mails du dossier choisi.</summary>
+    public MessageListViewModel Messages => Mailbox.Messages;
+
     /// <summary>Contenu racine de la fenêtre (test de fumée).</summary>
     public FrameworkElement Root => RootGrid;
 
     /// <summary>Ouvre les réglages (bouton du volet de gauche, test de fumée).</summary>
-    internal Task ShowSettingsAsync() => _dialogs.ShowSettingsAsync(_settings);
+    internal Task ShowSettingsAsync() => _dialogs.ShowSettingsAsync(_settings, Mailbox);
+
+    /// <summary>« Ajouter un compte » : formulaire, vérification, puis le compte apparaît avec sa boîte de réception ouverte.</summary>
+    internal async Task<Account?> AddAccountAsync()
+    {
+        var editor = _services.GetRequiredService<AccountEditorViewModel>();
+        if (await _dialogs.ShowAccountDialogAsync(editor) is { } account)
+        {
+            await Mailbox.OnAccountAddedAsync(account);
+            return account;
+        }
+
+        return null;
+    }
 
     /// <summary>Fermeture de la fenêtre (bouton, Alt+F4) : propose de garder le brouillon en cours.</summary>
     private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -129,6 +152,45 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             _logger.LogError(ex, "Réglages impossibles à afficher");
+        }
+    }
+
+    private async void OnAddAccountClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await AddAccountAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ajout de compte interrompu");
+        }
+    }
+
+    private async void OnRemoveAccountClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if ((sender as FrameworkElement)?.DataContext is NavItemViewModel item)
+            {
+                await Mailbox.RemoveAccountAsync(item.AccountId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Retrait du compte interrompu");
+        }
+    }
+
+    private void OnNavSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        Mailbox.SelectedItem = NavList.SelectedItem as NavItemViewModel;
+
+    /// <summary>Mail choisi : noté dans l'état de la fenêtre (la lecture arrive avec la version 0.3).</summary>
+    private void OnMessageSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (MessageList.SelectedItem is MessageItemViewModel message)
+        {
+            Shell.OpenMessageId = message.Uid.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
     }
 

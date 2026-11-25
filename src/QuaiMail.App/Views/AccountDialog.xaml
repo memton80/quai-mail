@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="QuaiMail.App.Views.AccountDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:l="using:QuaiMail.App.Localization"
+    xmlns:ui="using:QuaiMail.App"
+    Title="{l:Str Key=AccountDialog_Title}"
+    CloseButtonText="{l:Str Key=Common_Cancel}"
+    DefaultButton="Primary"
+    IsPrimaryButtonEnabled="{x:Bind ui:UiHelpers.Not(Editor.IsBusy), Mode=OneWay}"
+    PrimaryButtonClick="OnSaveClick"
+    PrimaryButtonText="{l:Str Key=AccountDialog_Add}">
+
+    <ScrollViewer Style="{StaticResource DialogScrollStyle}">
+        <StackPanel Style="{StaticResource DialogFormStyle}">
+            <TextBox
+                x:Name="AddressBox"
+                Header="{l:Str Key=AccountDialog_Address}"
+                InputScope="EmailSmtpAddress"
+                LostFocus="OnAddressLostFocus"
+                PlaceholderText="{l:Str Key=AccountDialog_AddressPlaceholder}"
+                Text="{x:Bind Editor.Address, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBox
+                Header="{l:Str Key=AccountDialog_Name}"
+                PlaceholderText="{l:Str Key=AccountDialog_NamePlaceholder}"
+                Text="{x:Bind Editor.DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <PasswordBox Header="{l:Str Key=AccountDialog_Password}" Password="{x:Bind Editor.Password, Mode=TwoWay}" />
+            <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=AccountDialog_PasswordHint}" />
+
+            <InfoBar
+                IsClosable="False"
+                IsOpen="{x:Bind Editor.HasHint, Mode=OneWay}"
+                Message="{x:Bind Editor.Hint, Mode=OneWay}"
+                Severity="Informational" />
+            <InfoBar
+                IsClosable="False"
+                IsOpen="{x:Bind Editor.HasError, Mode=OneWay}"
+                Message="{x:Bind Editor.ErrorMessage, Mode=OneWay}"
+                Severity="Error" />
+            <ProgressBar
+                AutomationProperties.Name="{l:Str Key=AccountDialog_Busy}"
+                Style="{StaticResource BusyBarStyle}"
+                Visibility="{x:Bind ui:UiHelpers.VisibleIf(Editor.IsBusy), Mode=OneWay}" />
+
+            <Expander Header="{l:Str Key=AccountDialog_Servers}" IsExpanded="{x:Bind Editor.ShowServerSettings, Mode=TwoWay}" Style="{StaticResource DialogExpanderStyle}">
+                <StackPanel Style="{StaticResource DialogFormStyle}">
+                    <TextBlock Style="{StaticResource DialogSectionStyle}" Text="{l:Str Key=AccountDialog_Incoming}" />
+                    <Grid Style="{StaticResource ServerRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Header="{l:Str Key=AccountDialog_Host}" Text="{x:Bind Editor.ImapHost, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <NumberBox
+                            Grid.Column="1"
+                            Header="{l:Str Key=AccountDialog_Port}"
+                            Style="{StaticResource PortBoxStyle}"
+                            Value="{x:Bind Editor.ImapPort, Mode=TwoWay}" />
+                        <ComboBox
+                            Grid.Column="2"
+                            Header="{l:Str Key=AccountDialog_Security}"
+                            SelectedIndex="{x:Bind Editor.ImapSecurityIndex, Mode=TwoWay}"
+                            Style="{StaticResource SecurityBoxStyle}">
+                            <ComboBoxItem Content="{l:Str Key=AccountDialog_SecuritySsl}" />
+                            <ComboBoxItem Content="{l:Str Key=AccountDialog_SecurityStartTls}" />
+                        </ComboBox>
+                    </Grid>
+                    <TextBlock Style="{StaticResource DialogSectionStyle}" Text="{l:Str Key=AccountDialog_Outgoing}" />
+                    <Grid Style="{StaticResource ServerRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Header="{l:Str Key=AccountDialog_Host}" Text="{x:Bind Editor.SmtpHost, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <NumberBox
+                            Grid.Column="1"
+                            Header="{l:Str Key=AccountDialog_Port}"
+                            Style="{StaticResource PortBoxStyle}"
+                            Value="{x:Bind Editor.SmtpPort, Mode=TwoWay}" />
+                        <ComboBox
+                            Grid.Column="2"
+                            Header="{l:Str Key=AccountDialog_Security}"
+                            SelectedIndex="{x:Bind Editor.SmtpSecurityIndex, Mode=TwoWay}"
+                            Style="{StaticResource SecurityBoxStyle}">
+                            <ComboBoxItem Content="{l:Str Key=AccountDialog_SecuritySsl}" />
+                            <ComboBoxItem Content="{l:Str Key=AccountDialog_SecurityStartTls}" />
+                        </ComboBox>
+                    </Grid>
+                    <TextBox Header="{l:Str Key=AccountDialog_UserName}" Text="{x:Bind Editor.UserName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=AccountDialog_ServersHint}" />
+                </StackPanel>
+            </Expander>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>
