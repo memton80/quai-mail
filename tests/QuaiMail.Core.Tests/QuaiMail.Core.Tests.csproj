@@ -20,4 +20,9 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Réponses réelles de l'API GitHub, enregistrées telles quelles (voir Updates/PublishedReleaseTests.cs). -->
+    <None Include="Updates\Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
