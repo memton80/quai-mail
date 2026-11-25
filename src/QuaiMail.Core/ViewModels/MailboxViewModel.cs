@@ -9,13 +9,16 @@ using QuaiMail.Core.Cache;
 using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
 using QuaiMail.Core.Services;
+using QuaiMail.Core.Storage;
 
 namespace QuaiMail.Core.ViewModels;
 
 /// <summary>
 /// Volet de gauche : les comptes et leurs dossiers. Les dossiers en cache s'affichent tout de suite, puis chaque compte
 /// est relu sur son serveur. Choisir un dossier affiche ses mails (<see cref="MessageListViewModel"/>) et le note dans
-/// l'état de la fenêtre (<see cref="ShellViewModel"/>).
+/// l'état de la fenêtre (<see cref="ShellViewModel"/>). Chaque compte se replie : ses dossiers quittent le volet
+/// (<see cref="Items"/>) mais restent connus (compteurs, « Déplacer vers », notifications) ; l'état est gardé dans les
+/// réglages.
 /// </summary>
 public sealed partial class MailboxViewModel : ObservableObject
 {
@@ -28,6 +31,9 @@ public sealed partial class MailboxViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly IStrings _strings;
     private readonly ILogger _logger;
+    private readonly ISettingsService? _settings;
+    private readonly HashSet<string> _collapsed;
+    private List<NavItemViewModel> _all = [];
     private bool _rebuilding;
 
     public MailboxViewModel(
@@ -41,9 +47,12 @@ public sealed partial class MailboxViewModel : ObservableObject
         IDialogService dialogs,
         IStrings strings,
         ILogger<MailboxViewModel>? logger = null,
-        AccessTokens? tokens = null)
+        AccessTokens? tokens = null,
+        ISettingsService? settings = null)
     {
         _tokens = tokens;
+        _settings = settings;
+        _collapsed = new HashSet<string>(settings?.Current.CollapsedAccounts ?? [], StringComparer.Ordinal);
         _accounts = accounts;
         _credentials = credentials;
         _mail = mail;
@@ -64,7 +73,11 @@ public sealed partial class MailboxViewModel : ObservableObject
         Reader.HeaderChanged += (_, change) => OnHeaderChanged(change);
     }
 
+    /// <summary>Lignes affichées : la boîte unifiée, chaque compte, et les dossiers des comptes dépliés.</summary>
     public ObservableCollection<NavItemViewModel> Items { get; } = [];
+
+    /// <summary>Toutes les lignes, dossiers des comptes repliés compris.</summary>
+    public IReadOnlyList<NavItemViewModel> AllItems => _all;
 
     public MessageListViewModel Messages { get; }
 
@@ -172,6 +185,11 @@ public sealed partial class MailboxViewModel : ObservableObject
         _credentials.Remove(accountId);
         _tokens?.Forget(accountId);
         _cache.RemoveAccount(accountId);
+        if (_collapsed.Remove(accountId))
+        {
+            SaveCollapsed();
+        }
+
         _logger.LogInformation("Compte {Id} retiré de Quai Mail", accountId);
 
         if (Messages.AccountId == accountId)
@@ -200,10 +218,65 @@ public sealed partial class MailboxViewModel : ObservableObject
         var shown = Messages.AccountId is { } account && Messages.FolderName is { } folder ? (account, folder) : default;
         _cache.Clear();
         await RefreshAsync();
-        if (shown != default && Items.FirstOrDefault(i => i.Folder is { } f && (i.AccountId, f.FullName) == shown) is { } item
+        if (shown != default && _all.FirstOrDefault(i => i.Folder is { } f && (i.AccountId, f.FullName) == shown) is { } item
             && _accounts.Find(item.AccountId) is { } owner)
         {
             await ShowFolderAsync(owner, item.Folder!, item.Title);
+        }
+    }
+
+    /// <summary>Replie ou déplie un compte (clic sur sa ligne, flèches gauche / droite).</summary>
+    public void ToggleAccount(string accountId)
+    {
+        if (AccountLine(accountId) is { } account)
+        {
+            SetExpanded(accountId, !account.IsExpanded);
+        }
+    }
+
+    /// <summary>
+    /// Déplie (ses dossiers reviennent sous sa ligne) ou replie (ils quittent le volet) un compte, et garde ce choix dans
+    /// les réglages. Le dossier affiché reste affiché, même replié.
+    /// </summary>
+    public void SetExpanded(string accountId, bool expanded)
+    {
+        if (AccountLine(accountId) is not { } account || account.IsExpanded == expanded)
+        {
+            return;
+        }
+
+        account.IsExpanded = expanded;
+        if (expanded)
+        {
+            _collapsed.Remove(accountId);
+            var index = Items.IndexOf(account) + 1;
+            foreach (var folder in _all.Where(i => i.AccountId == accountId && !i.IsAccount))
+            {
+                Items.Insert(index++, folder);
+            }
+        }
+        else
+        {
+            _collapsed.Add(accountId);
+            for (var i = Items.Count - 1; i >= 0; i--)
+            {
+                if (Items[i].AccountId == accountId && !Items[i].IsAccount)
+                {
+                    Items.RemoveAt(i);
+                }
+            }
+        }
+
+        UpdateAccountUnread(accountId);
+        SaveCollapsed();
+    }
+
+    /// <summary>Affiche la boîte de réception d'un compte (clic sur une notification), même si le compte est replié.</summary>
+    public void ShowInbox(string accountId)
+    {
+        if (InboxOf(accountId) is { } inbox)
+        {
+            SelectedItem = inbox;
         }
     }
 
@@ -300,16 +373,34 @@ public sealed partial class MailboxViewModel : ObservableObject
 
     private void AdjustUnread(string accountId, string folder, int delta)
     {
-        if (Items.FirstOrDefault(i => i.AccountId == accountId && i.Folder?.FullName == folder) is { } item)
+        if (_all.FirstOrDefault(i => i.AccountId == accountId && i.Folder?.FullName == folder) is { } item)
         {
             item.Unread = Math.Max(0, item.Unread + delta);
+            UpdateAccountUnread(accountId);
         }
 
-        if (folder == "INBOX" && Items.FirstOrDefault(i => i.IsUnified) is { } unified)
+        if (folder == "INBOX" && _all.FirstOrDefault(i => i.IsUnified) is { } unified)
         {
             unified.Unread = Math.Max(0, unified.Unread + delta);
         }
     }
+
+    /// <summary>Compte replié : sa ligne montre les non lus de ses dossiers (sans Indésirables ni Corbeille) ; déplié : rien.</summary>
+    private void UpdateAccountUnread(string accountId)
+    {
+        if (AccountLine(accountId) is { } account)
+        {
+            account.Unread = account.IsExpanded
+                ? 0
+                : _all.Where(i => i.AccountId == accountId && i.CanSelect && i.Role is not (FolderRole.Junk or FolderRole.Trash)).Sum(i => i.Unread);
+        }
+    }
+
+    private NavItemViewModel? AccountLine(string accountId) =>
+        _all.FirstOrDefault(i => i.IsAccount && i.AccountId == accountId);
+
+    private void SaveCollapsed() =>
+        _settings?.Update(s => s.CollapsedAccounts = [.. _collapsed.Order(StringComparer.Ordinal)]);
 
     /// <summary>
     /// Réception en direct : nouveaux mails ajoutés en tête de la liste affichée et aux compteurs.
@@ -329,7 +420,7 @@ public sealed partial class MailboxViewModel : ObservableObject
 
     /// <summary>Dossiers vers lesquels un mail peut être déplacé (même compte, sauf son dossier).</summary>
     public IReadOnlyList<NavItemViewModel> MoveTargets(MessageItemViewModel message) =>
-        [.. Items.Where(i => i.AccountId == message.AccountId && i.CanSelect && i.Folder!.FullName != message.Folder)];
+        [.. _all.Where(i => i.AccountId == message.AccountId && i.CanSelect && i.Folder!.FullName != message.Folder)];
 
     /// <summary>
     /// Supprimer : vers la corbeille du serveur ; s'il n'y en a pas, ou si le mail y est déjà, suppression définitive
@@ -392,6 +483,7 @@ public sealed partial class MailboxViewModel : ObservableObject
         if (!message.IsRead)
         {
             target.Unread++;
+            UpdateAccountUnread(target.AccountId);
         }
 
         return true;
@@ -416,19 +508,20 @@ public sealed partial class MailboxViewModel : ObservableObject
     private bool CanRefresh() => !IsRefreshing;
 
     private NavItemViewModel? InboxOf(string accountId) =>
-        Items.FirstOrDefault(i => i.AccountId == accountId && i.Role == FolderRole.Inbox && i.CanSelect)
-        ?? Items.FirstOrDefault(i => i.AccountId == accountId && i.CanSelect);
+        _all.FirstOrDefault(i => i.AccountId == accountId && i.Role == FolderRole.Inbox && i.CanSelect)
+        ?? _all.FirstOrDefault(i => i.AccountId == accountId && i.CanSelect);
 
     private void SelectInitial()
     {
-        var restored = Items.FirstOrDefault(i =>
+        var restored = _all.FirstOrDefault(i =>
             i.CanSelect && i.AccountId == _shell.SelectedAccountId && i.Folder!.FullName == _shell.SelectedFolderPath);
-        var first = Items.FirstOrDefault(i => i.IsAccount);
-        SelectedItem = restored ?? Items.FirstOrDefault(i => i.IsUnified) ?? (first is null ? null : InboxOf(first.AccountId));
+        var first = _all.FirstOrDefault(i => i.IsAccount);
+        SelectedItem = restored ?? _all.FirstOrDefault(i => i.IsUnified) ?? (first is null ? null : InboxOf(first.AccountId));
     }
 
     /// <summary>
-    /// Reconstruit la liste depuis les comptes et le cache. Le dossier choisi reste choisi, sans recharger ses mails.
+    /// Reconstruit la liste depuis les comptes et le cache. Le dossier choisi reste choisi, sans recharger ses mails ;
+    /// les comptes repliés le restent.
     /// </summary>
     private void Rebuild()
     {
@@ -444,18 +537,26 @@ public sealed partial class MailboxViewModel : ObservableObject
         foreach (var account in accounts)
         {
             var browser = account.Auth != AccountAuth.Password;
-            items.Add(NavItemViewModel.ForAccount(account.Id, account.Title, browser));
+            var line = NavItemViewModel.ForAccount(account.Id, account.Title, browser);
+            line.IsExpanded = !_collapsed.Contains(account.Id);
+            items.Add(line);
             foreach (var folder in FolderOrder.Sort(_cache.GetFolders(account.Id)))
             {
                 items.Add(NavItemViewModel.ForFolder(account.Id, folder, FolderTitle(folder), browser));
             }
         }
 
+        _all = items;
+        foreach (var account in accounts)
+        {
+            UpdateAccountUnread(account.Id);
+        }
+
         _rebuilding = true;
         try
         {
             Items.Clear();
-            foreach (var item in items)
+            foreach (var item in items.Where(i => i.IsAccount || !_collapsed.Contains(i.AccountId)))
             {
                 Items.Add(item);
             }

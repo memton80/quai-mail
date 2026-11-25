@@ -546,6 +546,25 @@ internal static class SmokeTest
         await WaitForAsync(() => !messages.IsLoading && messages.IsUnified && messages.Messages.Select(m => m.AccountId).Distinct().Count() == 2, "boîte de réception unifiée");
         await Task.Delay(800);
         await CaptureAsync(hwnd, directory, "18-boites-unifiees.png", report);
+
+        // Replier un compte : ses dossiers quittent le volet, le dossier affiché reste affiché (sans surbrillance) et le
+        // choix est gardé dans les réglages ; déplié, ses dossiers reviennent et la surbrillance aussi.
+        var settings = services.GetRequiredService<ISettingsService>();
+        var sentFolder = mailbox.Items.First(i => i.AccountId == account.Id && i.Folder?.FullName == "Envoyés");
+        mailbox.SelectedItem = sentFolder;
+        await WaitForAsync(() => !messages.IsLoading && messages.FolderName == "Envoyés" && window.NavSelection == sentFolder, "dossier Envoyés en surbrillance");
+        window.SetAccountExpanded(account.Id, false);
+        await WaitForAsync(() => window.NavSelection is null, "surbrillance retirée du dossier masqué");
+        Check(!mailbox.Items.Any(i => i.AccountId == account.Id && !i.IsAccount) && mailbox.Items.Any(i => i.AccountId == second.Id && !i.IsAccount), "compte replié : ses dossiers seuls doivent quitter le volet");
+        Check(mailbox.SelectedItem == sentFolder && messages.FolderName == "Envoyés", "compte replié : le dossier affiché doit rester affiché");
+        Check(settings.Current.CollapsedAccounts.Contains(account.Id), "compte replié non gardé dans les réglages");
+        await Task.Delay(500);
+        await CaptureAsync(hwnd, directory, "18-compte-replie.png", report);
+        window.SetAccountExpanded(account.Id, true);
+        await WaitForAsync(() => window.NavSelection == sentFolder, "surbrillance rendue au dossier affiché");
+        Check(settings.Current.CollapsedAccounts.Length == 0, "compte déplié encore noté replié");
+        report.Add("Volet : un compte se replie et se déplie (dossier affiché gardé), choix gardé dans les réglages");
+
         var removing = mailbox.RemoveAccountAsync(second.Id);
         await WaitForAsync(() => dialogs.Current is not null, "retrait du deuxième compte");
         dialogs.Choose(ContentDialogResult.Primary);

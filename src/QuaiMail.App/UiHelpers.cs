@@ -37,6 +37,16 @@ public static class UiHelpers
         _ => "",
     };
 
+    /// <summary>Flèche d'une ligne de compte : vers le bas, dossiers affichés ; vers la droite, compte replié.</summary>
+    public static string ChevronGlyph(bool isExpanded) => isExpanded ? "\uE70D" : "\uE76C";
+
+    /// <summary>Nom d'accessibilité d'une ligne du volet : un compte dit s'il est replié, et ses non lus cachés.</summary>
+    public static string NavItemName(string title, bool isAccount, bool isExpanded, int unread) =>
+        !isAccount ? title
+        : isExpanded ? Loc.Format("Nav_AccountExpanded", title)
+        : unread > 0 ? Loc.Format("Nav_AccountCollapsedUnread", title, unread)
+        : Loc.Format("Nav_AccountCollapsed", title);
+
     public static Windows.UI.Text.FontWeight StrongIf(bool value) => value ? FontWeights.SemiBold : FontWeights.Normal;
 
     /// <summary>Mail non lu : expéditeur et objet en gras.</summary>

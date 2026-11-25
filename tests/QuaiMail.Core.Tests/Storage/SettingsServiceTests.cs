@@ -75,6 +75,35 @@ public sealed class SettingsServiceTests
     }
 
     [Fact]
+    public void Collapsed_accounts_are_kept_without_duplicates_or_blanks()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.File("settings.json");
+        File.WriteAllText(path, """{ "collapsedAccounts": ["b", "", "a", "b"] }""");
+
+        Assert.Equal(["b", "a"], new JsonSettingsService(path).Current.CollapsedAccounts);
+
+        var service = new JsonSettingsService(path);
+        var raised = 0;
+        service.Changed += (_, _) => raised++;
+        service.Update(s => s.CollapsedAccounts = ["b", "a"]);
+        service.Update(s => s.CollapsedAccounts = ["a"]);
+
+        Assert.Equal(1, raised);
+        Assert.Equal(["a"], new JsonSettingsService(path).Current.CollapsedAccounts);
+    }
+
+    [Fact]
+    public void A_null_list_of_collapsed_accounts_means_none()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.File("settings.json");
+        File.WriteAllText(path, """{ "collapsedAccounts": null }""");
+
+        Assert.Empty(new JsonSettingsService(path).Current.CollapsedAccounts);
+    }
+
+    [Fact]
     public void SettingsViewModel_saves_each_change()
     {
         using var temp = new TempDirectory();

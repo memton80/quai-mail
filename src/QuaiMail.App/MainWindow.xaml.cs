@@ -4,6 +4,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using QuaiMail.App.Services;
 using QuaiMail.Core;
 using QuaiMail.Core.Accounts;
@@ -11,6 +12,7 @@ using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
 using QuaiMail.Core.ViewModels;
 using Windows.Graphics;
+using Windows.System;
 
 namespace QuaiMail.App;
 
@@ -42,6 +44,16 @@ public sealed partial class MainWindow : Window
         _dialogs = _services.GetRequiredService<DialogService>();
         _logger = _services.GetRequiredService<ILogger<MainWindow>>();
         InitializeComponent();
+
+        // Clic n'importe où sur la ligne d'un compte : replier / déplier (la liste a déjà traité le clic pour la sélection).
+        NavList.AddHandler(UIElement.TappedEvent, new TappedEventHandler(OnNavTapped), true);
+        Mailbox.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MailboxViewModel.SelectedItem))
+            {
+                DispatcherQueue.TryEnqueue(SyncNavSelection);
+            }
+        };
 
         Title = AppInfo.DisplayName;
         ExtendsContentIntoTitleBar = true;
@@ -124,6 +136,9 @@ public sealed partial class MainWindow : Window
     /// <summary>Contenu racine de la fenêtre (test de fumée).</summary>
     public FrameworkElement Root => RootGrid;
 
+    /// <summary>Ligne en surbrillance dans le volet de gauche (test de fumée).</summary>
+    internal object? NavSelection => NavList.SelectedItem;
+
     /// <summary>Ouvre les réglages (bouton du volet de gauche, test de fumée).</summary>
     internal Task ShowSettingsAsync() => _dialogs.ShowSettingsAsync(_settings, Mailbox, _services.GetRequiredService<PgpKeysViewModel>());
 
@@ -143,10 +158,7 @@ public sealed partial class MainWindow : Window
     private void OnNotificationClicked(string accountId)
     {
         Activate();
-        if (Mailbox.Items.FirstOrDefault(i => i.AccountId == accountId && i.Role == Core.Mail.FolderRole.Inbox && i.CanSelect) is { } inbox)
-        {
-            Mailbox.SelectedItem = inbox;
-        }
+        Mailbox.ShowInbox(accountId);
     }
 
     /// <summary>« Ajouter un compte » : formulaire, vérification, puis le compte apparaît avec sa boîte de réception ouverte.</summary>
@@ -410,8 +422,100 @@ public sealed partial class MainWindow : Window
         moveTo.IsEnabled = moveTo.Items.Count > 0;
     }
 
-    private void OnNavSelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        Mailbox.SelectedItem = NavList.SelectedItem as NavItemViewModel;
+    /// <summary>
+    /// Dossier choisi (clic, flèches haut / bas) : affiché. La ligne d'un compte ne choisit rien (son clic le replie ou
+    /// le déplie, voir <see cref="OnNavTapped"/>), et un dossier qui quitte le volet (compte replié) reste affiché : la
+    /// surbrillance revient sur le dossier affiché, ou disparaît s'il est masqué.
+    /// </summary>
+    private void OnNavSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (NavList.SelectedItem is NavItemViewModel { IsAccount: false } item)
+        {
+            Mailbox.SelectedItem = item;
+        }
+        else
+        {
+            DispatcherQueue.TryEnqueue(SyncNavSelection);
+        }
+    }
+
+    /// <summary>Surbrillance du volet = dossier affiché s'il est visible (compte déplié), sinon aucune.</summary>
+    private void SyncNavSelection()
+    {
+        var shown = Mailbox.SelectedItem is { } item && Mailbox.Items.Contains(item) ? item : null;
+        if (!ReferenceEquals(NavList.SelectedItem, shown))
+        {
+            NavList.SelectedItem = shown;
+        }
+    }
+
+    private void OnNavTapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (NavItemFrom(e.OriginalSource) is { IsAccount: true } account)
+        {
+            DispatcherQueue.TryEnqueue(() => SetAccountExpanded(account.AccountId, !account.IsExpanded));
+        }
+    }
+
+    /// <summary>
+    /// Clavier sur la ligne d'un compte : Entrée ou Espace replient ou déplient, flèche gauche replie, flèche droite
+    /// déplie ; flèche gauche sur un dossier remonte à la ligne de son compte (comme l'Explorateur).
+    /// </summary>
+    private void OnNavPreviewKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (NavItemFrom(e.OriginalSource) is not { IsUnified: false } item)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case VirtualKey.Enter or VirtualKey.Space when item.IsAccount:
+                SetAccountExpanded(item.AccountId, !item.IsExpanded);
+                break;
+            case VirtualKey.Left when item.IsAccount && item.IsExpanded:
+                SetAccountExpanded(item.AccountId, false);
+                break;
+            case VirtualKey.Right when item.IsAccount && !item.IsExpanded:
+                SetAccountExpanded(item.AccountId, true);
+                break;
+            case VirtualKey.Left when !item.IsAccount
+                && Mailbox.Items.FirstOrDefault(i => i.IsAccount && i.AccountId == item.AccountId) is { } account
+                && NavList.ContainerFromItem(account) is ListViewItem container:
+                container.Focus(FocusState.Keyboard);
+                break;
+            default:
+                return;
+        }
+
+        e.Handled = true;
+    }
+
+    /// <summary>Replie ou déplie un compte du volet de gauche (clic, clavier, test de fumée).</summary>
+    internal void SetAccountExpanded(string accountId, bool expanded)
+    {
+        try
+        {
+            Mailbox.SetExpanded(accountId, expanded);
+            SyncNavSelection();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Compte non replié / déplié");
+        }
+    }
+
+    /// <summary>Ligne du volet sous un élément (clic, touche) : remonte jusqu'à son conteneur de la liste.</summary>
+    private NavItemViewModel? NavItemFrom(object? source)
+    {
+        var element = source as DependencyObject;
+        while (element is not null and not ListViewItem && !ReferenceEquals(element, NavList))
+        {
+            element = VisualTreeHelper.GetParent(element);
+        }
+
+        return element is ListViewItem container ? NavList.ItemFromContainer(container) as NavItemViewModel : null;
+    }
 
     /// <summary>Mail choisi : ouvert dans le volet de lecture (voir MailboxViewModel).</summary>
     private void OnMessageSelectionChanged(object sender, SelectionChangedEventArgs e) =>

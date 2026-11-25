@@ -3,7 +3,7 @@ using QuaiMail.Core.Mail;
 
 namespace QuaiMail.Core.ViewModels;
 
-/// <summary>Une ligne du volet de gauche : un compte (en-tête) ou l'un de ses dossiers.</summary>
+/// <summary>Une ligne du volet de gauche : un compte (en-tête, repliable) ou l'un de ses dossiers.</summary>
 public sealed partial class NavItemViewModel : ObservableObject
 {
     private NavItemViewModel(string accountId, string title, MailFolderInfo? folder)
@@ -12,6 +12,7 @@ public sealed partial class NavItemViewModel : ObservableObject
         Title = title;
         Folder = folder;
         Unread = folder?.Unread ?? 0;
+        IsExpanded = true;
     }
 
     public string AccountId { get; }
@@ -38,6 +39,13 @@ public sealed partial class NavItemViewModel : ObservableObject
     public partial int Unread { get; set; }
 
     public bool HasUnread => Unread > 0;
+
+    /// <summary>
+    /// Ligne d'un compte : ses dossiers sont affichés (vrai) ou repliés. Replié, la ligne montre dans <see cref="Unread"/>
+    /// les non lus de ses dossiers (sauf Indésirables et Corbeille) ; déplié, chaque dossier montre les siens.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsExpanded { get; set; }
 
     /// <summary>Identifiant de la boîte de réception unifiée (tous les comptes).</summary>
     public const string UnifiedId = "*";

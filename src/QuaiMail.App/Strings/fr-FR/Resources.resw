@@ -24,6 +24,15 @@
   <data name="Pane_Accounts" xml:space="preserve">
     <value>Comptes et dossiers</value>
   </data>
+  <data name="Nav_AccountExpanded" xml:space="preserve">
+    <value>{0}, déplié</value>
+  </data>
+  <data name="Nav_AccountCollapsed" xml:space="preserve">
+    <value>{0}, replié</value>
+  </data>
+  <data name="Nav_AccountCollapsedUnread" xml:space="preserve">
+    <value>{0}, replié, {1} non lus</value>
+  </data>
   <data name="Pane_NoAccountTitle" xml:space="preserve">
     <value>Aucun compte</value>
   </data>

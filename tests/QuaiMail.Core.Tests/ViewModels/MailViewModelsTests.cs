@@ -114,6 +114,88 @@ public sealed class MailViewModelsTests : IDisposable
     }
 
     [Fact]
+    public async Task A_collapsed_account_hides_its_folders_but_keeps_the_shown_one()
+    {
+        var alice = AddAccount("alice@example.org");
+        var bob = AddAccount("bob@example.org");
+        _mail.Folders[alice.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 0, 0), new MailFolderInfo("Envoyés", "Envoyés", 0, FolderRole.Sent, true, 0, 0)];
+        _mail.Folders[bob.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 0, 0)];
+        var mailbox = Mailbox();
+        await mailbox.LoadAsync();
+        var sent = mailbox.Items.Single(i => i.AccountId == alice.Id && i.Folder?.FullName == "Envoyés");
+        mailbox.SelectedItem = sent;
+        var all = mailbox.Items.ToList();
+
+        mailbox.ToggleAccount(alice.Id);
+
+        Assert.Equal(["Folder_Unified", "alice@example.org", "bob@example.org", "Folder_Inbox"], mailbox.Items.Select(i => i.Title));
+        Assert.False(mailbox.Items[1].IsExpanded);
+        Assert.Same(sent, mailbox.SelectedItem);
+        Assert.Equal("Envoyés", _shell.SelectedFolderPath);
+        Assert.Equal(all, mailbox.AllItems);
+
+        mailbox.ToggleAccount(alice.Id);
+
+        Assert.Equal(all, mailbox.Items);
+        Assert.True(mailbox.Items[1].IsExpanded);
+        Assert.Same(sent, mailbox.SelectedItem);
+    }
+
+    [Fact]
+    public async Task A_collapsed_account_shows_the_unread_of_its_folders_except_junk_and_trash()
+    {
+        var account = AddAccount("alice@example.org");
+        _mail.Folders[account.Id] =
+        [
+            new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 2, 4),
+            new MailFolderInfo("Listes", "Listes", 0, FolderRole.None, true, 3, 3),
+            new MailFolderInfo("Spam", "Spam", 0, FolderRole.Junk, true, 40, 40),
+            new MailFolderInfo("Corbeille", "Corbeille", 0, FolderRole.Trash, true, 5, 5),
+        ];
+        var mailbox = Mailbox();
+        await mailbox.LoadAsync();
+        var line = mailbox.Items[0];
+        Assert.False(line.HasUnread);
+
+        mailbox.SetExpanded(account.Id, false);
+        Assert.Equal(5, line.Unread);
+
+        mailbox.OnNewMail(account, [Header(7)]);
+        Assert.Equal(6, line.Unread);
+        Assert.Equal(3, mailbox.AllItems.Single(i => i.Role == FolderRole.Inbox).Unread);
+
+        mailbox.SetExpanded(account.Id, true);
+        Assert.False(line.HasUnread);
+    }
+
+    [Fact]
+    public async Task Collapsed_accounts_stay_collapsed_after_a_restart_and_are_forgotten_with_the_account()
+    {
+        var alice = AddAccount("alice@example.org");
+        var bob = AddAccount("bob@example.org");
+        _mail.Folders[alice.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 0, 0)];
+        _mail.Folders[bob.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 1, 1)];
+        var first = Mailbox();
+        await first.LoadAsync();
+        first.SetExpanded(bob.Id, false);
+        Assert.Equal([bob.Id], _settings.Current.CollapsedAccounts);
+
+        var second = Mailbox();
+        await second.LoadAsync();
+        await WaitForAsync(() => !second.Messages.IsLoading);
+
+        Assert.Equal(["Folder_Unified", "alice@example.org", "Folder_Inbox", "bob@example.org"], second.Items.Select(i => i.Title));
+        Assert.Equal(1, second.Items[3].Unread);
+
+        // Replié, le compte garde sa boîte de réception (clic sur une notification) et ses dossiers pour « Déplacer vers ».
+        second.ShowInbox(bob.Id);
+        Assert.Equal((bob.Id, "INBOX"), (second.SelectedItem?.AccountId, second.SelectedItem?.Folder?.FullName));
+
+        Assert.True(await second.RemoveAccountAsync(bob.Id));
+        Assert.Empty(_settings.Current.CollapsedAccounts);
+    }
+
+    [Fact]
     public async Task An_unreachable_server_shows_the_cache_and_a_clear_error()
     {
         var account = AddAccount("alice@example.org");
@@ -609,7 +691,7 @@ public sealed class MailViewModelsTests : IDisposable
     internal FakeLauncher Launcher { get; } = new();
 
     private MailboxViewModel Mailbox() =>
-        new(_accounts, _credentials, _mail, _cache, _shell, new MessageListViewModel(_mail, _cache, new KeyStrings(), new FixedTime(Now)), Reader(), _dialogs, new KeyStrings());
+        new(_accounts, _credentials, _mail, _cache, _shell, new MessageListViewModel(_mail, _cache, new KeyStrings(), new FixedTime(Now)), Reader(), _dialogs, new KeyStrings(), settings: _settings);
 
     private ReaderViewModel Reader() =>
         new(_mail, _settings, _dialogs, Files, Launcher, new KeyStrings(), new QuaiMail.Core.Reading.ReaderTemplate(File.ReadAllText(Reading.HtmlCleanerTests.TemplatePath())), null, _cache);

@@ -128,14 +128,14 @@
                     Grid.Row="3"
                     AutomationProperties.Name="{l:Str Key=Pane_Accounts}"
                     ItemsSource="{x:Bind Mailbox.Items}"
-                    SelectedItem="{x:Bind Mailbox.SelectedItem, Mode=OneWay}"
+                    PreviewKeyDown="OnNavPreviewKeyDown"
                     SelectionChanged="OnNavSelectionChanged"
                     Style="{StaticResource NavListStyle}"
                     Visibility="{x:Bind ui:UiHelpers.VisibleIf(Mailbox.HasAccounts), Mode=OneWay}">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="vm:NavItemViewModel">
                             <Grid
-                                AutomationProperties.Name="{x:Bind Title}"
+                                AutomationProperties.Name="{x:Bind ui:UiHelpers.NavItemName(Title, IsAccount, IsExpanded, Unread), Mode=OneWay}"
                                 Margin="{x:Bind ui:UiHelpers.Indent(Depth, IsAccount)}"
                                 Style="{StaticResource NavItemStyle}">
                                 <Grid.ColumnDefinitions>
@@ -160,7 +160,15 @@
                                         </MenuFlyoutItem>
                                     </MenuFlyout>
                                 </Grid.ContextFlyout>
-                                <FontIcon Glyph="{x:Bind ui:UiHelpers.FolderGlyph(Role, IsAccount)}" Style="{StaticResource NavIconStyle}" />
+                                <FontIcon
+                                    Glyph="{x:Bind ui:UiHelpers.FolderGlyph(Role, IsAccount)}"
+                                    Style="{StaticResource NavIconStyle}"
+                                    Visibility="{x:Bind ui:UiHelpers.CollapsedIf(IsAccount)}" />
+                                <!-- Ligne d'un compte : un clic (ou Entrée, Espace, flèches gauche / droite) replie ou déplie ses dossiers. -->
+                                <FontIcon
+                                    Glyph="{x:Bind ui:UiHelpers.ChevronGlyph(IsExpanded), Mode=OneWay}"
+                                    Style="{StaticResource NavChevronStyle}"
+                                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(IsAccount)}" />
                                 <TextBlock
                                     Grid.Column="1"
                                     FontWeight="{x:Bind ui:UiHelpers.StrongIf(IsAccount)}"

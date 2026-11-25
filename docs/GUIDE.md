@@ -37,6 +37,7 @@ Les boutons **Se connecter avec Google** et **Se connecter avec Microsoft** sont
 
 ## Dossiers et mails
 
+- **Replier un compte** : cliquez sur sa ligne (la flèche ▾ devant l'adresse) ; ses dossiers disparaissent du volet et la ligne montre ses mails non lus (sans les Indésirables ni la Corbeille). Un autre clic les fait revenir. Au clavier : `Entrée` ou `Espace` sur la ligne du compte, `←` pour replier, `→` pour déplier, et `←` sur un dossier remonte à son compte. Chaque compte reste replié ou déplié d'un lancement à l'autre, mises à jour comprises ; le dossier affiché reste affiché quand on replie son compte.
 - Les dossiers particuliers (Boîte de réception, Brouillons, Envoyés, Archives, Indésirables, Corbeille) viennent en premier, puis les autres, sous-dossiers en retrait.
 - La liste montre les 50 mails les plus récents ; **Afficher les mails plus anciens**, en bas de la liste, charge les 50 suivants.
 - Quai Mail garde une copie des dossiers et des en-têtes (cache) pour les afficher tout de suite au démarrage, puis les met à jour depuis le serveur. Si un serveur est injoignable, un bandeau le dit et le cache reste affiché.

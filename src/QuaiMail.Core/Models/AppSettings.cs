@@ -22,6 +22,12 @@ public sealed class AppSettings
     /// <summary>Au démarrage, demander à GitHub si une version plus récente est publiée (comme Quai).</summary>
     public bool CheckForUpdates { get; set; } = true;
 
+    /// <summary>
+    /// Comptes repliés dans le volet de gauche (identifiants internes, jamais les adresses). Tableau remplacé à chaque
+    /// changement, jamais modifié en place : <see cref="Clone"/> peut donc le partager.
+    /// </summary>
+    public string[] CollapsedAccounts { get; set; } = [];
+
     public AppSettings Clone() => (AppSettings)MemberwiseClone();
 
     /// <summary>Ramène les valeurs dans leurs bornes (fichier modifié à la main, ancienne version…).</summary>
@@ -31,5 +37,9 @@ public sealed class AppSettings
         {
             Theme = AppTheme.System;
         }
+
+        CollapsedAccounts = CollapsedAccounts is null
+            ? []
+            : [.. CollapsedAccounts.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.Ordinal)];
     }
 }
