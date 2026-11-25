@@ -38,6 +38,18 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool ShowNotifications { get; set; }
 
+    /// <summary>Clé inconnue d'un mail signé demandée d'office au serveur de clés.</summary>
+    [ObservableProperty]
+    public partial bool LookUpPgpKeys { get; set; }
+
+    partial void OnLookUpPgpKeysChanged(bool value)
+    {
+        if (!_loading)
+        {
+            _settings.Update(s => s.LookUpPgpKeys = value);
+        }
+    }
+
     partial void OnShowNotificationsChanged(bool value)
     {
         if (!_loading)
@@ -80,6 +92,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             BlockRemoteImages = current.BlockRemoteImages;
             CheckForUpdates = current.CheckForUpdates;
             ShowNotifications = current.ShowNotifications;
+            LookUpPgpKeys = current.LookUpPgpKeys;
         }
         finally
         {

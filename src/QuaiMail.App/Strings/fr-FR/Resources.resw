@@ -720,6 +720,69 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="Pgp_RemoveConfirm" xml:space="preserve">
     <value>Retirer</value>
   </data>
+  <data name="Settings_LookUpKeys" xml:space="preserve">
+    <value>Chercher les clés des mails signés</value>
+  </data>
+  <data name="Settings_LookUpKeysDescription" xml:space="preserve">
+    <value>Mail signé avec une clé inconnue (ni à vous, ni dans Kleopatra) : Quai Mail la demande à keys.openpgp.org pour vérifier la signature. Seule l'empreinte de la clé est envoyée, rien du mail. Désactivé : bouton « Chercher » dans le bandeau du mail.</value>
+  </data>
+  <data name="Signature_Title" xml:space="preserve">
+    <value>Mail signé (OpenPGP)</value>
+  </data>
+  <data name="Signature_Checking" xml:space="preserve">
+    <value>Vérification de la signature…</value>
+  </data>
+  <data name="Signature_ValidTitle" xml:space="preserve">
+    <value>Signature vérifiée</value>
+  </data>
+  <data name="Signature_ValidOwn" xml:space="preserve">
+    <value>Signé avec votre clé {0}. Le mail n'a pas été modifié depuis. Empreinte : {2}</value>
+  </data>
+  <data name="Signature_ValidKleopatra" xml:space="preserve">
+    <value>Signé par {0}, clé de votre trousseau Kleopatra. Le mail n'a pas été modifié depuis. Empreinte : {2}</value>
+  </data>
+  <data name="Signature_ValidServer" xml:space="preserve">
+    <value>Signé par {0} : clé publiée sur {1}, adresse confirmée par son propriétaire. Le mail n'a pas été modifié depuis. Empreinte : {2}</value>
+  </data>
+  <data name="Signature_NoIdentity" xml:space="preserve">
+    <value>une clé sans adresse confirmée</value>
+  </data>
+  <data name="Signature_OtherIdentityTitle" xml:space="preserve">
+    <value>Signé, mais pas par l'expéditeur affiché</value>
+  </data>
+  <data name="Signature_OtherIdentity" xml:space="preserve">
+    <value>La signature est valide, mais la clé ({0}) ne porte pas l'adresse de l'expéditeur, {1} : rien ne prouve qu'il en est l'auteur. Empreinte : {2}</value>
+  </data>
+  <data name="Signature_KeyNotValidTitle" xml:space="preserve">
+    <value>Signé avec une clé expirée ou révoquée</value>
+  </data>
+  <data name="Signature_KeyNotValid" xml:space="preserve">
+    <value>La clé de {0} était expirée au moment de signer, ou son propriétaire l'a révoquée : ne vous fiez pas à cette signature. Empreinte : {1}</value>
+  </data>
+  <data name="Signature_InvalidTitle" xml:space="preserve">
+    <value>Signature invalide</value>
+  </data>
+  <data name="Signature_Invalid" xml:space="preserve">
+    <value>Le mail a été modifié après sa signature, ou la signature est fausse. Ne vous fiez pas à son contenu.</value>
+  </data>
+  <data name="Signature_UnknownTitle" xml:space="preserve">
+    <value>Mail signé — clé inconnue</value>
+  </data>
+  <data name="Signature_Unknown" xml:space="preserve">
+    <value>Impossible de savoir qui a signé : la clé {0} n'est ni parmi les vôtres, ni dans Kleopatra. Quai Mail peut la demander à {1} (seule l'empreinte est envoyée).</value>
+  </data>
+  <data name="Signature_UnknownNotFound" xml:space="preserve">
+    <value>Impossible de savoir qui a signé : la clé {0} n'est ni dans Kleopatra, ni publiée sur {1}.</value>
+  </data>
+  <data name="Signature_UnknownUnreachable" xml:space="preserve">
+    <value>Impossible de savoir qui a signé pour l'instant : la clé {0} n'est pas dans Kleopatra, et {1} n'a pas répondu.</value>
+  </data>
+  <data name="Signature_LookUp" xml:space="preserve">
+    <value>Chercher sur {0}</value>
+  </data>
+  <data name="Signature_Retry" xml:space="preserve">
+    <value>Réessayer</value>
+  </data>
   <data name="Pgp_FoundKleopatra" xml:space="preserve">
     <value>Kleopatra (Gpg4win) est installé sur cet ordinateur</value>
   </data>

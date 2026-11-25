@@ -297,6 +297,7 @@ internal static class SmokeTest
         await ReadingAsync(window, services, dialogs, hwnd, directory, report);
         await ComposeAsync(window, services, dialogs, hwnd, directory, report);
         await SignedMailAsync(window, services, dialogs, account, hwnd, directory, report);
+        await SignedReceivedAsync(window, services, account, hwnd, directory, report);
 
         await WithTimeout(messages.LoadMoreCommand.ExecuteAsync(null), "mails plus anciens");
         Check(messages.Messages.Count == 2 * MessageListViewModel.PageSize, $"page suivante : {messages.Messages.Count} mails");
@@ -721,6 +722,43 @@ internal static class SmokeTest
         Check(await WithTimeout(removing, "retrait du compte Google"), "compte Google non retiré");
         Check(credentials.GetPassword(account.Id) is null, "jeton de renouvellement resté dans le coffre après le retrait");
         report.Add("Retrait du compte Google : jeton de renouvellement effacé du coffre");
+    }
+
+    /// <summary>
+    /// Mail signé reçu (dossier Archives/2026, signé par la clé d'un correspondant) : la signature n'est pas une pièce
+    /// jointe ; recherche automatique coupée, bandeau « clé inconnue » et bouton, sans aucune requête ; « Chercher sur
+    /// keys.openpgp.org » (faux serveur) : signature vérifiée ; rouvert : vérifiée avec la clé gardée, sans redemander.
+    /// </summary>
+    private static async Task SignedReceivedAsync(MainWindow window, IServiceProvider services, Account account, IntPtr hwnd, string directory, List<string> report)
+    {
+        var mailbox = window.Mailbox;
+        var messages = window.Messages;
+        var reader = mailbox.Reader;
+        var keyServer = (SmokeKeyServer)services.GetRequiredService<Core.Pgp.IPgpKeyServer>();
+        var settings = services.GetRequiredService<ISettingsService>();
+        settings.Update(s => s.LookUpPgpKeys = false);
+        mailbox.SelectedItem = mailbox.Items.First(i => i.AccountId == account.Id && i.Folder?.FullName == SmokeMailService.SignedFolder);
+        await WaitForAsync(() => !messages.IsLoading && messages.FolderName == SmokeMailService.SignedFolder && messages.Messages.Count == 1, "dossier du mail signé");
+        messages.SelectedMessage = messages.Messages[0];
+        await WaitForAsync(() => reader.Signature is { State: Core.Pgp.SignatureState.UnknownKey }, "mail signé : clé inconnue");
+        Check(reader.CanLookUpKey && keyServer.Requests.Count == 0, "clé inconnue : bouton « Chercher » absent, ou serveur de clés interrogé sans accord");
+        Check(!reader.HasAttachments, "la signature est proposée comme pièce jointe");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "23-signature-cle-inconnue.png", report);
+
+        await WithTimeout(reader.LookUpKeyCommand.ExecuteAsync(null), "recherche de la clé");
+        Check(
+            reader.Signature is { State: Core.Pgp.SignatureState.Valid, Source: Core.Pgp.SignatureKeySource.KeyServer } && keyServer.Requests.Count == 1,
+            $"signature non vérifiée après la recherche : {reader.Signature?.State}, {keyServer.Requests.Count} requête(s)");
+        Check(reader.SignatureMessage.Contains(SmokeMailService.SignerAddress, StringComparison.Ordinal), "le bandeau ne dit pas qui a signé");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "24-signature-verifiee.png", report);
+
+        settings.Update(s => s.LookUpPgpKeys = true);
+        await WithTimeout(reader.ShowAsync(account, SmokeMailService.SignedFolder, messages.Messages[0].Header), "mail signé rouvert");
+        await WaitForAsync(() => reader.Signature is { State: Core.Pgp.SignatureState.Valid }, "mail signé rouvert : signature vérifiée");
+        Check(keyServer.Requests.Count == 1, "clé redemandée au serveur alors qu'elle était gardée");
+        report.Add("Mail signé reçu : signature hors des pièces jointes, clé inconnue signalée sans requête, cherchée sur demande, vérifiée, gardée");
     }
 
     /// <summary>

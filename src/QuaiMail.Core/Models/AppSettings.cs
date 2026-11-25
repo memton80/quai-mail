@@ -23,6 +23,12 @@ public sealed class AppSettings
     public bool CheckForUpdates { get; set; } = true;
 
     /// <summary>
+    /// Mail signé avec une clé inconnue : la demander à keys.openpgp.org (empreinte seulement) pour vérifier la
+    /// signature. Désactivé, la recherche se fait seulement sur demande (bouton du bandeau).
+    /// </summary>
+    public bool LookUpPgpKeys { get; set; } = true;
+
+    /// <summary>
     /// Comptes repliés dans le volet de gauche (identifiants internes, jamais les adresses). Tableau remplacé à chaque
     /// changement, jamais modifié en place : <see cref="Clone"/> peut donc le partager.
     /// </summary>

@@ -227,6 +227,10 @@ public sealed class GnuPgTests : IDisposable
             Assert.True(copied.NeedsPassphrase);
             Assert.Equal(camille.Expires, copied.Expires);
 
+            // Clé publique d'un correspondant (vérifier ses mails signés) : sans phrase de passe, par identifiant ou empreinte.
+            Assert.Contains("BEGIN PGP PUBLIC KEY BLOCK", await gnupg.ExportPublicKeyAsync(camille.Fingerprint[^16..], ct), StringComparison.Ordinal);
+            Assert.Null(await gnupg.ExportPublicKeyAsync(new string('A', 40), ct));
+
             // Une clé sans phrase de passe se copie sans rien demander.
             var free = listed.Single(k => k.Addresses.Contains("libre@example.org"));
             Assert.False(Assert.Single(_store.Import(new MemoryStream(System.Text.Encoding.ASCII.GetBytes(await gnupg.ExportSecretKeyAsync(free.Fingerprint, null, ct))))).NeedsPassphrase);
@@ -301,6 +305,8 @@ public sealed class GnuPgTests : IDisposable
             using var armored = TestPgpKeys.Armored(ring);
             return Task.FromResult(System.Text.Encoding.ASCII.GetString(armored.ToArray()));
         }
+
+        public Task<string?> ExportPublicKeyAsync(string issuer, CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
     }
 
     private sealed class BrokenGnuPg : IGnuPg
@@ -312,5 +318,8 @@ public sealed class GnuPgTests : IDisposable
 
         public Task<string> ExportSecretKeyAsync(string fingerprint, string? passphrase, CancellationToken cancellationToken = default) =>
             Task.FromException<string>(new GnuPgException(GnuPgError.Failed));
+
+        public Task<string?> ExportPublicKeyAsync(string issuer, CancellationToken cancellationToken = default) =>
+            Task.FromException<string?>(new GnuPgException(GnuPgError.Failed));
     }
 }

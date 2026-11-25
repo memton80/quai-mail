@@ -3,6 +3,7 @@ using QuaiMail.Core.Accounts;
 using QuaiMail.Core.Cache;
 using QuaiMail.Core.Drafts;
 using QuaiMail.Core.Mail;
+using QuaiMail.Core.Pgp;
 using QuaiMail.Core.Safety;
 using QuaiMail.Core.Storage;
 using QuaiMail.Core.Tests.Support;
@@ -33,6 +34,7 @@ public sealed class MailViewModelsTests : IDisposable
 
     public void Dispose()
     {
+        _ownKeys?.Dispose();
         SqliteConnection.ClearAllPools();
         _temp.Dispose();
     }
@@ -831,6 +833,49 @@ public sealed class MailViewModelsTests : IDisposable
     }
 
     [Fact]
+    public async Task A_signed_mail_shows_a_signature_banner_and_its_key_is_looked_up_on_request()
+    {
+        var lea = TestPgpKeys.Create("Léa <lea@example.org>", "x");
+        var server = new FakeKeyServer();
+        server.Publish(lea);
+        _ownKeys = new PgpKeyStore(_paths);
+        _signatures = new SignatureChecker(_paths, _ownKeys, null, server);
+        _settings.Update(s => s.LookUpPgpKeys = false);
+        var (mailbox, _) = await OpenInboxAsync();
+        var signed = mailbox.Messages.Messages[0];
+        _mail.Contents[signed.Uid] = TestPgpKeys.Signed(
+            new MimeKit.MimeMessage([new MimeKit.MailboxAddress("Léa", "lea@example.org")], [], "Signé", new MimeKit.TextPart("plain") { Text = "Bonjour" }), lea, "x");
+        var reader = mailbox.Reader;
+
+        mailbox.Messages.SelectedMessage = signed;
+        await WaitForAsync(() => reader.Signature is not null);
+
+        // Recherche automatique coupée : clé inconnue, bouton proposé, personne n'a été interrogé.
+        Assert.True(reader.HasSignature);
+        Assert.Equal(SignatureState.UnknownKey, reader.Signature!.State);
+        Assert.Equal(SignatureLevel.Warning, reader.SignatureLevel);
+        Assert.Equal("Signature_UnknownTitle", reader.SignatureTitle);
+        Assert.StartsWith("Signature_Unknown(", reader.SignatureMessage, StringComparison.Ordinal);
+        Assert.True(reader.CanLookUpKey);
+        Assert.Equal("Signature_LookUp(keys.test)", reader.LookUpKeyText);
+        Assert.Empty(server.Requests);
+        Assert.False(reader.HasAttachments);
+
+        await reader.LookUpKeyCommand.ExecuteAsync(null);
+
+        Assert.Equal(SignatureState.Valid, reader.Signature!.State);
+        Assert.Equal(SignatureLevel.Good, reader.SignatureLevel);
+        Assert.StartsWith("Signature_ValidServer(Léa <lea@example.org>,keys.test,", reader.SignatureMessage, StringComparison.Ordinal);
+        Assert.False(reader.CanLookUpKey);
+
+        // Un mail non signé : pas de bandeau.
+        var plain = mailbox.Messages.Messages[1];
+        mailbox.Messages.SelectedMessage = plain;
+        await WaitForAsync(() => reader.Uid == plain.Uid && !reader.IsLoading);
+        Assert.False(reader.HasSignature);
+    }
+
+    [Fact]
     public async Task Search_finds_cached_mails_ignoring_accents_and_case_then_on_the_server()
     {
         var (mailbox, account) = await OpenInboxAsync();
@@ -969,7 +1014,11 @@ public sealed class MailViewModelsTests : IDisposable
         new(_accounts, _credentials, _mail, _cache, _shell, new MessageListViewModel(_mail, _cache, new KeyStrings(), new FixedTime(Now)), Reader(), _dialogs, new KeyStrings(), settings: _settings);
 
     private ReaderViewModel Reader() =>
-        new(_mail, _settings, _dialogs, Files, Launcher, new KeyStrings(), new QuaiMail.Core.Reading.ReaderTemplate(File.ReadAllText(Reading.HtmlCleanerTests.TemplatePath())), null, _cache, Safety, Trusted);
+        new(_mail, _settings, _dialogs, Files, Launcher, new KeyStrings(), new QuaiMail.Core.Reading.ReaderTemplate(File.ReadAllText(Reading.HtmlCleanerTests.TemplatePath())), null, _cache, Safety, Trusted, _signatures);
+
+    private SignatureChecker? _signatures;
+
+    private PgpKeyStore? _ownKeys;
 
     private Account AddAccount(string address)
     {

@@ -168,6 +168,20 @@ public sealed class PgpKeyStore : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Partie publique d'une de vos clés qui contient la clé ou sous-clé <paramref name="keyId"/> (vérifier un mail que
+    /// vous avez signé), ou <c>null</c>.
+    /// </summary>
+    public PgpPublicKeyRing? FindPublicRing(long keyId)
+    {
+        lock (_gate)
+        {
+            return _context.SecretKeyRingBundle.GetSecretKeyRing(keyId) is { } ring
+                ? new PgpPublicKeyRing(ring.GetPublicKeys().OfType<PgpPublicKey>().SelectMany(k => k.GetEncoded()).ToArray())
+                : null;
+        }
+    }
+
     /// <summary>Clé valide pour signer les mails de cette adresse (la plus récente), ou <c>null</c>.</summary>
     public PgpKeyInfo? FindForAddress(string address, DateTimeOffset now) =>
         Keys.FirstOrDefault(k => !k.IsExpired(now) && k.Addresses.Contains(address.Trim(), StringComparer.OrdinalIgnoreCase));
@@ -264,7 +278,7 @@ public sealed class PgpKeyStore : IDisposable
             return null;
         }
 
-        var userIds = master.GetUserIds().OfType<string>().ToList();
+        var userIds = PgpIdentity.UserIds(master).ToList();
         var addresses = userIds
             .Select(id => MailboxAddress.TryParse(id, out var mailbox) ? mailbox.Address : null)
             .OfType<string>()

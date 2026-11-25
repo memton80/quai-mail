@@ -112,9 +112,31 @@ public sealed class SettingsServiceTests
 
         viewModel.ThemeIndex = 2;
         viewModel.BlockRemoteImages = false;
+        viewModel.LookUpPgpKeys = false;
 
         Assert.Equal(AppTheme.Dark, service.Current.Theme);
         Assert.False(service.Current.BlockRemoteImages);
+        Assert.False(service.Current.LookUpPgpKeys);
+    }
+
+    /// <summary>Garde-fou : chaque interrupteur, une fois changé, est vraiment enregistré (aucun oublié dans la comparaison).</summary>
+    [Fact]
+    public void Every_switch_is_saved_when_changed()
+    {
+        foreach (var property in typeof(AppSettings).GetProperties().Where(p => p.PropertyType == typeof(bool) && p.CanWrite))
+        {
+            using var temp = new TempDirectory();
+            var path = temp.File("settings.json");
+            var service = new JsonSettingsService(path);
+            var before = (bool)property.GetValue(service.Current)!;
+            var changed = 0;
+            service.Changed += (_, _) => changed++;
+
+            service.Update(s => property.SetValue(s, !before));
+
+            Assert.True(changed == 1, property.Name + " : changement ignoré");
+            Assert.True((bool)property.GetValue(new JsonSettingsService(path).Current)! != before, property.Name + " : non enregistré");
+        }
     }
 
     [Fact]

@@ -50,6 +50,45 @@ public static class TestPgpKeys
         return new MemoryStream(output.ToArray());
     }
 
+    /// <summary>Partie publique armurée, comme la servent Kleopatra ou un serveur de clés.</summary>
+    public static string PublicText(PgpSecretKeyRing ring)
+    {
+        using var stream = ArmoredPublic(ring);
+        return System.Text.Encoding.ASCII.GetString(stream.ToArray());
+    }
+
+    /// <summary>
+    /// Signe le mail (PGP/MIME) avec cette clé, puis le relit tel qu'il serait reçu ; <paramref name="tamper"/> modifie
+    /// le texte brut en route (mail altéré après sa signature).
+    /// </summary>
+    public static MimeKit.MimeMessage Signed(MimeKit.MimeMessage message, PgpSecretKeyRing ring, string passphrase, Func<string, string>? tamper = null)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "quai-mail-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using (var context = new Signer(directory, passphrase))
+            {
+                message.Body = MultipartSigned.Create(context, ring.GetSecretKey(), DigestAlgorithm.Sha256, message.Body);
+            }
+
+            using var stream = new MemoryStream();
+            message.WriteTo(stream);
+            var raw = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+            raw = tamper?.Invoke(raw) ?? raw;
+            return MimeKit.MimeMessage.Load(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(raw)));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private sealed class Signer(string directory, string passphrase) : GnuPGContext(directory)
+    {
+        protected override string GetPasswordForKey(PgpSecretKey key) => passphrase;
+    }
+
     /// <summary>Destinataire qui vérifie la signature avec la seule clé publique de l'expéditeur.</summary>
     public sealed class Verifier : GnuPGContext
     {

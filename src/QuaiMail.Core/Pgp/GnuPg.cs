@@ -51,6 +51,13 @@ public interface IGnuPg
     /// GnuPG. Sans phrase de passe (<c>null</c>), GnuPG essaie sans : clé non protégée, ou phrase encore en mémoire.
     /// </summary>
     Task<string> ExportSecretKeyAsync(string fingerprint, string? passphrase, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Clé publique d'un correspondant déjà dans Kleopatra (vérifier un mail signé), par empreinte ou identifiant de la
+    /// clé ou d'une sous-clé ; sans phrase de passe.
+    /// </summary>
+    /// <returns>La clé armurée, ou <c>null</c> si GnuPG ne la connaît pas.</returns>
+    Task<string?> ExportPublicKeyAsync(string issuer, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Trouve GnuPG sur l'ordinateur.</summary>
@@ -190,6 +197,17 @@ public sealed class GnuPgProcess(string executable, bool hasKleopatra = false, s
         throw new GnuPgException(ExportError(errors));
     }
 
+    public async Task<string?> ExportPublicKeyAsync(string issuer, CancellationToken cancellationToken = default)
+    {
+        if (issuer.Length is not (16 or 40 or 64) || !issuer.All(char.IsAsciiHexDigit))
+        {
+            throw new ArgumentException("Empreinte ou identifiant OpenPGP attendu.", nameof(issuer));
+        }
+
+        var (exitCode, output, _) = await RunAsync(["--armor", "--export", "0x" + issuer], null, cancellationToken).ConfigureAwait(false);
+        return exitCode == 0 && output.Contains("-----BEGIN PGP PUBLIC KEY BLOCK-----", StringComparison.Ordinal) ? output : null;
+    }
+
     /// <summary>
     /// Erreur d'export d'après les lignes d'état : « ERROR export_keys.secret &lt;code&gt; », dont les 16 bits de poids
     /// faible sont le code libgpg-error (11 : mauvaise phrase de passe ; 177 : pas de phrase de passe ; 99 : annulé).
@@ -283,13 +301,6 @@ public sealed class GnuPgProcess(string executable, bool hasKleopatra = false, s
 
         return Encoding.UTF8.GetString([.. bytes]);
     }
-
-    private static IReadOnlyList<string> AddressesOf(IEnumerable<string> userIds) =>
-        [.. userIds
-            .Select(u => u.LastIndexOf('<') is var start and >= 0 && u.IndexOf('>', start) is var end and > 0 ? u[(start + 1)..end] : u)
-            .Where(a => a.Contains('@', StringComparison.Ordinal))
-            .Select(a => a.Trim().ToLowerInvariant())
-            .Distinct()];
 
     private async Task<(int ExitCode, string Output, string Errors)> RunAsync(IReadOnlyList<string> arguments, string? input, CancellationToken cancellationToken)
     {
@@ -408,7 +419,7 @@ public sealed class GnuPgProcess(string executable, bool hasKleopatra = false, s
             }
 
             var userId = UserIds.FirstOrDefault() ?? Fingerprint;
-            return new GnuPgKey(Fingerprint, userId, AddressesOf(UserIds), expires, onCard);
+            return new GnuPgKey(Fingerprint, userId, PgpIdentity.Addresses(UserIds), expires, onCard);
         }
     }
 }

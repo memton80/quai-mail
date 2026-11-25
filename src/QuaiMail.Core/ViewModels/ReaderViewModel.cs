@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using QuaiMail.Core.Accounts;
 using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
+using QuaiMail.Core.Pgp;
 using QuaiMail.Core.Reading;
 using QuaiMail.Core.Safety;
 using QuaiMail.Core.Services;
@@ -33,6 +34,7 @@ public sealed partial class ReaderViewModel : ObservableObject
     private readonly ILogger _logger;
     private readonly IAttachmentSafety? _safety;
     private readonly TrustedSenders? _trusted;
+    private readonly SignatureChecker? _signatures;
     private IReadOnlySet<string> _deceptiveHosts = new HashSet<string>();
     private CancellationTokenSource? _loading;
     private Account? _account;
@@ -52,9 +54,11 @@ public sealed partial class ReaderViewModel : ObservableObject
         ILogger<ReaderViewModel>? logger = null,
         Cache.MailCache? cache = null,
         IAttachmentSafety? safety = null,
-        TrustedSenders? trusted = null)
+        TrustedSenders? trusted = null,
+        SignatureChecker? signatures = null)
     {
         _mail = mail;
+        _signatures = signatures;
         _safety = safety;
         _trusted = trusted;
         _cache = cache;
@@ -74,6 +78,9 @@ public sealed partial class ReaderViewModel : ObservableObject
         SafetyMessage = string.Empty;
         TrustAddressText = string.Empty;
         TrustDomainText = string.Empty;
+        SignatureTitle = string.Empty;
+        SignatureMessage = string.Empty;
+        LookUpKeyText = string.Empty;
         if (trusted is not null)
         {
             trusted.Changed += (_, _) => OnTrustChanged();
@@ -189,6 +196,30 @@ public sealed partial class ReaderViewModel : ObservableObject
     [ObservableProperty]
     public partial string TrustDomainText { get; set; }
 
+    /// <summary>Mail signé en OpenPGP : bandeau de la signature (vérification, verdict, clé trouvée ou inconnue).</summary>
+    [ObservableProperty]
+    public partial bool HasSignature { get; set; }
+
+    /// <summary>Dernier verdict (<c>null</c> pendant la vérification).</summary>
+    [ObservableProperty]
+    public partial SignatureReport? Signature { get; set; }
+
+    [ObservableProperty]
+    public partial SignatureLevel SignatureLevel { get; set; }
+
+    [ObservableProperty]
+    public partial string SignatureTitle { get; set; }
+
+    [ObservableProperty]
+    public partial string SignatureMessage { get; set; }
+
+    /// <summary>« Chercher sur keys.openpgp.org » (recherche automatique désactivée) ou « Réessayer » (pas de réponse).</summary>
+    [ObservableProperty]
+    public partial bool CanLookUpKey { get; set; }
+
+    [ObservableProperty]
+    public partial string LookUpKeyText { get; set; }
+
     /// <summary>Ouvre un mail : en-têtes tout de suite, puis le contenu ; marqué lu sur le serveur s'il ne l'était pas.</summary>
     public async Task ShowAsync(Account account, string folder, MessageHeader header)
     {
@@ -213,6 +244,7 @@ public sealed partial class ReaderViewModel : ObservableObject
         Attachments.Clear();
         HasAttachments = false;
         ResetSender();
+        ResetSignature();
         SetPage(string.Empty);
 
         IsLoading = true;
@@ -247,6 +279,12 @@ public sealed partial class ReaderViewModel : ObservableObject
             HasAttachments = Attachments.Count > 0;
             EvaluateSender();
             Render();
+
+            // Signature OpenPGP : vérifiée à part (la clé peut devoir être demandée au serveur de clés).
+            if (content.IsPgpSigned && _signatures is not null)
+            {
+                _ = CheckSignatureAsync(content, _settings.Current.LookUpPgpKeys, cancellation.Token);
+            }
 
             // Texte gardé en cache pour la recherche plein texte (sur cet ordinateur seulement).
             _cache?.IndexBody(account.Id, folder, header.Uid, $"{content.From} {content.To} {content.Cc}\n{Compose.ReplyBuilder.PlainText(content)}");
@@ -426,7 +464,76 @@ public sealed partial class ReaderViewModel : ObservableObject
         Attachments.Clear();
         HasAttachments = false;
         ResetSender();
+        ResetSignature();
         SetPage(string.Empty);
+    }
+
+    /// <summary>« Chercher sur keys.openpgp.org » / « Réessayer » : la clé inconnue est demandée au serveur de clés.</summary>
+    [RelayCommand]
+    public Task LookUpKeyAsync() =>
+        Content is { IsPgpSigned: true } content && _loading is { } loading
+            ? CheckSignatureAsync(content, useKeyServer: true, loading.Token)
+            : Task.CompletedTask;
+
+    private async Task CheckSignatureAsync(MessageContent content, bool useKeyServer, CancellationToken cancellationToken)
+    {
+        HasSignature = true;
+        Signature = null;
+        SignatureLevel = SignatureLevel.Checking;
+        SignatureTitle = _strings.Get("Signature_Title");
+        SignatureMessage = _strings.Get("Signature_Checking");
+        CanLookUpKey = false;
+        try
+        {
+            var report = await _signatures!.CheckAsync(content, useKeyServer, cancellationToken);
+            if (!cancellationToken.IsCancellationRequested && ReferenceEquals(Content, content))
+            {
+                ShowSignature(report, content);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Autre mail ouvert entre-temps.
+        }
+    }
+
+    private void ShowSignature(SignatureReport report, MessageContent content)
+    {
+        var server = _signatures?.KeyServerName ?? string.Empty;
+        var who = report.SignerUserId ?? _strings.Get("Signature_NoIdentity");
+        var fingerprint = report.DisplayFingerprint;
+        (SignatureLevel, SignatureTitle, SignatureMessage) = report.State switch
+        {
+            SignatureState.Valid => (SignatureLevel.Good, _strings.Get("Signature_ValidTitle"), _strings.Format(
+                report.Source switch
+                {
+                    SignatureKeySource.OwnKey => "Signature_ValidOwn",
+                    SignatureKeySource.Kleopatra => "Signature_ValidKleopatra",
+                    _ => "Signature_ValidServer",
+                },
+                who,
+                server,
+                fingerprint)),
+            SignatureState.OtherIdentity => (SignatureLevel.Warning, _strings.Get("Signature_OtherIdentityTitle"), _strings.Format("Signature_OtherIdentity", who, content.FromAddress, fingerprint)),
+            SignatureState.KeyNotValid => (SignatureLevel.Warning, _strings.Get("Signature_KeyNotValidTitle"), _strings.Format("Signature_KeyNotValid", who, fingerprint)),
+            SignatureState.Invalid => (SignatureLevel.Bad, _strings.Get("Signature_InvalidTitle"), _strings.Get("Signature_Invalid")),
+            _ => (SignatureLevel.Warning, _strings.Get("Signature_UnknownTitle"), _strings.Format(
+                report.ServerUnreachable ? "Signature_UnknownUnreachable" : report.LookedUp || server.Length == 0 ? "Signature_UnknownNotFound" : "Signature_Unknown",
+                fingerprint,
+                server)),
+        };
+        CanLookUpKey = report.State == SignatureState.UnknownKey && server.Length > 0 && (!report.LookedUp || report.ServerUnreachable);
+        LookUpKeyText = report.ServerUnreachable ? _strings.Get("Signature_Retry") : _strings.Format("Signature_LookUp", server);
+        Signature = report;
+    }
+
+    private void ResetSignature()
+    {
+        HasSignature = false;
+        Signature = null;
+        CanLookUpKey = false;
+        SignatureMessage = string.Empty;
+        SignatureTitle = string.Empty;
     }
 
     /// <summary>
@@ -608,3 +715,19 @@ public sealed partial class ReaderViewModel : ObservableObject
 
 /// <summary>Un mail dont lu / non lu ou l'étoile a changé.</summary>
 public sealed record MessageChange(string AccountId, string Folder, MessageHeader Header);
+
+/// <summary>Couleur du bandeau de la signature.</summary>
+public enum SignatureLevel
+{
+    /// <summary>Vérification en cours (clé cherchée).</summary>
+    Checking,
+
+    /// <summary>Signature valide, clé de l'expéditeur.</summary>
+    Good,
+
+    /// <summary>Clé inconnue, autre identité, clé expirée ou révoquée.</summary>
+    Warning,
+
+    /// <summary>Signature fausse : le mail a été modifié.</summary>
+    Bad,
+}

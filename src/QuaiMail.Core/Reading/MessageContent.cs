@@ -1,4 +1,5 @@
 using MimeKit;
+using MimeKit.Cryptography;
 using MimeKit.Text;
 
 namespace QuaiMail.Core.Reading;
@@ -43,7 +44,12 @@ public sealed class MessageContent
             .GroupBy(p => p.ContentId!.Trim('<', '>', ' '), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        _attachments = [.. message.Attachments];
+        // Signature OpenPGP (PGP/MIME) : vérifiée et montrée dans un bandeau, jamais proposée comme pièce jointe.
+        PgpSigned = message.Body is MultipartSigned { Count: 2 } signed
+            && signed[1] is MimePart signature && signature.ContentType.IsMimeType("application", "pgp-signature")
+            ? signed
+            : null;
+        _attachments = [.. message.Attachments.Where(a => PgpSigned is null || !ReferenceEquals(a, PgpSigned[1]))];
         Attachments = [.. _attachments.Select((entity, index) =>
         {
             var name = AttachmentRules.SafeFileName(entity switch
@@ -93,6 +99,12 @@ public sealed class MessageContent
     public string? Text { get; }
 
     public IReadOnlyList<AttachmentInfo> Attachments { get; }
+
+    /// <summary>Tout le mail est signé en OpenPGP (PGP/MIME) : sa signature est vérifiée (voir <c>SignatureChecker</c>).</summary>
+    public bool IsPgpSigned => PgpSigned is not null;
+
+    /// <summary>Le corps signé et sa signature, tels que reçus (ils ne doivent pas être modifiés avant la vérification).</summary>
+    internal MultipartSigned? PgpSigned { get; }
 
     /// <summary>Le serveur de réception n'a pas pu confirmer l'expéditeur (voir <see cref="Safety.MessageSafety"/>).</summary>
     public bool AuthenticationFailed { get; }

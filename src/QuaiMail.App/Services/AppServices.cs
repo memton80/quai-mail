@@ -137,11 +137,23 @@ internal static class AppServices
             provider.GetService<ILogger<ReaderViewModel>>(),
             provider.GetRequiredService<MailCache>(),
             provider.GetRequiredService<IAttachmentSafety>(),
-            provider.GetRequiredService<TrustedSenders>()));
+            provider.GetRequiredService<TrustedSenders>(),
+            provider.GetRequiredService<SignatureChecker>()));
         // Signature OpenPGP : trousseau de Quai Mail (clés importées), phrases de passe en mémoire seulement.
         services.AddSingleton(provider => new PgpKeyStore(paths, provider.GetService<ILogger<PgpKeyStore>>()));
         // GnuPG (Kleopatra) de l'ordinateur, pour copier ses clés dans Quai Mail ; jamais pendant les tests de fumée.
         services.AddSingleton<IGnuPgLocator>(testing ? new SmokeGnuPgLocator() : (IGnuPgLocator)new GnuPgLocator());
+
+        // Mails signés reçus : clé cherchée parmi les vôtres, dans Kleopatra, puis sur keys.openpgp.org (réglage ; un
+        // faux serveur pendant les tests de fumée, sans réseau).
+        services.AddSingleton<IPgpKeyServer>(testing ? new SmokeKeyServer() : (IPgpKeyServer)new OpenPgpKeyServer());
+        services.AddSingleton(provider => new SignatureChecker(
+            paths,
+            provider.GetRequiredService<PgpKeyStore>(),
+            provider.GetRequiredService<IGnuPgLocator>(),
+            provider.GetRequiredService<IPgpKeyServer>(),
+            TimeProvider.System,
+            provider.GetService<ILogger<SignatureChecker>>()));
         services.AddSingleton(provider => new PgpKeysViewModel(
             provider.GetRequiredService<PgpKeyStore>(),
             provider.GetRequiredService<IFileDialogs>(),

@@ -69,9 +69,17 @@ internal sealed class SmokeMailService : IMailService
     /// <summary>Changements de drapeaux demandés (lu / non lu, étoile).</summary>
     public List<(uint Uid, bool? Seen, bool? Flagged)> FlagChanges { get; } = [];
 
+    /// <summary>Dossier dont le mail est signé en OpenPGP par un correspondant (<see cref="SmokePgp.Correspondent"/>).</summary>
+    public const string SignedFolder = "Archives/2026";
+
+    /// <summary>Adresse de l'expéditeur du mail signé (celle que porte la clé du correspondant).</summary>
+    public const string SignerAddress = "contact1@example.org";
+
     public Task<MessageContent> GetMessageAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default)
     {
-        var message = uid == TrappedUid && folder == "INBOX" ? Trapped() : Simple(uid);
+        var message = uid == TrappedUid && folder == "INBOX" ? Trapped()
+            : folder == SignedFolder ? SmokePgp.SignedByCorrespondent(Simple(uid))
+            : Simple(uid);
         return Task.FromResult(MessageContent.FromMime(uid, message));
     }
 

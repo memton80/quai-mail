@@ -44,6 +44,9 @@ public sealed class AppPaths
     /// <summary>Trousseau OpenPGP de Quai Mail (clés secrètes importées, protégées par leur phrase de passe).</summary>
     public string PgpDirectory => Path.Combine(Root, "pgp");
 
+    /// <summary>Clés publiques reçues du serveur de clés, une par fichier (vérifier les mails signés sans les redemander).</summary>
+    public string PgpKeyServerCache => Path.Combine(PgpDirectory, "keyserver");
+
     /// <summary>Installateur de la mise à jour en cours (effacé au démarrage suivant).</summary>
     public string UpdatesDirectory => Path.Combine(Root, "updates");
 

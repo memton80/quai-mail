@@ -146,6 +146,17 @@ public sealed class PgpKeyStoreTests : IDisposable
         Assert.Equal(PgpError.NoSigningKey, Assert.Throws<PgpKeyException>(() => _store.Sign(Message("Texte"), key, Passphrase, Now)).Error);
     }
 
+    [Fact]
+    public void Accented_identities_are_read_as_utf8_like_gnupg_writes_them()
+    {
+        using var armored = TestPgpKeys.Armored(TestPgpKeys.Create("Léa Bérénice <lea@example.org>", "x"));
+
+        var key = Assert.Single(_store.Import(armored));
+
+        Assert.Equal("Léa Bérénice <lea@example.org>", key.UserId);
+        Assert.Equal(["lea@example.org"], key.Addresses);
+    }
+
     /// <summary>
     /// Avec le vrai GnuPG (s'il est installé) : clé Ed25519 créée par gpg avec une phrase de passe accentuée, exportée
     /// comme l'explique le guide, importée, puis la signature de Quai Mail vérifiée par <c>gpg --verify</c>.

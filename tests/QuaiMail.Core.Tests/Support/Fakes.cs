@@ -371,3 +371,32 @@ public sealed class FakeLauncher : QuaiMail.Core.Services.ILauncher
         return true;
     }
 }
+
+/// <summary>Serveur de clés scripté : les clés publiées, les demandes reçues, une panne à la demande.</summary>
+public sealed class FakeKeyServer : QuaiMail.Core.Pgp.IPgpKeyServer
+{
+    public string Name => "keys.test";
+
+    /// <summary>Clés publiées (armurées), avec l'empreinte ou l'identifiant qui les trouve.</summary>
+    public Dictionary<string, string> Published { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public List<string> Requests { get; } = [];
+
+    public bool Unreachable { get; set; }
+
+    public void Publish(Org.BouncyCastle.Bcpg.OpenPgp.PgpSecretKeyRing ring, string? armored = null)
+    {
+        var key = ring.GetPublicKey();
+        armored ??= TestPgpKeys.PublicText(ring);
+        Published[Convert.ToHexString(key.GetFingerprint())] = armored;
+        Published[key.KeyId.ToString("X16", System.Globalization.CultureInfo.InvariantCulture)] = armored;
+    }
+
+    public Task<string?> FindAsync(string issuer, CancellationToken cancellationToken = default)
+    {
+        Requests.Add(issuer);
+        return Unreachable
+            ? Task.FromException<string?>(new HttpRequestException("Serveur de clés injoignable (test)."))
+            : Task.FromResult(Published.GetValueOrDefault(issuer));
+    }
+}

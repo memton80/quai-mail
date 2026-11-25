@@ -25,6 +25,15 @@ public static class UiHelpers
         _ => Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational,
     };
 
+    /// <summary>Bandeau de la signature OpenPGP : vert si vérifiée, orange si douteuse, rouge si fausse.</summary>
+    public static Microsoft.UI.Xaml.Controls.InfoBarSeverity SignatureSeverity(Core.ViewModels.SignatureLevel level) => level switch
+    {
+        Core.ViewModels.SignatureLevel.Good => Microsoft.UI.Xaml.Controls.InfoBarSeverity.Success,
+        Core.ViewModels.SignatureLevel.Warning => Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning,
+        Core.ViewModels.SignatureLevel.Bad => Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error,
+        _ => Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational,
+    };
+
     public static Microsoft.UI.Xaml.Controls.InfoBarSeverity ErrorIf(bool value) =>
         value ? Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error : Microsoft.UI.Xaml.Controls.InfoBarSeverity.Success;
 

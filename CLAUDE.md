@@ -68,7 +68,7 @@ docs/PROMPT-CLAUDE-CODE.md  mission de départ
 - Le serveur reste la référence : le cache SQLite peut être effacé et reconstruit sans perte.
 - **Secrets et contenu** : ni mot de passe, ni jeton, ni objet, ni corps, ni adresse de correspondant dans les journaux. Les erreurs réseau journalisent le serveur et le code, pas le contenu.
 - Certificats TLS : toujours vérifiés. Un certificat invalide = erreur claire ; jamais de « ignorer » silencieux (si un jour une exception par empreinte est ajoutée, elle est explicite et par compte).
-- Connexions autorisées : les serveurs mail configurés par l'utilisateur, et GitHub pour les mises à jour (désactivable). Aucune télémétrie.
+- Connexions autorisées : les serveurs mail configurés par l'utilisateur, GitHub pour les mises à jour (désactivable), et keys.openpgp.org pour la clé inconnue d'un mail signé (empreinte seulement, désactivable ; décision d'Alexandre). Aucune télémétrie.
 - Pièces jointes : jamais ouvertes automatiquement ; avertissement sur les types exécutables ; enregistrement atomique (`AtomicFile`).
 
 ## WebView2 : verrouillé (exception documentée)

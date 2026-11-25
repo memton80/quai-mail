@@ -33,5 +33,8 @@ internal sealed class SmokeGnuPgLocator : IGnuPgLocator
                 _ => Task.FromException<string>(new GnuPgException(GnuPgError.WrongPassphrase)),
             };
         }
+
+        /// <summary>Aucune clé de correspondant dans ce Kleopatra-là.</summary>
+        public Task<string?> ExportPublicKeyAsync(string issuer, CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
     }
 }

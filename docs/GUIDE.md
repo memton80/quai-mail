@@ -1,6 +1,6 @@
 # Guide de Quai Mail
 
-> **Version 0.8 : expéditeurs sûrs et mode méfiant.** Comptes IMAP / SMTP, lecture sûre, écriture, signature OpenPGP, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail, et maintenant les **expéditeurs sûrs**, le **mode méfiant** contre l'hameçonnage, la **marque du web** sur les pièces jointes (antivirus et SmartScreen de Windows) et les **comptes repliables** dans le volet de gauche. La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir »).
+> **Version 0.10 : clés de Kleopatra et mails signés vérifiés.** Comptes IMAP / SMTP, lecture sûre, écriture, signature OpenPGP, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail, expéditeurs sûrs et mode méfiant contre l'hameçonnage, marque du web sur les pièces jointes, comptes repliables, **sélection de plusieurs mails** (`Ctrl+A`), et maintenant les **clés de Kleopatra copiées dans Quai Mail** en un clic et la **vérification des mails signés** reçus (bandeau, clé cherchée dans Kleopatra puis sur keys.openpgp.org). La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir »).
 
 ## La fenêtre
 
@@ -80,6 +80,20 @@ Un mail dont l'expéditeur n'est pas dans vos **expéditeurs sûrs** est lu en *
 
 **Faire confiance**, dans le bandeau, ajoute l'expéditeur à vos expéditeurs sûrs : cette adresse, ou tout son domaine (impossible pour une messagerie ouverte à tous comme gmail.com ou orange.fr, où n'importe qui crée une adresse). Leurs mails s'affichent ensuite normalement, images comprises. Les mails de vos propres adresses sont sûrs d'office. Un expéditeur sûr dont un mail échoue aux contrôles d'authentification perd la confiance pour ce mail-là : quelqu'un se fait peut-être passer pour lui. La liste se gère dans les **Réglages** (section **Expéditeurs sûrs**) et reste sur cet ordinateur.
 
+### Mails signés (OpenPGP)
+
+Un mail signé en OpenPGP (PGP/MIME, comme ceux de Thunderbird, Kleopatra, Mailvelope ou Proton Mail) affiche un **bandeau de signature** au lieu d'une pièce jointe `signature.asc`. Quai Mail cherche la clé qui a signé parmi **vos clés**, puis dans **Kleopatra** s'il est installé (clés de vos correspondants que vous y avez mises), puis sur **keys.openpgp.org** (seule l'empreinte de la clé est envoyée, jamais l'adresse de l'expéditeur ni rien du mail). Sur keys.openpgp.org, une clé ne porte une adresse que si son propriétaire l'a confirmée par mail.
+
+| Bandeau | Ce qu'il veut dire |
+|---|---|
+| **Signature vérifiée** (vert) | le mail n'a pas été modifié depuis sa signature, et la clé porte l'adresse de l'expéditeur ; le bandeau dit d'où vient la clé et son empreinte |
+| **Mail signé — clé inconnue** (orange) | la clé n'est ni à vous, ni dans Kleopatra, ni publiée : impossible de savoir qui a signé. Si la recherche automatique est coupée, **Chercher sur keys.openpgp.org** la lance pour ce mail ; si le serveur n'a pas répondu, **Réessayer** |
+| **Signé, mais pas par l'expéditeur affiché** (orange) | la signature est bonne, mais la clé appartient à une autre adresse (ou n'en a aucune de confirmée) : rien ne prouve que l'expéditeur en est l'auteur |
+| **Signé avec une clé expirée ou révoquée** (orange) | ne vous fiez pas à cette signature |
+| **Signature invalide** (rouge) | le mail a été modifié après sa signature, ou la signature est fausse : ne vous fiez pas à son contenu |
+
+Une clé reçue de keys.openpgp.org est gardée sur cet ordinateur (une révocation éventuelle est relue au bout d'une semaine) : le même correspondant est vérifié ensuite sans connexion. La recherche automatique se coupe dans les **Réglages** (**Chercher les clés des mails signés**).
+
 ## Écrire
 
 - **Nouveau message** (`Ctrl+N`), ou, depuis un mail ouvert, **Répondre**, **Répondre à tous** ou **Transférer** (boutons en haut à droite du mail).
@@ -123,6 +137,7 @@ Chaque pièce jointe enregistrée reçoit la **marque du web**, comme un fichier
 | **Bloquer les images distantes** | activé par défaut : les images hébergées sur Internet ne sont chargées que sur votre demande, l'expéditeur ne sait pas quand vous lisez son mail |
 | **Rechercher les mises à jour** | activé par défaut : au démarrage, Quai Mail demande à GitHub le numéro de la dernière version publiée |
 | **Notifications des nouveaux mails** | activé par défaut : une notification de Windows quand un mail arrive et que Quai Mail n'est pas au premier plan |
+| **Chercher les clés des mails signés** | activé par défaut : la clé inconnue d'un mail signé est demandée à keys.openpgp.org (empreinte seulement) ; coupé, le bandeau propose **Chercher** |
 | **Vider le cache** | efface les dossiers et en-têtes gardés sur cet ordinateur ; tout est relu sur vos serveurs, rien n'est perdu |
 | **Expéditeurs sûrs** | la liste des adresses et domaines lus sans le mode méfiant ; le bouton à droite d'une ligne la retire |
 
@@ -164,10 +179,10 @@ Quai Mail pose la même question **« Garder ce brouillon ? »**. Si l'enregistr
 
 ## Connexions
 
-Quai Mail ne se connecte qu'aux serveurs mail de vos comptes, aux sites des images distantes d'un mail seulement quand vous demandez **Afficher les images**, à GitHub pour savoir s'il existe une nouvelle version (rien sur vous ni sur vos mails ; désactivable dans les **Réglages**) et, au moment d'ajouter un compte, au site de votre fournisseur pour lire ses réglages publiés (seul le nom de domaine apparaît dans l'adresse demandée, jamais votre adresse mail). Aucune publicité, aucun pistage, aucun compte à créer.
+Quai Mail ne se connecte qu'aux serveurs mail de vos comptes, aux sites des images distantes d'un mail seulement quand vous demandez **Afficher les images**, à GitHub pour savoir s'il existe une nouvelle version (rien sur vous ni sur vos mails ; désactivable dans les **Réglages**), à keys.openpgp.org pour la clé inconnue d'un mail signé (son empreinte seulement ; désactivable dans les **Réglages**) et, au moment d'ajouter un compte, au site de votre fournisseur pour lire ses réglages publiés (seul le nom de domaine apparaît dans l'adresse demandée, jamais votre adresse mail). Aucune publicité, aucun pistage, aucun compte à créer.
 
 ## Limites actuelles
 
-Version 0.8 : le mode méfiant ne consulte aucune liste noire en ligne (tout se décide dans le mail lui-même ; le filtre de votre fournisseur mail reste la première barrière). La signature OpenPGP ne chiffre pas les mails et ne vérifie pas encore les signatures reçues (la signature d'un mail reçu apparaît comme une pièce jointe `signature.asc`) ; pas de clé sur carte à puce. Pas encore de connexion à Gmail / Outlook.com par le navigateur (boutons grisés « à venir ») ; Gmail fonctionne avec un mot de passe d'application, Outlook.com et Hotmail pas encore. La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes s'autorisent pour un expéditeur en le déclarant sûr (pas de réglage « images seulement »).
+Version 0.10 : le mode méfiant ne consulte aucune liste noire en ligne (tout se décide dans le mail lui-même ; le filtre de votre fournisseur mail reste la première barrière). La signature OpenPGP ne chiffre pas les mails ; seules les signatures PGP/MIME du mail entier sont vérifiées (pas encore l'ancien format « en ligne » `BEGIN PGP SIGNED MESSAGE`, ni S/MIME, ni les clés jointes au mail ou annoncées par Autocrypt) ; pas de clé sur carte à puce. Pas encore de connexion à Gmail / Outlook.com par le navigateur (boutons grisés « à venir ») ; Gmail fonctionne avec un mot de passe d'application, Outlook.com et Hotmail pas encore. La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes s'autorisent pour un expéditeur en le déclarant sûr (pas de réglage « images seulement »).
 
 Affichage : le moteur WebView2 de Microsoft (déjà présent sur Windows 11 et la plupart des Windows 10) est nécessaire. S'il manque, Quai Mail le dit et donne le lien officiel.

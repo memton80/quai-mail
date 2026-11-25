@@ -84,6 +84,7 @@ public sealed class JsonSettingsService : ISettingsService
         && a.BlockRemoteImages == b.BlockRemoteImages
         && a.ShowNotifications == b.ShowNotifications
         && a.CheckForUpdates == b.CheckForUpdates
+        && a.LookUpPgpKeys == b.LookUpPgpKeys
         && a.CollapsedAccounts.SequenceEqual(b.CollapsedAccounts, StringComparer.Ordinal);
 
     private AppSettings Load()

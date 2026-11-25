@@ -15,6 +15,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -115,8 +116,28 @@
             </InfoBar.ActionButton>
         </InfoBar>
 
+        <!--
+            Mail signé en OpenPGP : le verdict de la signature (elle n'est pas proposée comme pièce jointe). Clé inconnue :
+            cherchée dans Kleopatra puis sur keys.openpgp.org (réglage), sinon bouton « Chercher » ; « Réessayer » si le
+            serveur n'a pas répondu.
+        -->
         <InfoBar
             Grid.Row="3"
+            IsOpen="{x:Bind Reader.HasSignature, Mode=OneWay}"
+            Message="{x:Bind Reader.SignatureMessage, Mode=OneWay}"
+            Severity="{x:Bind ui:UiHelpers.SignatureSeverity(Reader.SignatureLevel), Mode=OneWay}"
+            Style="{StaticResource ListInfoBarStyle}"
+            Title="{x:Bind Reader.SignatureTitle, Mode=OneWay}">
+            <InfoBar.ActionButton>
+                <Button
+                    Command="{x:Bind Reader.LookUpKeyCommand}"
+                    Content="{x:Bind Reader.LookUpKeyText, Mode=OneWay}"
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Reader.CanLookUpKey), Mode=OneWay}" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+
+        <InfoBar
+            Grid.Row="4"
             IsOpen="{x:Bind Reader.HasError, Mode=OneWay}"
             Message="{x:Bind Reader.ErrorMessage, Mode=OneWay}"
             Severity="Warning"
@@ -124,7 +145,7 @@
 
         <!-- Images distantes bloquées (pas de pixel espion) : affichées seulement sur demande, pour ce mail. -->
         <InfoBar
-            Grid.Row="4"
+            Grid.Row="5"
             IsOpen="{x:Bind Reader.OffersImages, Mode=OneWay}"
             Message="{x:Bind ui:UiHelpers.BlockedImagesText(Reader.BlockedImages), Mode=OneWay}"
             Severity="Informational"
@@ -136,7 +157,7 @@
 
         <!-- Pièces jointes : enregistrées sur demande, jamais ouvertes. -->
         <ScrollViewer
-            Grid.Row="5"
+            Grid.Row="6"
             Style="{StaticResource AttachmentsScrollerStyle}"
             Visibility="{x:Bind ui:UiHelpers.VisibleIf(Reader.HasAttachments), Mode=OneWay}">
             <ItemsRepeater ItemsSource="{x:Bind Reader.Attachments}">
@@ -162,13 +183,13 @@
         </ScrollViewer>
 
         <!-- Corps du mail : WebView2 verrouillée (voir ReaderView.xaml.cs). -->
-        <Border Grid.Row="6" Style="{StaticResource ReaderBodyStyle}">
+        <Border Grid.Row="7" Style="{StaticResource ReaderBodyStyle}">
             <WebView2 x:Name="Body" AutomationProperties.Name="{l:Str Key=Reader_Body}" />
         </Border>
 
         <InfoBar
             x:Name="RuntimeMissing"
-            Grid.Row="6"
+            Grid.Row="7"
             IsClosable="False"
             Message="{l:Str Key=Reader_RuntimeMissing}"
             Severity="Warning"
@@ -180,7 +201,7 @@
         </InfoBar>
 
         <StackPanel
-            Grid.Row="6"
+            Grid.Row="7"
             Style="{StaticResource EmptyStatePanelStyle}"
             Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Reader.HasMessage), Mode=OneWay}">
             <FontIcon Glyph="&#xE715;" Style="{StaticResource EmptyStateIconStyle}" />
