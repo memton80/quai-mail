@@ -1,6 +1,6 @@
 # Guide de Quai Mail
 
-> **Version 0.7 : mails signés avec OpenPGP (GPG).** Comptes IMAP / SMTP, lecture sûre, écriture, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail, et maintenant la **signature OpenPGP** de vos mails avec votre clé GnuPG / Kleopatra. La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir »).
+> **Version 0.8 : expéditeurs sûrs et mode méfiant.** Comptes IMAP / SMTP, lecture sûre, écriture, signature OpenPGP, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail, et maintenant les **expéditeurs sûrs**, le **mode méfiant** contre l'hameçonnage, la **marque du web** sur les pièces jointes (antivirus et SmartScreen de Windows) et les **comptes repliables** dans le volet de gauche. La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir »).
 
 ## La fenêtre
 
@@ -165,6 +165,6 @@ Quai Mail ne se connecte qu'aux serveurs mail de vos comptes, aux sites des imag
 
 ## Limites actuelles
 
-Version 0.7 : la signature OpenPGP ne chiffre pas les mails et ne vérifie pas encore les signatures reçues (la signature d'un mail reçu apparaît comme une pièce jointe `signature.asc`) ; pas de clé sur carte à puce. Pas encore de connexion à Gmail / Outlook.com par le navigateur (boutons grisés « à venir ») ; Gmail fonctionne avec un mot de passe d'application, Outlook.com et Hotmail pas encore. La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes s'autorisent pour un expéditeur en le déclarant sûr (pas de réglage « images seulement »).
+Version 0.8 : le mode méfiant ne consulte aucune liste noire en ligne (tout se décide dans le mail lui-même ; le filtre de votre fournisseur mail reste la première barrière). La signature OpenPGP ne chiffre pas les mails et ne vérifie pas encore les signatures reçues (la signature d'un mail reçu apparaît comme une pièce jointe `signature.asc`) ; pas de clé sur carte à puce. Pas encore de connexion à Gmail / Outlook.com par le navigateur (boutons grisés « à venir ») ; Gmail fonctionne avec un mot de passe d'application, Outlook.com et Hotmail pas encore. La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes s'autorisent pour un expéditeur en le déclarant sûr (pas de réglage « images seulement »).
 
 Affichage : le moteur WebView2 de Microsoft (déjà présent sur Windows 11 et la plupart des Windows 10) est nécessaire. S'il manque, Quai Mail le dit et donne le lien officiel.

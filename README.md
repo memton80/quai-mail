@@ -14,7 +14,7 @@
   · Gratuit · Sans compte · Sans publicité
 </p>
 
-> **Projet en cours de construction.** Version 0.7 : comptes IMAP / SMTP (réglages détectés, mot de passe dans le coffre de Windows), lecture sûre, écriture, mails signés avec OpenPGP (votre clé GnuPG / Kleopatra), recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail. À venir : Gmail et Outlook.com par le navigateur (sans mot de passe).
+> **Projet en cours de construction.** Version 0.8 : comptes IMAP / SMTP (réglages détectés, mot de passe dans le coffre de Windows), lecture sûre avec **expéditeurs sûrs et mode méfiant** contre l'hameçonnage, pièces jointes vérifiées par Windows (antivirus, SmartScreen), écriture, mails signés avec OpenPGP (votre clé GnuPG / Kleopatra), recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, comptes repliables, liens mail. À venir : Gmail et Outlook.com par le navigateur (sans mot de passe).
 
 ## Ce que sera Quai Mail
 
@@ -22,6 +22,7 @@
 - Lire, répondre, transférer, pièces jointes, brouillons enregistrés en local.
 - Mails signés avec OpenPGP (GPG) : votre clé existante, importée en un clic, sans rien installer de plus.
 - Application Windows native (WinUI 3). Le corps des mails est affiché par un WebView2 **verrouillé** : pas de JavaScript, images distantes bloquées par défaut, aucun lien suivi sans votre accord.
+- Expéditeurs sûrs et **mode méfiant** pour les autres : expéditeur usurpé (DMARC / SPF / DKIM), domaine sosie, lien trompeur signalés, sans rien envoyer sur Internet. Pièces jointes enregistrées avec la marque du web : antivirus et SmartScreen de Windows.
 - **Aucune publicité, aucun pistage, aucun compte à créer.** Quai Mail ne parle qu'à vos serveurs mail et à GitHub, pour savoir s'il existe une nouvelle version (désactivable).
 - Mots de passe gardés dans le coffre de Windows. À venir : Gmail et Outlook.com par leur page de connexion officielle, sans que Quai Mail voie votre mot de passe.
 
