@@ -278,22 +278,57 @@
                             SelectedItem="{x:Bind Messages.SelectedMessage, Mode=OneWay}"
                             SelectionChanged="OnMessageSelectionChanged"
                             Style="{StaticResource MessageListStyle}">
+                            <!-- Seulement quand le focus est dans la liste (voir MainWindow) : ailleurs, Ctrl+A et Suppr gardent leur rôle. -->
                             <ListView.KeyboardAccelerators>
                                 <KeyboardAccelerator Key="Delete" Invoked="OnDeleteAccelerator" />
+                                <KeyboardAccelerator
+                                    Key="A"
+                                    Invoked="OnSelectAllAccelerator"
+                                    Modifiers="Control" />
                             </ListView.KeyboardAccelerators>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:MessageItemViewModel">
                                     <Grid AutomationProperties.Name="{x:Bind ui:UiHelpers.MessageName(Sender, Subject, DateText, IsRead), Mode=OneWay}" Style="{StaticResource MessageItemStyle}">
                                         <Grid.ContextFlyout>
+                                            <!-- Vise toute la sélection si ce mail en fait partie (textes complétés à l'ouverture). -->
                                             <MenuFlyout Opening="OnMessageMenuOpening">
+                                                <MenuFlyoutItem
+                                                    Click="OnMarkReadClick"
+                                                    Tag="MarkRead"
+                                                    Text="{l:Str Key=Messages_MarkRead}">
+                                                    <MenuFlyoutItem.Icon>
+                                                        <FontIcon Glyph="&#xE8C3;" />
+                                                    </MenuFlyoutItem.Icon>
+                                                </MenuFlyoutItem>
+                                                <MenuFlyoutItem
+                                                    Click="OnMarkUnreadClick"
+                                                    Tag="MarkUnread"
+                                                    Text="{l:Str Key=Messages_MarkUnread}">
+                                                    <MenuFlyoutItem.Icon>
+                                                        <FontIcon Glyph="&#xE715;" />
+                                                    </MenuFlyoutItem.Icon>
+                                                </MenuFlyoutItem>
                                                 <MenuFlyoutSubItem Text="{l:Str Key=Messages_MoveTo}">
                                                     <MenuFlyoutSubItem.Icon>
                                                         <FontIcon Glyph="&#xE8DE;" />
                                                     </MenuFlyoutSubItem.Icon>
                                                 </MenuFlyoutSubItem>
-                                                <MenuFlyoutItem Click="OnDeleteMessageClick" Text="{l:Str Key=Messages_Delete}">
+                                                <MenuFlyoutItem
+                                                    Click="OnDeleteMessageClick"
+                                                    KeyboardAcceleratorTextOverride="{l:Str Key=Messages_DeleteShortcut}"
+                                                    Tag="Delete"
+                                                    Text="{l:Str Key=Messages_Delete}">
                                                     <MenuFlyoutItem.Icon>
                                                         <FontIcon Glyph="&#xE74D;" />
+                                                    </MenuFlyoutItem.Icon>
+                                                </MenuFlyoutItem>
+                                                <MenuFlyoutSeparator />
+                                                <MenuFlyoutItem
+                                                    Click="OnSelectAllClick"
+                                                    KeyboardAcceleratorTextOverride="{l:Str Key=Messages_SelectAllShortcut}"
+                                                    Text="{l:Str Key=Messages_SelectAll}">
+                                                    <MenuFlyoutItem.Icon>
+                                                        <FontIcon Glyph="&#xE8B3;" />
                                                     </MenuFlyoutItem.Icon>
                                                 </MenuFlyoutItem>
                                             </MenuFlyout>

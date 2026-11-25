@@ -569,6 +569,40 @@ internal static class SmokeTest
         Check(mail.Moves.Contains((moved.Uid, "INBOX", "Archives/2026")), "déplacement non demandé au serveur");
         report.Add("Supprimer : corbeille d'abord ; définitif seulement après confirmation (refusée) ; déplacer : OK");
 
+        // Ctrl+A dans la vraie liste : tout est choisi et rien de neuf ne s'ouvre (donc rien n'est marqué lu) ; le clic
+        // droit vise toute la sélection : « Marquer comme lu » en une commande, puis non lu pour ceux qui l'étaient.
+        var reader = mailbox.Reader;
+        uint? ShownUid() => reader.HasMessage ? reader.Uid : null;
+        var shownUid = ShownUid();
+        var flags = mail.FlagChanges.Count;
+        window.SelectAllMessages();
+        await WaitForAsync(() => messages.SelectedMessages.Count == messages.Messages.Count, "Ctrl+A : tous les mails choisis");
+        Check(ShownUid() == shownUid && mail.FlagChanges.Count == flags, "Ctrl+A a ouvert (et marqué lu) un mail");
+        var all = messages.TargetsOf(messages.Messages[^1]);
+        Check(all.Count == messages.Messages.Count, $"clic droit sur la sélection : {all.Count} mail(s) visé(s) sur {messages.Messages.Count}");
+        var wereUnread = all.Where(m => !m.IsRead).ToList();
+        Check(wereUnread.Count > 0, "aucun mail non lu pour essayer « Marquer comme lu »");
+        var inboxUnread = inbox.Unread;
+        await Task.Delay(500);
+        await CaptureAsync(hwnd, directory, "17-tout-selectionner.png", report);
+        await WithTimeout(window.SetReadAsync(all, read: true), "sélection marquée lue");
+        Check(messages.Messages.All(m => m.IsRead) && mail.Batches[^1] == $"flags INBOX {wereUnread.Count}", $"sélection non marquée lue en une commande ({mail.Batches[^1]})");
+        Check(inbox.Unread == Math.Max(0, inboxUnread - wereUnread.Count), $"compteur après « Marquer comme lu » : {inbox.Unread}");
+        await WithTimeout(window.SetReadAsync(wereUnread, read: false), "mails remis non lus");
+        Check(wereUnread.All(m => !m.IsRead), "mails non remis non lus");
+
+        // Maj + clic sur trois mails, puis Suppr : les trois à la corbeille en une commande, sans question, et aucun
+        // ne reste choisi ni ouvert.
+        window.SelectMessageRange(messages.Messages.Count - 4, 3);
+        await WaitForAsync(() => messages.SelectedMessages.Count == 3, "Maj + clic : trois mails choisis");
+        var three = messages.SelectedMessages.ToList();
+        await WithTimeout(window.DeleteAsync(messages.SelectedMessages), "suppression de la sélection");
+        Check(
+            three.All(m => !messages.Messages.Contains(m) && mail.Moves.Contains((m.Uid, "INBOX", "Corbeille"))) && mail.Batches[^1] == "trash INBOX 3" && dialogs.Current is null,
+            $"sélection non mise à la corbeille en une commande ({mail.Batches[^1]})");
+        Check(messages.SelectedMessages.Count == 0 && !three.Any(m => ShownUid() == m.Uid), "un mail supprimé est resté choisi ou ouvert");
+        report.Add("Sélection : Ctrl+A choisit tout sans rien ouvrir ; lu / non lu et corbeille en une commande par dossier");
+
         // Boîte de réception unifiée : un deuxième compte (même serveur de test).
         var accounts = services.GetRequiredService<AccountStore>();
         var credentials = services.GetRequiredService<ICredentialStore>();

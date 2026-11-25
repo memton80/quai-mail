@@ -12,7 +12,7 @@ Trois volets, de gauche à droite :
 | **Mails** | les mails du dossier choisi, du plus récent au plus ancien : expéditeur, objet, date ; les non lus en gras |
 | **Lecture** | le mail ouvert : expéditeur, destinataires, date, pièces jointes, puis son contenu ; ou le message que vous écrivez |
 
-Tout se fait aussi au clavier : `Tab` passe d'un volet à l'autre, les flèches parcourent les dossiers et les mails, `F5` actualise les dossiers, `Ctrl+N` écrit un nouveau message, `Ctrl+F` cherche, `Suppr` supprime le mail choisi.
+Tout se fait aussi au clavier : `Tab` passe d'un volet à l'autre, les flèches parcourent les dossiers et les mails, `F5` actualise les dossiers, `Ctrl+N` écrit un nouveau message, `Ctrl+F` cherche ; dans la liste des mails, `Ctrl+A` les choisit tous et `Suppr` supprime les mails choisis.
 
 ## Ajouter un compte
 
@@ -49,10 +49,13 @@ Les boutons **Se connecter avec Google** et **Se connecter avec Microsoft** sont
 
 Tapez quelques mots dans **Rechercher** (`Ctrl+F`) en haut de la liste, puis `Entrée` : Quai Mail cherche dans tous vos comptes et dossiers déjà ouverts sur cet ordinateur (objet, expéditeur, et texte des mails déjà lus), sans tenir compte des accents ni des majuscules, même sans connexion. **Chercher aussi sur le serveur** complète avec le texte de tous les mails du dossier d'où vous cherchez. Videz le champ pour revenir au dossier.
 
-## Supprimer, déplacer
+## Supprimer, déplacer, marquer lu
 
-- **Supprimer** (touche `Suppr`, bouton corbeille en haut du mail, ou clic droit sur le mail) : le mail va dans la **corbeille** de votre compte. Depuis la corbeille (ou si le compte n'en a pas), la suppression est **définitive** : Quai Mail demande confirmation, « Annuler » étant le choix par défaut.
-- **Déplacer** : clic droit sur le mail, **Déplacer vers**, puis le dossier.
+- **Choisir plusieurs mails** : `Ctrl+A` dans la liste (ou clic droit, **Tout sélectionner**) les choisit tous ; `Ctrl` + clic ajoute ou retire un mail, `Maj` + clic choisit tous ceux d'entre deux. Le mail ouvert reste affiché et aucun autre ne s'ouvre (ni n'est marqué lu). Seuls les mails déjà affichés sont concernés : **Charger plus** en bas de la liste en ajoute d'autres.
+- **Clic droit** sur un mail choisi : le menu vaut pour toute la sélection (« Supprimer les 12 mails », « Marquer les 12 mails comme lus »…) ; sur un mail non choisi, pour lui seul.
+- **Supprimer** (touche `Suppr`, bouton corbeille en haut du mail, ou clic droit) : les mails vont dans la **corbeille** de leur compte. Depuis la corbeille (ou si le compte n'en a pas), la suppression est **définitive** : Quai Mail demande confirmation, une seule fois pour toute la sélection, « Annuler » étant le choix par défaut.
+- **Marquer comme lu / non lu** : clic droit sur le mail ou la sélection (seul le choix utile s'affiche, les deux si la sélection mêle lus et non lus).
+- **Déplacer** : clic droit, **Déplacer vers**, puis le dossier (pour une sélection d'un seul compte ; la boîte de réception unifiée ou une recherche peuvent mêler plusieurs comptes).
 
 ## Lire un mail
 

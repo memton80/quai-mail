@@ -75,9 +75,16 @@ internal sealed class SmokeMailService : IMailService
         return Task.FromResult(MessageContent.FromMime(uid, message));
     }
 
-    public Task SetFlagsAsync(Account account, string folder, uint uid, bool? seen, bool? flagged, CancellationToken cancellationToken = default)
+    public Task SetFlagsAsync(Account account, string folder, uint uid, bool? seen, bool? flagged, CancellationToken cancellationToken = default) =>
+        SetFlagsAsync(account, folder, [uid], seen, flagged, cancellationToken);
+
+    /// <summary>Commandes groupées reçues (sélection de plusieurs mails), une par dossier : « opération dossier nombre ».</summary>
+    public List<string> Batches { get; } = [];
+
+    public Task SetFlagsAsync(Account account, string folder, IReadOnlyList<uint> uids, bool? seen, bool? flagged, CancellationToken cancellationToken = default)
     {
-        FlagChanges.Add((uid, seen, flagged));
+        Batches.Add($"flags {folder} {uids.Count}");
+        FlagChanges.AddRange(uids.Select(uid => (uid, seen, flagged)));
         return Task.CompletedTask;
     }
 
@@ -116,26 +123,38 @@ internal sealed class SmokeMailService : IMailService
 
     public List<(string Folder, uint Uid)> PermanentlyDeleted { get; } = [];
 
-    public Task MoveAsync(Account account, string folder, uint uid, string target, CancellationToken cancellationToken = default)
+    public Task MoveAsync(Account account, string folder, uint uid, string target, CancellationToken cancellationToken = default) =>
+        MoveAsync(account, folder, [uid], target, cancellationToken);
+
+    public Task MoveAsync(Account account, string folder, IReadOnlyList<uint> uids, string target, CancellationToken cancellationToken = default)
     {
-        Moves.Add((uid, folder, target));
+        Batches.Add($"move {folder} {uids.Count}");
+        Moves.AddRange(uids.Select(uid => (uid, folder, target)));
         return Task.CompletedTask;
     }
 
-    public Task<bool> MoveToTrashAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default)
+    public Task<bool> MoveToTrashAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default) =>
+        MoveToTrashAsync(account, folder, [uid], cancellationToken);
+
+    public Task<bool> MoveToTrashAsync(Account account, string folder, IReadOnlyList<uint> uids, CancellationToken cancellationToken = default)
     {
         if (folder == "Corbeille")
         {
             return Task.FromResult(false);
         }
 
-        Moves.Add((uid, folder, "Corbeille"));
+        Batches.Add($"trash {folder} {uids.Count}");
+        Moves.AddRange(uids.Select(uid => (uid, folder, "Corbeille")));
         return Task.FromResult(true);
     }
 
-    public Task DeletePermanentlyAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default)
+    public Task DeletePermanentlyAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default) =>
+        DeletePermanentlyAsync(account, folder, [uid], cancellationToken);
+
+    public Task DeletePermanentlyAsync(Account account, string folder, IReadOnlyList<uint> uids, CancellationToken cancellationToken = default)
     {
-        PermanentlyDeleted.Add((folder, uid));
+        Batches.Add($"delete {folder} {uids.Count}");
+        PermanentlyDeleted.AddRange(uids.Select(uid => (folder, uid)));
         return Task.CompletedTask;
     }
 

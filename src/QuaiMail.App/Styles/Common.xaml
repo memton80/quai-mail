@@ -189,8 +189,9 @@
         <Setter Property="IsClosable" Value="False" />
     </Style>
 
+    <!-- Extended : un clic choisit un mail, Ctrl / Maj + clic et Ctrl+A en choisissent plusieurs. -->
     <Style x:Key="MessageListStyle" TargetType="ListView">
-        <Setter Property="SelectionMode" Value="Single" />
+        <Setter Property="SelectionMode" Value="Extended" />
         <Setter Property="Padding" Value="0,0,0,12" />
     </Style>
 

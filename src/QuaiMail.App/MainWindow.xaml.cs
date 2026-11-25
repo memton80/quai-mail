@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using QuaiMail.App.Localization;
 using QuaiMail.App.Services;
 using QuaiMail.Core;
 using QuaiMail.Core.Accounts;
@@ -368,23 +369,79 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>Suppr dans la liste : les mails choisis (un seul, ou toute la sélection).</summary>
     private async void OnDeleteAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
+        if (!IsFocusInMessageList())
+        {
+            return;
+        }
+
         args.Handled = true;
-        await DeleteAsync(Messages.SelectedMessage);
+        await DeleteAsync(Messages.SelectedMessages);
     }
 
-    private async void OnDeleteMessageClick(object sender, RoutedEventArgs e) =>
-        await DeleteAsync((sender as FrameworkElement)?.DataContext as MessageItemViewModel);
+    /// <summary>Ctrl+A dans la liste : tous les mails affichés sont choisis (aucun ne s'ouvre).</summary>
+    private void OnSelectAllAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (!IsFocusInMessageList())
+        {
+            return;
+        }
+
+        args.Handled = true;
+        SelectAllMessages();
+    }
+
+    /// <summary>
+    /// Le focus est-il dans la liste des mails ? Ses raccourcis (Suppr, Ctrl+A) n'agissent que là : ailleurs (recherche,
+    /// message en cours d'écriture, Réglages), la touche n'est pas prise et garde son rôle habituel dans le champ.
+    /// </summary>
+    private bool IsFocusInMessageList()
+    {
+        var element = MessageList.XamlRoot is { } root ? FocusManager.GetFocusedElement(root) as DependencyObject : null;
+        while (element is not null)
+        {
+            if (ReferenceEquals(element, MessageList))
+            {
+                return true;
+            }
+
+            element = VisualTreeHelper.GetParent(element);
+        }
+
+        return false;
+    }
+
+    /// <summary>Mails visés par le menu ouvert : la sélection si le mail cliqué en fait partie, sinon lui seul.</summary>
+    private IReadOnlyList<MessageItemViewModel> _menuTargets = [];
+
+    private async void OnDeleteMessageClick(object sender, RoutedEventArgs e) => await DeleteAsync(_menuTargets);
+
+    private async void OnMarkReadClick(object sender, RoutedEventArgs e) => await SetReadAsync(_menuTargets, read: true);
+
+    private async void OnMarkUnreadClick(object sender, RoutedEventArgs e) => await SetReadAsync(_menuTargets, read: false);
+
+    private void OnSelectAllClick(object sender, RoutedEventArgs e) => SelectAllMessages();
+
+    /// <summary>Choisit tous les mails affichés (Ctrl+A, clic droit, test de fumée).</summary>
+    internal void SelectAllMessages() => MessageList.SelectAll();
+
+    /// <summary>Choisit des mails voisins, comme Maj + clic (test de fumée).</summary>
+    internal void SelectMessageRange(int first, int count)
+    {
+        MessageList.SelectedItems.Clear();
+        MessageList.SelectRange(new Microsoft.UI.Xaml.Data.ItemIndexRange(first, (uint)count));
+    }
 
     /// <summary>Supprimer : corbeille, ou définitif après confirmation (voir MailboxViewModel.DeleteAsync).</summary>
-    internal async Task DeleteAsync(MessageItemViewModel? message)
+    internal async Task DeleteAsync(IReadOnlyList<MessageItemViewModel> messages)
     {
         try
         {
-            if (message is not null)
+            if (messages.Count > 0)
             {
-                await Mailbox.DeleteAsync(message);
+                await Mailbox.DeleteAsync(messages);
             }
         }
         catch (Exception ex)
@@ -393,24 +450,70 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>Menu d'un mail : « Déplacer vers » liste les dossiers de son compte.</summary>
+    /// <summary>Marquer lus ou non lus (clic droit sur un mail ou une sélection).</summary>
+    internal async Task SetReadAsync(IReadOnlyList<MessageItemViewModel> messages, bool read)
+    {
+        try
+        {
+            if (messages.Count > 0)
+            {
+                await Mailbox.SetReadAsync(messages, read);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lu / non lu impossible");
+        }
+    }
+
+    /// <summary>
+    /// Menu d'un mail : il vise toute la sélection si ce mail en fait partie, sinon lui seul. Les textes donnent le
+    /// nombre de mails, « lu » et « non lu » n'apparaissent que s'ils changent quelque chose, « Déplacer vers » liste
+    /// les dossiers du compte (aucun si la sélection mêle plusieurs comptes).
+    /// </summary>
     private void OnMessageMenuOpening(object? sender, object e)
     {
-        if (sender is not MenuFlyout menu || menu.Items.OfType<MenuFlyoutSubItem>().FirstOrDefault() is not { } moveTo
-            || menu.Target?.DataContext is not MessageItemViewModel message)
+        if (sender is not MenuFlyout menu || menu.Target?.DataContext is not MessageItemViewModel message)
         {
             return;
         }
 
+        var targets = _menuTargets = Messages.TargetsOf(message);
+        var count = targets.Count;
+        foreach (var entry in menu.Items)
+        {
+            switch (entry)
+            {
+                case MenuFlyoutItem { Tag: "MarkRead" } markRead:
+                    markRead.Text = count > 1 ? Loc.Format("Messages_MarkReadMany", count) : Loc.Get("Messages_MarkRead");
+                    markRead.Visibility = UiHelpers.VisibleIf(targets.Any(m => !m.IsRead));
+                    break;
+                case MenuFlyoutItem { Tag: "MarkUnread" } markUnread:
+                    markUnread.Text = count > 1 ? Loc.Format("Messages_MarkUnreadMany", count) : Loc.Get("Messages_MarkUnread");
+                    markUnread.Visibility = UiHelpers.VisibleIf(targets.Any(m => m.IsRead));
+                    break;
+                case MenuFlyoutItem { Tag: "Delete" } delete:
+                    delete.Text = count > 1 ? Loc.Format("Messages_DeleteMany", count) : Loc.Get("Messages_Delete");
+                    break;
+                case MenuFlyoutSubItem moveTo:
+                    moveTo.Text = count > 1 ? Loc.Format("Messages_MoveToMany", count) : Loc.Get("Messages_MoveTo");
+                    FillMoveTargets(moveTo, targets);
+                    break;
+            }
+        }
+    }
+
+    private void FillMoveTargets(MenuFlyoutSubItem moveTo, IReadOnlyList<MessageItemViewModel> messages)
+    {
         moveTo.Items.Clear();
-        foreach (var target in Mailbox.MoveTargets(message))
+        foreach (var target in Mailbox.MoveTargets(messages))
         {
             var item = new MenuFlyoutItem { Text = target.Title };
             item.Click += async (_, _) =>
             {
                 try
                 {
-                    await Mailbox.MoveAsync(message, target);
+                    await Mailbox.MoveAsync(messages, target);
                 }
                 catch (Exception ex)
                 {
@@ -518,9 +621,12 @@ public sealed partial class MainWindow : Window
         return element is ListViewItem container ? NavList.ItemFromContainer(container) as NavItemViewModel : null;
     }
 
-    /// <summary>Mail choisi : ouvert dans le volet de lecture (voir MailboxViewModel).</summary>
+    /// <summary>
+    /// Sélection changée : un seul mail choisi s'ouvre dans le volet de lecture (voir MailboxViewModel) ; plusieurs
+    /// (Ctrl+A, Maj / Ctrl + clic) ne changent pas le mail ouvert.
+    /// </summary>
     private void OnMessageSelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        Messages.SelectedMessage = MessageList.SelectedItem as MessageItemViewModel;
+        Messages.SetSelection(MessageList.SelectedItems.OfType<MessageItemViewModel>());
 
     private void ResizeForDpi(int width, int height)
     {

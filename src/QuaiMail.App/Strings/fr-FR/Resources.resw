@@ -596,11 +596,41 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="Messages_DeleteTooltip" xml:space="preserve">
     <value>Supprimer (vers la corbeille) — touche Suppr dans la liste</value>
   </data>
+  <data name="Messages_DeleteMany" xml:space="preserve">
+    <value>Supprimer les {0} mails</value>
+  </data>
+  <data name="Messages_MoveToMany" xml:space="preserve">
+    <value>Déplacer les {0} mails vers</value>
+  </data>
+  <data name="Messages_MarkRead" xml:space="preserve">
+    <value>Marquer comme lu</value>
+  </data>
+  <data name="Messages_MarkUnread" xml:space="preserve">
+    <value>Marquer comme non lu</value>
+  </data>
+  <data name="Messages_MarkReadMany" xml:space="preserve">
+    <value>Marquer les {0} mails comme lus</value>
+  </data>
+  <data name="Messages_MarkUnreadMany" xml:space="preserve">
+    <value>Marquer les {0} mails comme non lus</value>
+  </data>
+  <data name="Messages_SelectAll" xml:space="preserve">
+    <value>Tout sélectionner</value>
+  </data>
+  <data name="Messages_SelectAllShortcut" xml:space="preserve">
+    <value>Ctrl+A</value>
+  </data>
+  <data name="Messages_DeleteShortcut" xml:space="preserve">
+    <value>Suppr</value>
+  </data>
   <data name="DeleteForever_Title" xml:space="preserve">
     <value>Supprimer définitivement ?</value>
   </data>
   <data name="DeleteForever_Message" xml:space="preserve">
     <value>« {0} » sera supprimé du serveur pour de bon (pas de corbeille pour ce mail). Cette action est irréversible.</value>
+  </data>
+  <data name="DeleteForever_MessageMany" xml:space="preserve">
+    <value>Ces {0} mails seront supprimés du serveur pour de bon (pas de corbeille pour eux). Cette action est irréversible.</value>
   </data>
   <data name="DeleteForever_Confirm" xml:space="preserve">
     <value>Supprimer définitivement</value>
