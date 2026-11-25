@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest</AnalysisLevel>
     <Product>Quai Mail</Product>
-    <Version>0.4.0</Version>
+    <Version>0.5.0</Version>
     <NeutralLanguage>fr-FR</NeutralLanguage>
     <SatelliteResourceLanguages>fr</SatelliteResourceLanguages>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
