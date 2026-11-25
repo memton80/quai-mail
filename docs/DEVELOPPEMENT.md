@@ -4,8 +4,8 @@
 
 | Dossier | Contenu |
 |---|---|
-| `src/QuaiMail.Core` | sans interface : comptes et détection des réglages (`Accounts/`), lecture (`Reading/` : nettoyage du HTML, gabarit, pièces jointes), IMAP / SMTP par MailKit (`Mail/MailKitMailService.cs`), cache SQLite (`Cache/`), mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
-| `src/QuaiMail.App` | WinUI 3 : fenêtre et ses trois volets, ajout de compte (`Views/AccountDialog.xaml`), lecture dans la WebView2 verrouillée (`Views/ReaderView.xaml.cs`), coffre de Windows (`Services/PasswordVaultCredentialStore.cs`), bandeau de mise à jour, dialogues, réglages, installation des mises à jour (`Services/UpdateInstaller.cs`), test de fumée (`SmokeTest.cs`, `Services/SmokeMailService.cs`), gabarit de lecture des mails (`Assets/Mail`) |
+| `src/QuaiMail.Core` | sans interface : comptes et détection des réglages (`Accounts/`), lecture (`Reading/` : nettoyage du HTML, gabarit, pièces jointes), rédaction (`Compose/` : réponses, destinataires, MIME ; `ViewModels/ComposerViewModel.cs`), IMAP / SMTP par MailKit (`Mail/MailKitMailService.cs`), cache SQLite (`Cache/`), mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
+| `src/QuaiMail.App` | WinUI 3 : fenêtre et ses trois volets, ajout de compte (`Views/AccountDialog.xaml`), lecture dans la WebView2 verrouillée (`Views/ReaderView.xaml.cs`), rédaction (`Views/ComposerView.xaml`), coffre de Windows (`Services/PasswordVaultCredentialStore.cs`), bandeau de mise à jour, dialogues, réglages, installation des mises à jour (`Services/UpdateInstaller.cs`), test de fumée (`SmokeTest.cs`, `Services/SmokeMailService.cs`), gabarit de lecture des mails (`Assets/Mail`) |
 | `tests/QuaiMail.Core.Tests` | xUnit : nettoyage du HTML avec des mails piégés (`Reading/HtmlCleanerTests.cs`), comptes et détection, service MailKit contre de faux serveurs IMAP / SMTP locaux en TLS (`Support/FakeImapServer.cs`, `FakeSmtpServer.cs`), cache SQLite, view-models, mises à jour, réglages, brouillons, état de la fenêtre, clés de traduction |
 | `installer/QuaiMail.iss` | installateur Inno Setup (par utilisateur, sans droits administrateur) |
 | `tools/make_icon.py` | génère l'icône (Pillow) |
@@ -35,7 +35,7 @@ La variable d'environnement `QUAI_MAIL_DATA_DIR` redirige toutes les données (r
 
 ## Tests sans vrai compte
 
-Aucun test n'utilise de vrai compte ni n'envoie de mail. Les tests de `QuaiMail.Core` démarrent de faux serveurs IMAP et SMTP sur `127.0.0.1` (port libre), en TLS ou STARTTLS avec un certificat auto-signé créé pour le test ; le service ne l'accepte que parce que le test l'épingle (sa validation normale le refuse, ce qui est testé aussi). Le faux SMTP refuse tout envoi et le compte. Le test de fumée de l'application utilise un serveur en mémoire (`SmokeMailService`) et une ressource du coffre de Windows réservée aux tests.
+Aucun test n'utilise de vrai compte ni n'envoie de mail. Les tests de `QuaiMail.Core` démarrent de faux serveurs IMAP et SMTP sur `127.0.0.1` (port libre), en TLS ou STARTTLS avec un certificat auto-signé créé pour le test ; le service ne l'accepte que parce que le test l'épingle (sa validation normale le refuse, ce qui est testé aussi). Le faux SMTP refuse tout envoi et le compte ; pour tester l'envoi, son option `AcceptMail` lui fait recevoir le mail en mémoire, sans jamais l'acheminer. Seul `ComposerViewModel.SendCommand` (le bouton Envoyer) appelle `IMailService.SendAsync`. Le test de fumée de l'application utilise un serveur en mémoire (`SmokeMailService`) et une ressource du coffre de Windows réservée aux tests.
 
 ## Chaîne de mise à jour
 

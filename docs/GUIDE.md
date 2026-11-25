@@ -1,6 +1,6 @@
 # Guide de Quai Mail
 
-> **Version 0.3 : lire.** Ajoutez vos comptes IMAP / SMTP, parcourez leurs dossiers et lisez vos mails en toute sécurité. L'écriture arrive dans la version 0.4.
+> **Version 0.4 : écrire.** Ajoutez vos comptes IMAP / SMTP, lisez vos mails en toute sécurité, écrivez, répondez, transférez. Recherche, déplacement et réception en direct arrivent dans la version 0.5.
 
 ## La fenêtre
 
@@ -8,11 +8,11 @@ Trois volets, de gauche à droite :
 
 | Volet | Contenu |
 |---|---|
-| **Comptes et dossiers** | vos comptes mail et leurs dossiers (Boîte de réception, Envoyés…), avec le nombre de mails non lus ; en bas, **Ajouter un compte** et **Réglages** |
+| **Comptes et dossiers** | en haut, **Nouveau message** ; vos comptes mail et leurs dossiers (Boîte de réception, Envoyés…), avec le nombre de mails non lus ; en bas, **Ajouter un compte** et **Réglages** |
 | **Mails** | les mails du dossier choisi, du plus récent au plus ancien : expéditeur, objet, date ; les non lus en gras |
-| **Lecture** | le mail ouvert : expéditeur, destinataires, date, pièces jointes, puis son contenu |
+| **Lecture** | le mail ouvert : expéditeur, destinataires, date, pièces jointes, puis son contenu ; ou le message que vous écrivez |
 
-Tout se fait aussi au clavier : `Tab` passe d'un volet à l'autre, les flèches parcourent les dossiers et les mails, `F5` actualise les dossiers.
+Tout se fait aussi au clavier : `Tab` passe d'un volet à l'autre, les flèches parcourent les dossiers et les mails, `F5` actualise les dossiers, `Ctrl+N` écrit un nouveau message.
 
 ## Ajouter un compte
 
@@ -35,7 +35,7 @@ Outlook.com et Hotmail n'acceptent plus les mots de passe : leur connexion par l
 - Les dossiers particuliers (Boîte de réception, Brouillons, Envoyés, Archives, Indésirables, Corbeille) viennent en premier, puis les autres, sous-dossiers en retrait.
 - La liste montre les 50 mails les plus récents ; **Afficher les mails plus anciens**, en bas de la liste, charge les 50 suivants.
 - Quai Mail garde une copie des dossiers et des en-têtes (cache) pour les afficher tout de suite au démarrage, puis les met à jour depuis le serveur. Si un serveur est injoignable, un bandeau le dit et le cache reste affiché.
-- Ouvrir un mail le marque lu sur le serveur. Seuls lu / non lu et l'étoile sont modifiés sur le serveur à ce stade : ni déplacement, ni suppression.
+- Ouvrir un mail le marque lu sur le serveur. Sur le serveur, Quai Mail ne change que lu / non lu, l'étoile, et range vos brouillons et mails envoyés : ni déplacement, ni suppression de vos mails à ce stade.
 
 ## Lire un mail
 
@@ -47,6 +47,20 @@ Le contenu d'un mail vient de l'extérieur : Quai Mail le traite comme tel.
 - **Images distantes bloquées** : les images hébergées sur Internet servent souvent à savoir quand et où vous lisez un mail (« pixel espion »). Elles ne sont pas chargées ; un bandeau l'indique, et **Afficher les images** les charge pour ce mail-là. Les images jointes au mail s'affichent toujours. Le réglage **Bloquer les images distantes** permet de toujours les afficher.
 - **Liens** : un clic sur un lien n'ouvre rien directement. Quai Mail montre d'abord **l'adresse réelle** et le site visé (le texte d'un lien peut montrer une autre destination que la vraie, ce que font les arnaques) ; **Ouvrir** lance votre navigateur. Seuls les liens web et `mailto:` sont acceptés.
 - Un mail sans version mise en forme s'affiche en texte, avec ses liens cliquables (même confirmation).
+
+## Écrire
+
+- **Nouveau message** (`Ctrl+N`), ou, depuis un mail ouvert, **Répondre**, **Répondre à tous** ou **Transférer** (boutons en haut à droite du mail).
+- **De** : le compte d'envoi. **À** : une ou plusieurs adresses séparées par des virgules ; **Cc / Cci** affiche la copie et la copie cachée (les destinataires en Cci ne sont vus par personne).
+- La réponse reprend l'objet (« Re: ») et cite le mail d'origine (lignes « > ») ; la réponse à tous ajoute les autres destinataires, jamais vous-même ; le transfert (« TR: ») reprend le texte et les pièces jointes du mail.
+- **Joindre** ajoute des fichiers ; ils sont copiés dans le brouillon (déplacer ou effacer l'original ne change rien). Cliquez sur une pièce jointe pour la retirer.
+- Les messages s'écrivent en texte simple.
+
+**Envoyer** est le seul moyen d'envoyer un mail : il n'y a pas de raccourci clavier, rien ne part tout seul. Avant d'envoyer, Quai Mail vérifie les adresses (une seule erreur, et rien ne part). Le mail envoyé est rangé dans votre dossier Envoyés ; un bandeau confirme l'envoi. En cas d'échec (serveur injoignable, mot de passe refusé), le message reste ouvert, rien n'est perdu.
+
+### Brouillons
+
+Ce que vous écrivez est enregistré sur cet ordinateur toutes les 5 secondes, et copié dans le dossier Brouillons de votre compte toutes les 30 secondes (sans connexion, la copie attend ; l'heure du dernier enregistrement s'affiche en haut du message). Fermer le message (croix) demande **« Garder ce brouillon ? »** : **Garder** le conserve (sur l'ordinateur et dans Brouillons) et Quai Mail le rouvre au prochain démarrage ; **Supprimer** l'efface partout ; **Annuler** le laisse ouvert. Une mise à jour ou un plantage ne le perd jamais.
 
 ## Pièces jointes
 
@@ -76,9 +90,9 @@ Quand une nouvelle version est publiée, un bandeau l'annonce en haut de la fen�
 
 Avec la version portable (zip), le bouton ouvre la page de la version sur GitHub.
 
-## Brouillons
+## Fermer Quai Mail avec un message en cours
 
-Un brouillon n'est jamais perdu : en fermant la fenêtre avec un brouillon en cours, Quai Mail pose la même question **« Garder ce brouillon ? »**. Si l'enregistrement échoue (disque plein, dossier protégé), Quai Mail le dit et reste ouvert. Aucun mail n'est jamais envoyé sans que vous cliquiez sur **Envoyer**.
+Quai Mail pose la même question **« Garder ce brouillon ? »**. Si l'enregistrement échoue (disque plein, dossier protégé), Quai Mail le dit et reste ouvert. Aucun mail n'est jamais envoyé sans que vous cliquiez sur **Envoyer**.
 
 ## Vos données
 
@@ -86,7 +100,7 @@ Un brouillon n'est jamais perdu : en fermant la fenêtre avec un brouillon en co
 - Comptes : `%LOCALAPPDATA%\QuaiMail\accounts.json` (adresse, serveurs, identifiant ; **aucun mot de passe**). Mots de passe : coffre de Windows (Gestionnaire d'identification, « QuaiMail »).
 - Cache : `%LOCALAPPDATA%\QuaiMail\cache\mail.db` (dossiers et en-têtes), effaçable à tout moment.
 - Affichage des mails : `%LOCALAPPDATA%\QuaiMail\webview`, effacé à chaque démarrage et fermeture (aucun cookie gardé).
-- Brouillons gardés : `%LOCALAPPDATA%\QuaiMail\drafts`, un fichier par brouillon.
+- Brouillons : `%LOCALAPPDATA%\QuaiMail\drafts`, un fichier par brouillon (et ses pièces jointes copiées), effacé une fois le mail envoyé ou le brouillon supprimé.
 - Journaux : `%LOCALAPPDATA%\QuaiMail\logs` (7 jours). Jamais de mot de passe, d'objet, de contenu ni d'adresse de correspondant.
 - Mise à jour en cours : `%LOCALAPPDATA%\QuaiMail\updates` (installateur, effacé au démarrage suivant ; `reopen.txt`, l'état de la fenêtre à restaurer, effacé dès qu'il a servi).
 - Désinstallation : depuis « Applications installées » de Windows. Elle propose aussi d'effacer vos comptes, mots de passe (coffre de Windows), brouillons, cache, réglages et journaux ; vos mails restent sur vos serveurs.
@@ -97,6 +111,6 @@ Quai Mail ne se connecte qu'aux serveurs mail de vos comptes, aux sites des imag
 
 ## Limites actuelles
 
-Version 0.3 : on lit ses mails, mais on ne peut pas encore en écrire (version 0.4), ni chercher, déplacer, supprimer ou recevoir en direct (0.5), ni se connecter à Gmail / Outlook par le navigateur (0.6). Les images distantes ne peuvent pas encore être autorisées pour un expéditeur.
+Version 0.4 : pas encore de recherche, de déplacement, de suppression ni de réception en direct (version 0.5), ni de connexion à Gmail / Outlook par le navigateur (0.6). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes ne peuvent pas encore être autorisées pour un expéditeur.
 
 Affichage : le moteur WebView2 de Microsoft (déjà présent sur Windows 11 et la plupart des Windows 10) est nécessaire. S'il manque, Quai Mail le dit et donne le lien officiel.
