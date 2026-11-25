@@ -430,6 +430,7 @@ public sealed class MailViewModelsTests : IDisposable
         Files.Answer = target;
         Assert.Equal(target, await reader.SaveAttachmentAsync(reader.Attachments[0]));
         Assert.Equal("contenu PDF", File.ReadAllText(target));
+        Assert.Equal([target + "=contenu PDF"], Safety.Marked);
         Assert.Empty(_dialogs.Confirmations);
         Assert.Empty(Directory.GetFiles(_temp.Path, "*.tmp"));
 
@@ -440,6 +441,14 @@ public sealed class MailViewModelsTests : IDisposable
         Assert.False(File.Exists(Files.Answer));
         Assert.Equal(["facture.pdf"], Files.Suggested);
         Assert.Empty(Launcher.Opened);
+
+        // Bloquée par Windows (antivirus, stratégie) : fichier retiré, message clair.
+        Safety.Verdict = QuaiMail.Core.Services.SavedFileVerdict.Blocked;
+        var blocked = Path.Combine(_temp.Path, "autre.pdf");
+        Files.Answer = blocked;
+        Assert.Null(await reader.SaveAttachmentAsync(reader.Attachments[0]));
+        Assert.False(File.Exists(blocked));
+        Assert.Equal(["Attachment_BlockedTitle"], _dialogs.Errors);
     }
 
     [Fact]
@@ -690,11 +699,13 @@ public sealed class MailViewModelsTests : IDisposable
 
     internal FakeLauncher Launcher { get; } = new();
 
+    internal FakeAttachmentSafety Safety { get; } = new();
+
     private MailboxViewModel Mailbox() =>
         new(_accounts, _credentials, _mail, _cache, _shell, new MessageListViewModel(_mail, _cache, new KeyStrings(), new FixedTime(Now)), Reader(), _dialogs, new KeyStrings(), settings: _settings);
 
     private ReaderViewModel Reader() =>
-        new(_mail, _settings, _dialogs, Files, Launcher, new KeyStrings(), new QuaiMail.Core.Reading.ReaderTemplate(File.ReadAllText(Reading.HtmlCleanerTests.TemplatePath())), null, _cache);
+        new(_mail, _settings, _dialogs, Files, Launcher, new KeyStrings(), new QuaiMail.Core.Reading.ReaderTemplate(File.ReadAllText(Reading.HtmlCleanerTests.TemplatePath())), null, _cache, Safety);
 
     private Account AddAccount(string address)
     {

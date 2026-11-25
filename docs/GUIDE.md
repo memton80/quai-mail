@@ -98,6 +98,8 @@ Format : PGP/MIME (le standard des clients mail), empreinte SHA-256. Clés RSA, 
 
 Elles apparaissent sous les en-têtes du mail. Un clic **enregistre** la pièce jointe là où vous le choisissez ; Quai Mail ne l'ouvre jamais lui-même. Les fichiers qui peuvent lancer un programme (`.exe`, `.msi`, scripts, raccourcis, documents à macros…) sont signalés par une icône d'avertissement, et Quai Mail demande confirmation avant de les enregistrer.
 
+Chaque pièce jointe enregistrée reçoit la **marque du web**, comme un fichier téléchargé avec un navigateur : Windows la fait vérifier par l'antivirus tout de suite, puis, quand vous l'ouvrez, SmartScreen contrôle les programmes et Office ouvre les documents en mode protégé. Si l'antivirus ou la stratégie de sécurité de Windows bloque le fichier, Quai Mail le retire et vous le dit. Sur un volume qui ne garde pas cette marque (clé USB en FAT32, certains partages réseau), le fichier est enregistré sans elle.
+
 ## Réglages
 
 | Réglage | Effet |

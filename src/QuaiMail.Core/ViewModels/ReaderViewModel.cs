@@ -28,6 +28,7 @@ public sealed partial class ReaderViewModel : ObservableObject
     private readonly IStrings _strings;
     private readonly ReaderTemplate _template;
     private readonly ILogger _logger;
+    private readonly IAttachmentSafety? _safety;
     private CancellationTokenSource? _loading;
     private Account? _account;
     private string? _folder;
@@ -44,9 +45,11 @@ public sealed partial class ReaderViewModel : ObservableObject
         IStrings strings,
         ReaderTemplate template,
         ILogger<ReaderViewModel>? logger = null,
-        Cache.MailCache? cache = null)
+        Cache.MailCache? cache = null,
+        IAttachmentSafety? safety = null)
     {
         _mail = mail;
+        _safety = safety;
         _cache = cache;
         _settings = settings;
         _dialogs = dialogs;
@@ -265,8 +268,9 @@ public sealed partial class ReaderViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Enregistre une pièce jointe là où l'utilisateur le choisit (écriture d'un bloc : jamais de fichier à moitié écrit).
-    /// Jamais ouverte automatiquement ; un type exécutable est signalé avant.
+    /// Enregistre une pièce jointe là où l'utilisateur le choisit (écriture d'un bloc : jamais de fichier à moitié écrit),
+    /// puis la fait marquer « venue d'Internet » par Windows (antivirus, SmartScreen à l'ouverture). Jamais ouverte
+    /// automatiquement ; un type exécutable est signalé avant ; un fichier bloqué par Windows est retiré.
     /// </summary>
     public async Task<string?> SaveAttachmentAsync(AttachmentInfo attachment)
     {
@@ -293,8 +297,6 @@ public sealed partial class ReaderViewModel : ObservableObject
         try
         {
             await AtomicFile.WriteAsync(path, (stream, ct) => content.WriteAttachmentAsync(attachment.Index, stream, ct));
-            _logger.LogInformation("Pièce jointe enregistrée ({Size} octets)", attachment.Size);
-            return path;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -302,6 +304,31 @@ public sealed partial class ReaderViewModel : ObservableObject
             await _dialogs.ShowErrorAsync(_strings.Get("Attachment_SaveFailedTitle"), _strings.Get("Attachment_SaveFailedMessage"));
             return null;
         }
+
+        var verdict = _safety is null ? SavedFileVerdict.Unmarked : await _safety.MarkAsync(path);
+        if (verdict == SavedFileVerdict.Blocked)
+        {
+            _logger.LogWarning("Pièce jointe bloquée par Windows (antivirus ou stratégie de sécurité), fichier retiré");
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning("Pièce jointe bloquée impossible à retirer ({Error})", ex.GetType().Name);
+            }
+
+            await _dialogs.ShowErrorAsync(_strings.Get("Attachment_BlockedTitle"), _strings.Get("Attachment_BlockedMessage"));
+            return null;
+        }
+
+        if (verdict == SavedFileVerdict.Unmarked)
+        {
+            _logger.LogWarning("Pièce jointe enregistrée sans marque du web (volume sans flux NTFS ?)");
+        }
+
+        _logger.LogInformation("Pièce jointe enregistrée ({Size} octets)", attachment.Size);
+        return path;
     }
 
     /// <summary>Plus aucun mail ouvert (autre dossier, compte retiré).</summary>

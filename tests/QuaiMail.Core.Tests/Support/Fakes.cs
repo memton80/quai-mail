@@ -284,6 +284,21 @@ public sealed class FakeFileDialogs : QuaiMail.Core.Services.IFileDialogs
     public Task<string?> PickKeyFileAsync() => Task.FromResult(KeyFile);
 }
 
+/// <summary>Marque du web factice : note les fichiers marqués, répond le verdict choisi.</summary>
+public sealed class FakeAttachmentSafety : QuaiMail.Core.Services.IAttachmentSafety
+{
+    public QuaiMail.Core.Services.SavedFileVerdict Verdict { get; set; } = QuaiMail.Core.Services.SavedFileVerdict.Marked;
+
+    public List<string> Marked { get; } = [];
+
+    public Task<QuaiMail.Core.Services.SavedFileVerdict> MarkAsync(string path, CancellationToken cancellationToken = default)
+    {
+        // Le fichier doit être complet quand Windows l'analyse.
+        Marked.Add(path + "=" + File.ReadAllText(path));
+        return Task.FromResult(Verdict);
+    }
+}
+
 /// <summary>Navigateur factice : note ce qui aurait été ouvert.</summary>
 public sealed class FakeLauncher : QuaiMail.Core.Services.ILauncher
 {

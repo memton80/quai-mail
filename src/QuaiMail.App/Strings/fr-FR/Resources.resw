@@ -416,6 +416,12 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="Attachment_SaveAnyway" xml:space="preserve">
     <value>Enregistrer quand même</value>
   </data>
+  <data name="Attachment_BlockedTitle" xml:space="preserve">
+    <value>Pièce jointe bloquée par Windows</value>
+  </data>
+  <data name="Attachment_BlockedMessage" xml:space="preserve">
+    <value>L'antivirus ou la stratégie de sécurité de Windows a bloqué ce fichier : il n'a pas été gardé. Ne le récupérez pas autrement si vous n'êtes pas sûr de l'expéditeur.</value>
+  </data>
   <data name="Attachment_SaveFailedTitle" xml:space="preserve">
     <value>Pièce jointe non enregistrée</value>
   </data>

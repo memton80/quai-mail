@@ -397,6 +397,12 @@ internal static class SmokeTest
         // Pièces jointes : enregistrement d'un bloc ; exécutable signalé (refusé ici), jamais ouvert.
         var saved = await WithTimeout(reader.SaveAttachmentAsync(reader.Attachments[0]), "enregistrement de la pièce jointe");
         Check(saved is not null && File.ReadAllText(saved) == "%PDF-1.7 facture de test", "pièce jointe enregistrée à l'identique");
+
+        // Marque du web posée par le gestionnaire de pièces jointes de Windows (antivirus, SmartScreen à l'ouverture).
+        var zone = File.ReadAllText(saved + ":Zone.Identifier");
+        Check(zone.Contains("ZoneId=3", StringComparison.Ordinal), $"marque du web absente ou inattendue : {zone.ReplaceLineEndings(" | ")}");
+        Check(services.GetRequiredService<AttachmentSafety>().LastMarkedByWindows, "marque du web écrite sans le gestionnaire de pièces jointes de Windows");
+        report.Add("Pièces jointes : marque du web posée par Windows (zone Internet), antivirus et SmartScreen à l'ouverture");
         var executable = reader.SaveAttachmentAsync(reader.Attachments[1]);
         await WaitForAsync(() => dialogs.Current is not null, "avertissement avant d'enregistrer un exécutable");
         await Task.Delay(500);

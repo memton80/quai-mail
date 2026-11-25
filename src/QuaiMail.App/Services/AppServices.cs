@@ -109,7 +109,10 @@ internal static class AppServices
             provider.GetService<ILogger<MessageListViewModel>>()));
         services.AddSingleton<MailboxViewModel>();
 
-        // Lecture : gabarit Assets/Mail/reader.html (lu une fois), liens ouverts dans le navigateur après confirmation.
+        // Lecture : gabarit Assets/Mail/reader.html (lu une fois), liens ouverts dans le navigateur après confirmation,
+        // pièces jointes enregistrées avec la marque du web (aussi pendant les tests de fumée : rien ne sort de l'ordinateur).
+        services.AddSingleton<AttachmentSafety>();
+        services.AddSingleton<IAttachmentSafety>(provider => provider.GetRequiredService<AttachmentSafety>());
         services.AddSingleton(new ReaderTemplate(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Assets", "Mail", "reader.html"))));
         if (testing)
         {
@@ -129,7 +132,8 @@ internal static class AppServices
             provider.GetRequiredService<IStrings>(),
             provider.GetRequiredService<ReaderTemplate>(),
             provider.GetService<ILogger<ReaderViewModel>>(),
-            provider.GetRequiredService<MailCache>()));
+            provider.GetRequiredService<MailCache>(),
+            provider.GetRequiredService<IAttachmentSafety>()));
         // Signature OpenPGP : trousseau de Quai Mail (clés importées), phrases de passe en mémoire seulement.
         services.AddSingleton(provider => new PgpKeyStore(paths, provider.GetService<ILogger<PgpKeyStore>>()));
         services.AddSingleton(provider => new PgpKeysViewModel(
