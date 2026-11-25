@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -38,6 +39,7 @@ public sealed partial class MessageListViewModel : ObservableObject
         _time = time ?? TimeProvider.System;
         _logger = logger ?? (ILogger)NullLogger.Instance;
         Title = strings.Get("Pane_Messages");
+        Messages.CollectionChanged += OnMessagesChanged;
     }
 
     public ObservableCollection<MessageItemViewModel> Messages { get; } = [];
@@ -70,6 +72,65 @@ public sealed partial class MessageListViewModel : ObservableObject
     /// <summary>Mail choisi dans la liste (ouvert dans le volet de lecture).</summary>
     [ObservableProperty]
     public partial MessageItemViewModel? SelectedMessage { get; set; }
+
+    private IReadOnlyList<MessageItemViewModel> _selection = [];
+    private bool _removing;
+
+    /// <summary>
+    /// Mails choisis dans la liste (clic, Ctrl+A, Maj ou Ctrl + clic). Un seul : c'est le mail ouvert ; plusieurs : le
+    /// mail ouvert reste ouvert, et Suppr ou le clic droit agissent sur tous.
+    /// </summary>
+    public IReadOnlyList<MessageItemViewModel> SelectedMessages => _selection;
+
+    /// <summary>
+    /// Sélection de la liste changée (par la vue). Un seul mail choisi : il s'ouvre ; aucun : plus rien d'ouvert ;
+    /// plusieurs : rien de neuf ne s'ouvre (Ctrl+A n'ouvre pas, donc ne marque pas lu, le premier mail venu).
+    /// </summary>
+    public void SetSelection(IEnumerable<MessageItemViewModel> selected)
+    {
+        _selection = [.. selected.Distinct()];
+
+        // Pendant qu'une sélection quitte la liste, le dernier mail restant ne doit pas s'ouvrir (ni être marqué lu).
+        if (_selection.Count <= 1 && !_removing)
+        {
+            SelectedMessage = _selection.Count == 1 ? _selection[0] : null;
+        }
+    }
+
+    /// <summary>Mails visés par le clic droit sur <paramref name="clicked"/> : toute la sélection s'il en fait partie, sinon lui seul.</summary>
+    public IReadOnlyList<MessageItemViewModel> TargetsOf(MessageItemViewModel clicked) =>
+        _selection.Count > 1 && _selection.Contains(clicked) ? _selection : [clicked];
+
+    /// <summary>Mail choisi par le programme (liste rafraîchie, mail rouvert après une mise à jour) : il devient la sélection.</summary>
+    partial void OnSelectedMessageChanged(MessageItemViewModel? value)
+    {
+        if (value is not null && !_selection.Contains(value))
+        {
+            _selection = [value];
+        }
+        else if (value is null && _selection.Count == 1)
+        {
+            _selection = [];
+        }
+    }
+
+    /// <summary>Mails retirés de la liste (ou liste vidée) : ils quittent aussi la sélection.</summary>
+    private void OnMessagesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_selection.Count == 0)
+        {
+            return;
+        }
+
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            _selection = [];
+        }
+        else if (e.OldItems is { Count: > 0 } removed)
+        {
+            _selection = [.. _selection.Where(m => !removed.Contains(m))];
+        }
+    }
 
     public string? AccountId => _account?.Id;
 
@@ -209,18 +270,37 @@ public sealed partial class MessageListViewModel : ObservableObject
     /// Lu / non lu ou étoile changé à la lecture : la ligne et le cache suivent.
     /// </summary>
     /// <returns>L'en-tête d'avant, ou <c>null</c> si ce mail n'est pas dans la liste.</returns>
-    public MessageHeader? UpdateHeader(string accountId, string folder, MessageHeader header)
+    public MessageHeader? UpdateHeader(string accountId, string folder, MessageHeader header) =>
+        UpdateHeaders(accountId, folder, [header]) is [var previous] ? previous : null;
+
+    /// <summary>
+    /// Lu / non lu ou étoile changés sur plusieurs mails d'un même dossier (clic droit sur une sélection) : les lignes
+    /// suivent, et le cache en une seule fois.
+    /// </summary>
+    /// <returns>Les en-têtes d'avant des mails trouvés dans la liste.</returns>
+    public IReadOnlyList<MessageHeader> UpdateHeaders(string accountId, string folder, IReadOnlyList<MessageHeader> headers)
     {
-        if (Find(accountId, folder, header.Uid) is not { } item)
+        var rows = new Dictionary<uint, MessageItemViewModel>();
+        foreach (var item in Messages.Where(m => m.AccountId == accountId && m.Folder == folder))
         {
-            return null;
+            rows.TryAdd(item.Uid, item);
         }
 
-        var previous = item.Header;
-        item.Header = header;
-        if (_account?.Id == accountId && _folder?.FullName == folder && _uidValidity != 0)
+        var previous = new List<MessageHeader>();
+        var changed = new List<MessageHeader>();
+        foreach (var header in headers)
         {
-            _cache.SaveMessages(accountId, folder, _uidValidity, [header]);
+            if (rows.TryGetValue(header.Uid, out var item))
+            {
+                previous.Add(item.Header);
+                item.Header = header;
+                changed.Add(header);
+            }
+        }
+
+        if (changed.Count > 0 && _account?.Id == accountId && _folder?.FullName == folder && _uidValidity != 0)
+        {
+            _cache.SaveMessages(accountId, folder, _uidValidity, changed);
         }
 
         return previous;
@@ -376,18 +456,35 @@ public sealed partial class MessageListViewModel : ObservableObject
     }
 
     /// <summary>Mail déplacé ou supprimé : retiré de la liste (et du cache).</summary>
-    public void Remove(MessageItemViewModel item)
+    public void Remove(MessageItemViewModel item) => Remove([item]);
+
+    /// <summary>Mails déplacés ou supprimés (une sélection) : retirés de la liste, et du cache une fois par dossier.</summary>
+    public void Remove(IReadOnlyList<MessageItemViewModel> items)
     {
-        if (SelectedMessage == item)
+        _removing = true;
+        try
         {
-            SelectedMessage = null;
+            if (SelectedMessage is { } selected && items.Contains(selected))
+            {
+                SelectedMessage = null;
+            }
+
+            foreach (var item in items)
+            {
+                if (Messages.Remove(item) && _total > 0)
+                {
+                    _total--;
+                }
+            }
+        }
+        finally
+        {
+            _removing = false;
         }
 
-        Messages.Remove(item);
-        _cache.RemoveMessage(item.AccountId, item.Folder, item.Uid);
-        if (_total > 0)
+        foreach (var group in items.GroupBy(m => (m.AccountId, m.Folder)))
         {
-            _total--;
+            _cache.RemoveMessages(group.Key.AccountId, group.Key.Folder, [.. group.Select(m => m.Uid)]);
         }
 
         OnPropertyChanged(nameof(IsEmpty));

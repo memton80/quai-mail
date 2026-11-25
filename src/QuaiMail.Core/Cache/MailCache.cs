@@ -156,17 +156,24 @@ public sealed class MailCache
         });
 
     /// <summary>Retire un mail (déplacé, supprimé).</summary>
-    public void RemoveMessage(string accountId, string folder, uint uid) =>
+    public void RemoveMessage(string accountId, string folder, uint uid) => RemoveMessages(accountId, folder, [uid]);
+
+    /// <summary>Retire plusieurs mails d'un dossier (sélection supprimée ou déplacée), en une transaction.</summary>
+    public void RemoveMessages(string accountId, string folder, IReadOnlyCollection<uint> uids) =>
         Run(connection =>
         {
             using var transaction = connection.BeginTransaction();
-            Execute(
-                connection,
-                transaction,
-                "DELETE FROM messages WHERE account = $account AND folder = $folder AND uid = $uid",
-                ("$account", accountId),
-                ("$folder", folder),
-                ("$uid", (long)uid));
+            foreach (var uid in uids)
+            {
+                Execute(
+                    connection,
+                    transaction,
+                    "DELETE FROM messages WHERE account = $account AND folder = $folder AND uid = $uid",
+                    ("$account", accountId),
+                    ("$folder", folder),
+                    ("$uid", (long)uid));
+            }
+
             transaction.Commit();
         });
 

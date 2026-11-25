@@ -167,6 +167,29 @@ public sealed class FakeMailService : QuaiMail.Core.Mail.IMailService
         return Failure is null ? Task.CompletedTask : Task.FromException(Failure);
     }
 
+    /// <summary>Commandes groupées reçues (une par dossier pour une sélection) : « opération dossier uid,uid… ».</summary>
+    public List<string> Batches { get; } = [];
+
+    /// <summary>Dossier dont le serveur refuse les commandes groupées (connexion perdue), <c>null</c> : aucun.</summary>
+    public string? FailingFolder { get; set; }
+
+    public Task SetFlagsAsync(QuaiMail.Core.Accounts.Account account, string folder, IReadOnlyList<uint> uids, bool? seen, bool? flagged, CancellationToken cancellationToken = default)
+    {
+        if (Batch("flags", folder, uids) is { } failure)
+        {
+            return Task.FromException(failure);
+        }
+
+        FlagChanges.AddRange(uids.Select(uid => (uid, seen, flagged)));
+        return Task.CompletedTask;
+    }
+
+    private Exception? Batch(string operation, string folder, IReadOnlyList<uint> uids)
+    {
+        Batches.Add($"{operation} {folder} {string.Join(',', uids)}");
+        return Failure ?? (folder == FailingFolder ? new QuaiMail.Core.Mail.MailConnectionException(QuaiMail.Core.Mail.MailError.ConnectionFailed, "imap.example.org:993", "IMAP") : null);
+    }
+
     /// <summary>Mails « envoyés » (gardés en mémoire, jamais acheminés).</summary>
     public List<MimeKit.MimeMessage> Sent { get; } = [];
 
@@ -230,6 +253,17 @@ public sealed class FakeMailService : QuaiMail.Core.Mail.IMailService
         return Task.CompletedTask;
     }
 
+    public Task MoveAsync(QuaiMail.Core.Accounts.Account account, string folder, IReadOnlyList<uint> uids, string target, CancellationToken cancellationToken = default)
+    {
+        if (Batch("move", folder, uids) is { } failure)
+        {
+            return Task.FromException(failure);
+        }
+
+        Moves.AddRange(uids.Select(uid => (uid, folder, target)));
+        return Task.CompletedTask;
+    }
+
     public Task<bool> MoveToTrashAsync(QuaiMail.Core.Accounts.Account account, string folder, uint uid, CancellationToken cancellationToken = default)
     {
         if (Trash is null || Trash == folder)
@@ -241,9 +275,36 @@ public sealed class FakeMailService : QuaiMail.Core.Mail.IMailService
         return Task.FromResult(true);
     }
 
+    public Task<bool> MoveToTrashAsync(QuaiMail.Core.Accounts.Account account, string folder, IReadOnlyList<uint> uids, CancellationToken cancellationToken = default)
+    {
+        if (Batch("trash", folder, uids) is { } failure)
+        {
+            return Task.FromException<bool>(failure);
+        }
+
+        if (Trash is null || Trash == folder)
+        {
+            return Task.FromResult(false);
+        }
+
+        Moves.AddRange(uids.Select(uid => (uid, folder, Trash)));
+        return Task.FromResult(true);
+    }
+
     public Task DeletePermanentlyAsync(QuaiMail.Core.Accounts.Account account, string folder, uint uid, CancellationToken cancellationToken = default)
     {
         PermanentlyDeleted.Add((folder, uid));
+        return Task.CompletedTask;
+    }
+
+    public Task DeletePermanentlyAsync(QuaiMail.Core.Accounts.Account account, string folder, IReadOnlyList<uint> uids, CancellationToken cancellationToken = default)
+    {
+        if (Batch("delete", folder, uids) is { } failure)
+        {
+            return Task.FromException(failure);
+        }
+
+        PermanentlyDeleted.AddRange(uids.Select(uid => (folder, uid)));
         return Task.CompletedTask;
     }
 

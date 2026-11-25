@@ -419,90 +419,198 @@ public sealed partial class MailboxViewModel : ObservableObject
     }
 
     /// <summary>Dossiers vers lesquels un mail peut être déplacé (même compte, sauf son dossier).</summary>
-    public IReadOnlyList<NavItemViewModel> MoveTargets(MessageItemViewModel message) =>
-        [.. _all.Where(i => i.AccountId == message.AccountId && i.CanSelect && i.Folder!.FullName != message.Folder)];
+    public IReadOnlyList<NavItemViewModel> MoveTargets(MessageItemViewModel message) => MoveTargets([message]);
+
+    /// <summary>
+    /// Dossiers vers lesquels une sélection peut être déplacée : ceux de son compte, sauf le dossier d'où viennent
+    /// tous ces mails ; aucun si elle mêle plusieurs comptes (boîte unifiée, recherche).
+    /// </summary>
+    public IReadOnlyList<NavItemViewModel> MoveTargets(IReadOnlyList<MessageItemViewModel> messages)
+    {
+        if (messages.Count == 0 || messages.Any(m => m.AccountId != messages[0].AccountId))
+        {
+            return [];
+        }
+
+        var folders = messages.Select(m => m.Folder).Distinct().ToList();
+        return [.. _all.Where(i => i.AccountId == messages[0].AccountId && i.CanSelect && !(folders.Count == 1 && i.Folder!.FullName == folders[0]))];
+    }
 
     /// <summary>
     /// Supprimer : vers la corbeille du serveur ; s'il n'y en a pas, ou si le mail y est déjà, suppression définitive
     /// seulement après confirmation (« Annuler » par défaut).
     /// </summary>
     /// <returns><c>true</c> si le mail a quitté le dossier.</returns>
-    public async Task<bool> DeleteAsync(MessageItemViewModel message)
+    public async Task<bool> DeleteAsync(MessageItemViewModel message) => await DeleteAsync([message]) == 1;
+
+    /// <summary>
+    /// Supprime une sélection (Ctrl+A, Maj / Ctrl + clic) : vers la corbeille de son compte, une commande par dossier ;
+    /// les mails qui ne peuvent pas y aller (pas de corbeille, ou déjà dedans) ne sont supprimés pour de bon qu'après
+    /// une seule confirmation pour eux tous (« Annuler » par défaut).
+    /// </summary>
+    /// <returns>Le nombre de mails qui ont quitté leur dossier.</returns>
+    public async Task<int> DeleteAsync(IReadOnlyList<MessageItemViewModel> messages)
     {
-        if (_accounts.Find(message.AccountId) is not { } account)
+        var removed = 0;
+        var forever = new List<(Account Account, string Folder, List<MessageItemViewModel> Items)>();
+        foreach (var (account, folder, items) in Groups(messages))
         {
-            return false;
-        }
-
-        try
-        {
-            if (!await _mail.MoveToTrashAsync(account, message.Folder, message.Uid))
+            try
             {
-                var confirmed = await _dialogs.ConfirmAsync(
-                    _strings.Get("DeleteForever_Title"),
-                    _strings.Format("DeleteForever_Message", message.Subject),
-                    _strings.Get("DeleteForever_Confirm"),
-                    isDestructive: true);
-                if (!confirmed)
+                if (!await _mail.MoveToTrashAsync(account, folder, Uids(items)))
                 {
-                    return false;
+                    forever.Add((account, folder, items));
+                    continue;
                 }
-
-                await _mail.DeletePermanentlyAsync(account, message.Folder, message.Uid);
             }
-        }
-        catch (MailConnectionException ex)
-        {
-            ErrorMessage = _strings.Format("Mailbox_AccountError", account.Title, MailErrors.Describe(_strings, ex));
-            return false;
+            catch (MailConnectionException ex)
+            {
+                ShowError(account, ex);
+                continue;
+            }
+
+            Removed(items);
+            removed += items.Count;
         }
 
-        Removed(message);
-        return true;
+        if (forever.Count == 0)
+        {
+            return removed;
+        }
+
+        var all = forever.SelectMany(f => f.Items).ToList();
+        var confirmed = await _dialogs.ConfirmAsync(
+            _strings.Get("DeleteForever_Title"),
+            all.Count == 1 ? _strings.Format("DeleteForever_Message", all[0].Subject) : _strings.Format("DeleteForever_MessageMany", all.Count),
+            _strings.Get("DeleteForever_Confirm"),
+            isDestructive: true);
+        if (!confirmed)
+        {
+            return removed;
+        }
+
+        foreach (var (account, folder, items) in forever)
+        {
+            try
+            {
+                await _mail.DeletePermanentlyAsync(account, folder, Uids(items));
+            }
+            catch (MailConnectionException ex)
+            {
+                ShowError(account, ex);
+                continue;
+            }
+
+            Removed(items);
+            removed += items.Count;
+        }
+
+        return removed;
     }
 
     /// <summary>Déplace un mail vers un autre dossier de son compte.</summary>
-    public async Task<bool> MoveAsync(MessageItemViewModel message, NavItemViewModel target)
+    public async Task<bool> MoveAsync(MessageItemViewModel message, NavItemViewModel target) => await MoveAsync([message], target) == 1;
+
+    /// <summary>Déplace une sélection vers un dossier de son compte (une commande par dossier d'origine).</summary>
+    /// <returns>Le nombre de mails déplacés (ceux d'un autre compte ne bougent pas).</returns>
+    public async Task<int> MoveAsync(IReadOnlyList<MessageItemViewModel> messages, NavItemViewModel target)
     {
-        if (_accounts.Find(message.AccountId) is not { } account || target.Folder is not { } folder || target.AccountId != account.Id)
+        if (target.Folder is not { } destination)
         {
-            return false;
+            return 0;
         }
 
-        try
+        var moved = 0;
+        foreach (var (account, folder, items) in Groups(messages.Where(m => m.AccountId == target.AccountId && m.Folder != destination.FullName)))
         {
-            await _mail.MoveAsync(account, message.Folder, message.Uid, folder.FullName);
-        }
-        catch (MailConnectionException ex)
-        {
-            ErrorMessage = _strings.Format("Mailbox_AccountError", account.Title, MailErrors.Describe(_strings, ex));
-            return false;
+            try
+            {
+                await _mail.MoveAsync(account, folder, Uids(items), destination.FullName);
+            }
+            catch (MailConnectionException ex)
+            {
+                ShowError(account, ex);
+                continue;
+            }
+
+            Removed(items);
+            if (items.Count(m => !m.IsRead) is var unread and > 0)
+            {
+                AdjustUnread(account.Id, destination.FullName, unread);
+            }
+
+            moved += items.Count;
         }
 
-        Removed(message);
-        if (!message.IsRead)
-        {
-            target.Unread++;
-            UpdateAccountUnread(target.AccountId);
-        }
-
-        return true;
+        return moved;
     }
 
-    private void Removed(MessageItemViewModel message)
+    /// <summary>
+    /// Marque lus (ou non lus) plusieurs mails d'un coup (clic droit sur une sélection) : une commande par dossier,
+    /// puis les lignes, le cache, les compteurs et le mail ouvert suivent.
+    /// </summary>
+    /// <returns>Le nombre de mails changés (ceux qui l'étaient déjà ne sont pas redemandés au serveur).</returns>
+    public async Task<int> SetReadAsync(IReadOnlyList<MessageItemViewModel> messages, bool read)
     {
-        if (Reader.HasMessage && Reader.Uid == message.Uid && Reader.Folder == message.Folder && Reader.Account?.Id == message.AccountId)
+        var changed = 0;
+        foreach (var (account, folder, items) in Groups(messages.Where(m => m.IsRead != read)))
+        {
+            try
+            {
+                await _mail.SetFlagsAsync(account, folder, Uids(items), seen: read, flagged: null);
+            }
+            catch (MailConnectionException ex)
+            {
+                ShowError(account, ex);
+                continue;
+            }
+
+            var headers = items.Select(m => m.Header with { IsRead = read }).ToList();
+            var delta = Messages.UpdateHeaders(account.Id, folder, headers).Count(h => h.IsRead != read);
+            if (delta > 0)
+            {
+                AdjustUnread(account.Id, folder, read ? -delta : delta);
+            }
+
+            foreach (var header in headers)
+            {
+                Reader.SyncHeader(account.Id, folder, header);
+            }
+
+            changed += items.Count;
+        }
+
+        return changed;
+    }
+
+    /// <summary>Mails groupés par compte et dossier (une commande au serveur par groupe) ; ceux d'un compte retiré sont écartés.</summary>
+    private List<(Account Account, string Folder, List<MessageItemViewModel> Items)> Groups(IEnumerable<MessageItemViewModel> messages) =>
+        [.. messages.Distinct()
+            .GroupBy(m => (m.AccountId, m.Folder))
+            .Select(g => (Account: _accounts.Find(g.Key.AccountId), g.Key.Folder, Items: g.ToList()))
+            .Where(g => g.Account is not null)
+            .Select(g => (g.Account!, g.Folder, g.Items))];
+
+    private static List<uint> Uids(List<MessageItemViewModel> items) => [.. items.Select(m => m.Uid)];
+
+    private void ShowError(Account account, MailConnectionException ex) =>
+        ErrorMessage = _strings.Format("Mailbox_AccountError", account.Title, MailErrors.Describe(_strings, ex));
+
+    /// <summary>Mails partis de leur dossier : volet de lecture, compteurs, liste et cache.</summary>
+    private void Removed(IReadOnlyList<MessageItemViewModel> items)
+    {
+        if (Reader.HasMessage && items.Any(m => Reader.Uid == m.Uid && Reader.Folder == m.Folder && Reader.Account?.Id == m.AccountId))
         {
             Reader.Clear();
             _shell.OpenMessageId = null;
         }
 
-        if (!message.IsRead)
+        foreach (var group in items.Where(m => !m.IsRead).GroupBy(m => (m.AccountId, m.Folder)))
         {
-            AdjustUnread(message.AccountId, message.Folder, -1);
+            AdjustUnread(group.Key.AccountId, group.Key.Folder, -group.Count());
         }
 
-        Messages.Remove(message);
+        Messages.Remove(items);
     }
 
     private bool CanRefresh() => !IsRefreshing;

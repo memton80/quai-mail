@@ -27,6 +27,9 @@ public interface IMailService
     /// <summary>Marque un mail lu ou non lu, avec ou sans étoile (<c>null</c> : inchangé).</summary>
     Task SetFlagsAsync(Account account, string folder, uint uid, bool? seen, bool? flagged, CancellationToken cancellationToken = default);
 
+    /// <summary>Même chose pour plusieurs mails d'un même dossier (sélection) : une seule commande au serveur.</summary>
+    Task SetFlagsAsync(Account account, string folder, IReadOnlyList<uint> uids, bool? seen, bool? flagged, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Envoie un mail par le serveur SMTP du compte, puis en garde une copie dans le dossier Envoyés (sauf chez les
     /// fournisseurs qui le font eux-mêmes). Seul le bouton Envoyer y mène.
@@ -45,14 +48,24 @@ public interface IMailService
     /// <summary>Déplace un mail vers un autre dossier du même compte.</summary>
     Task MoveAsync(Account account, string folder, uint uid, string target, CancellationToken cancellationToken = default);
 
+    /// <summary>Déplace plusieurs mails d'un même dossier (sélection) en une seule commande.</summary>
+    Task MoveAsync(Account account, string folder, IReadOnlyList<uint> uids, string target, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Supprimer, première étape : vers la corbeille du serveur.
     /// </summary>
     /// <returns><c>false</c> s'il n'y a pas de corbeille ou si le mail y est déjà : il faut alors une suppression définitive, après confirmation.</returns>
     Task<bool> MoveToTrashAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default);
 
+    /// <summary>Plusieurs mails d'un même dossier (sélection) vers la corbeille, en une seule commande.</summary>
+    /// <returns><c>false</c> (rien n'a bougé) s'il n'y a pas de corbeille ou si le dossier est la corbeille.</returns>
+    Task<bool> MoveToTrashAsync(Account account, string folder, IReadOnlyList<uint> uids, CancellationToken cancellationToken = default);
+
     /// <summary>Suppression définitive (après confirmation) : ce seul mail, par son UID ; jamais d'effacement général.</summary>
     Task DeletePermanentlyAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default);
+
+    /// <summary>Suppression définitive (après confirmation) de ces seuls mails, par leurs UID ; jamais d'effacement général.</summary>
+    Task DeletePermanentlyAsync(Account account, string folder, IReadOnlyList<uint> uids, CancellationToken cancellationToken = default);
 
     /// <summary>Recherche sur le serveur dans un dossier (objet, expéditeur, texte) : les plus récents d'abord.</summary>
     Task<IReadOnlyList<MessageHeader>> SearchAsync(Account account, string folder, string text, int limit, CancellationToken cancellationToken = default);

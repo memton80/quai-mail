@@ -149,11 +149,14 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         }, cancellationToken);
 
     public Task SetFlagsAsync(Account account, string folder, uint uid, bool? seen, bool? flagged, CancellationToken cancellationToken = default) =>
+        SetFlagsAsync(account, folder, [uid], seen, flagged, cancellationToken);
+
+    public Task SetFlagsAsync(Account account, string folder, IReadOnlyList<uint> uids, bool? seen, bool? flagged, CancellationToken cancellationToken = default) =>
         WithImapAsync(account, async (client, ct) =>
         {
             var add = (seen == true ? MessageFlags.Seen : MessageFlags.None) | (flagged == true ? MessageFlags.Flagged : MessageFlags.None);
             var remove = (seen == false ? MessageFlags.Seen : MessageFlags.None) | (flagged == false ? MessageFlags.Flagged : MessageFlags.None);
-            if (add == MessageFlags.None && remove == MessageFlags.None)
+            if (uids.Count == 0 || (add == MessageFlags.None && remove == MessageFlags.None))
             {
                 return true;
             }
@@ -161,15 +164,15 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
             var mailFolder = await OpenAsync(client, folder, FolderAccess.ReadWrite, ct).ConfigureAwait(false);
             try
             {
-                var id = new UniqueId(uid);
+                var ids = Ids(uids);
                 if (add != MessageFlags.None)
                 {
-                    await mailFolder.StoreAsync(id, new StoreFlagsRequest(StoreAction.Add, add), ct).ConfigureAwait(false);
+                    await mailFolder.StoreAsync(ids, new StoreFlagsRequest(StoreAction.Add, add), ct).ConfigureAwait(false);
                 }
 
                 if (remove != MessageFlags.None)
                 {
-                    await mailFolder.StoreAsync(id, new StoreFlagsRequest(StoreAction.Remove, remove), ct).ConfigureAwait(false);
+                    await mailFolder.StoreAsync(ids, new StoreFlagsRequest(StoreAction.Remove, remove), ct).ConfigureAwait(false);
                 }
 
                 return true;
@@ -244,7 +247,7 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
             var uid = await drafts.AppendAsync(new AppendRequest(message, MessageFlags.Draft | MessageFlags.Seen), ct).ConfigureAwait(false);
             if (previous is { Uid: { } old } && previous.Folder == drafts.FullName)
             {
-                await RemoveAsync(client, drafts, old, ct).ConfigureAwait(false);
+                await RemoveAsync(client, drafts, [old], ct).ConfigureAwait(false);
             }
 
             return (ServerCopy?)new ServerCopy(drafts.FullName, uid?.Id);
@@ -256,21 +259,31 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
             if (copy.Uid is { } uid)
             {
                 var folder = await client.GetFolderAsync(copy.Folder, ct).ConfigureAwait(false);
-                await RemoveAsync(client, folder, uid, ct).ConfigureAwait(false);
+                await RemoveAsync(client, folder, [uid], ct).ConfigureAwait(false);
             }
 
             return true;
         }, cancellationToken);
 
     public Task MoveAsync(Account account, string folder, uint uid, string target, CancellationToken cancellationToken = default) =>
+        MoveAsync(account, folder, [uid], target, cancellationToken);
+
+    public Task MoveAsync(Account account, string folder, IReadOnlyList<uint> uids, string target, CancellationToken cancellationToken = default) =>
         WithImapAsync(account, async (client, ct) =>
         {
-            var destination = await FolderAsync(client, target, ct).ConfigureAwait(false);
-            await MoveOneAsync(client, folder, uid, destination, ct).ConfigureAwait(false);
+            if (uids.Count > 0)
+            {
+                var destination = await FolderAsync(client, target, ct).ConfigureAwait(false);
+                await MoveManyAsync(client, folder, uids, destination, ct).ConfigureAwait(false);
+            }
+
             return true;
         }, cancellationToken);
 
     public Task<bool> MoveToTrashAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default) =>
+        MoveToTrashAsync(account, folder, [uid], cancellationToken);
+
+    public Task<bool> MoveToTrashAsync(Account account, string folder, IReadOnlyList<uint> uids, CancellationToken cancellationToken = default) =>
         WithImapAsync(account, async (client, ct) =>
         {
             if (await FindSpecialAsync(client, FolderRole.Trash, ct).ConfigureAwait(false) is not { } trash
@@ -279,14 +292,25 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
                 return false;
             }
 
-            await MoveOneAsync(client, folder, uid, trash, ct).ConfigureAwait(false);
+            if (uids.Count > 0)
+            {
+                await MoveManyAsync(client, folder, uids, trash, ct).ConfigureAwait(false);
+            }
+
             return true;
         }, cancellationToken);
 
     public Task DeletePermanentlyAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default) =>
+        DeletePermanentlyAsync(account, folder, [uid], cancellationToken);
+
+    public Task DeletePermanentlyAsync(Account account, string folder, IReadOnlyList<uint> uids, CancellationToken cancellationToken = default) =>
         WithImapAsync(account, async (client, ct) =>
         {
-            await RemoveAsync(client, await FolderAsync(client, folder, ct).ConfigureAwait(false), uid, ct).ConfigureAwait(false);
+            if (uids.Count > 0)
+            {
+                await RemoveAsync(client, await FolderAsync(client, folder, ct).ConfigureAwait(false), uids, ct).ConfigureAwait(false);
+            }
+
             return true;
         }, cancellationToken);
 
@@ -348,13 +372,16 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         return mailFolder;
     }
 
-    /// <summary>MOVE si le serveur le permet ; sinon MailKit copie, marque \\Deleted et n'efface que ce mail (UIDPLUS).</summary>
-    private static async Task MoveOneAsync(ImapClient client, string folder, uint uid, IMailFolder destination, CancellationToken cancellationToken)
+    /// <summary>
+    /// MOVE si le serveur le permet ; sinon MailKit copie, marque \\Deleted et n'efface que ces mails (UIDPLUS). Une
+    /// longue sélection part en une commande (MailKit la découpe si la ligne devient trop longue pour le serveur).
+    /// </summary>
+    private static async Task MoveManyAsync(ImapClient client, string folder, IReadOnlyList<uint> uids, IMailFolder destination, CancellationToken cancellationToken)
     {
         var source = await OpenAsync(client, folder, FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
         try
         {
-            await source.MoveToAsync([new UniqueId(uid)], new MoveRequest(destination), cancellationToken).ConfigureAwait(false);
+            await source.MoveToAsync(Ids(uids), new MoveRequest(destination), cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -363,19 +390,20 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
     }
 
     /// <summary>
-    /// Retire un seul mail (le brouillon remplacé) : drapeau \\Deleted, puis UID EXPUNGE de ce seul UID si le serveur
-    /// le permet (UIDPLUS). Jamais d'EXPUNGE général : un autre mail marqué supprimé ailleurs n'est pas touché.
+    /// Retire ces seuls mails (le brouillon remplacé, une sélection supprimée pour de bon) : drapeau \\Deleted, puis
+    /// UID EXPUNGE de ces seuls UID si le serveur le permet (UIDPLUS). Jamais d'EXPUNGE général : un autre mail marqué
+    /// supprimé ailleurs n'est pas touché.
     /// </summary>
-    private static async Task RemoveAsync(ImapClient client, IMailFolder folder, uint uid, CancellationToken cancellationToken)
+    private static async Task RemoveAsync(ImapClient client, IMailFolder folder, IReadOnlyList<uint> uids, CancellationToken cancellationToken)
     {
         await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken).ConfigureAwait(false);
         try
         {
-            var id = new UniqueId(uid);
-            await folder.StoreAsync(id, new StoreFlagsRequest(StoreAction.Add, MessageFlags.Deleted), cancellationToken).ConfigureAwait(false);
+            var ids = Ids(uids);
+            await folder.StoreAsync(ids, new StoreFlagsRequest(StoreAction.Add, MessageFlags.Deleted), cancellationToken).ConfigureAwait(false);
             if (client.Capabilities.Contains(ImapCapability.UidPlus))
             {
-                await folder.ExpungeAsync([id], new ExpungeRequest(), cancellationToken).ConfigureAwait(false);
+                await folder.ExpungeAsync(ids, new ExpungeRequest(), cancellationToken).ConfigureAwait(false);
             }
         }
         finally
@@ -383,6 +411,10 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
             await CloseAsync(client, folder).ConfigureAwait(false);
         }
     }
+
+    /// <summary>UID triés et sans doublon : le jeu envoyé au serveur est compact (« 3:9,12 »).</summary>
+    private static UniqueIdSet Ids(IReadOnlyList<uint> uids) =>
+        new(uids.Distinct().Select(uid => new UniqueId(uid)), MailKit.Search.SortOrder.Ascending);
 
     /// <summary>Dossier Brouillons, Envoyés ou Corbeille : annoncé par le serveur (SPECIAL-USE), sinon reconnu à son nom.</summary>
     private static async Task<IMailFolder?> FindSpecialAsync(ImapClient client, FolderRole role, CancellationToken cancellationToken)

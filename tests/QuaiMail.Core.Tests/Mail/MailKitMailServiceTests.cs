@@ -284,6 +284,38 @@ public sealed class MailKitMailServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_selection_is_marked_moved_and_deleted_with_one_command_each()
+    {
+        var account = Stored();
+        var inbox = _imap.Folder("INBOX");
+        var trash = _imap.Folder("Corbeille");
+        var ct = TestContext.Current.CancellationToken;
+        int Count(string start) => _imap.Commands.Count(c => c.StartsWith(start, StringComparison.OrdinalIgnoreCase));
+
+        // Ordre et doublons sans importance : le jeu envoyé est compact.
+        await _service.SetFlagsAsync(account, "INBOX", [110u, 101, 103, 102, 101], seen: true, flagged: null, ct);
+        Assert.All(inbox.Messages.Where(m => m.Uid is (>= 101 and <= 103) or 110), m => Assert.True(m.Seen));
+        Assert.False(inbox.Messages.Single(m => m.Uid == 104).Seen);
+        Assert.Equal(1, Count("UID STORE"));
+        Assert.Contains(_imap.Commands, c => c.StartsWith("UID STORE 101:103,110 ", StringComparison.OrdinalIgnoreCase));
+
+        Assert.True(await _service.MoveToTrashAsync(account, "INBOX", [101u, 102, 103], ct));
+        Assert.Equal(["Message 101", "Message 102", "Message 103"], trash.Messages.Select(m => m.Subject).Order());
+        await _service.MoveAsync(account, "INBOX", [104u, 105], "Archives/2026", ct);
+        Assert.Equal(3, _imap.Folder("Archives/2026").Messages.Count);
+        Assert.Equal(2, Count("UID MOVE"));
+        Assert.Equal(115, inbox.Messages.Count);
+
+        // Dans la corbeille : rien ne bouge, la suppression définitive (confirmée par l'appelant) ne vise que ces UID.
+        var trashed = trash.Messages.Select(m => m.Uid).ToList();
+        Assert.False(await _service.MoveToTrashAsync(account, "Corbeille", trashed, ct));
+        await _service.DeletePermanentlyAsync(account, "Corbeille", trashed, ct);
+        Assert.Empty(trash.Messages);
+        Assert.Equal(1, Count("UID EXPUNGE"));
+        Assert.DoesNotContain(_imap.Commands, c => c.Equals("EXPUNGE", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task A_message_moves_to_another_folder_and_the_server_search_finds_mails()
     {
         var account = Stored();

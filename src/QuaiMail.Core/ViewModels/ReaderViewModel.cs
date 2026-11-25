@@ -560,6 +560,22 @@ public sealed partial class ReaderViewModel : ObservableObject
         PageChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Lu / non lu ou étoile changés hors du volet de lecture (clic droit sur une sélection) : le mail affiché suit,
+    /// sans rien redemander au serveur.
+    /// </summary>
+    public void SyncHeader(string accountId, string folder, MessageHeader header)
+    {
+        if (_header is not { } shown || shown.Uid != header.Uid || _account?.Id != accountId || _folder != folder)
+        {
+            return;
+        }
+
+        _header = shown with { IsRead = header.IsRead, IsFlagged = header.IsFlagged };
+        IsRead = header.IsRead;
+        IsFlagged = header.IsFlagged;
+    }
+
     private async Task SetFlagsAsync(bool? seen, bool? flagged)
     {
         if (_account is not { } account || _folder is not { } folder || _header is not { } header)

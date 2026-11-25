@@ -648,6 +648,189 @@ public sealed class MailViewModelsTests : IDisposable
     }
 
     [Fact]
+    public async Task Selecting_several_mails_opens_none_and_right_click_aims_at_the_whole_selection()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        var list = mailbox.Messages;
+        var opened = list.Messages[0];
+        list.SetSelection([opened]);
+        await WaitForAsync(() => mailbox.Reader.HasMessage && !mailbox.Reader.IsLoading);
+        var flags = _mail.FlagChanges.Count;
+
+        // Ctrl+A : tout est choisi, le mail ouvert reste ouvert, aucun autre n'est ouvert ni marqué lu.
+        list.SetSelection(list.Messages);
+
+        Assert.Equal(4, list.SelectedMessages.Count);
+        Assert.Same(opened, list.SelectedMessage);
+        Assert.Equal(opened.Uid, mailbox.Reader.Uid);
+        Assert.Equal(flags, _mail.FlagChanges.Count);
+        Assert.Equal(list.Messages.ToHashSet(), list.TargetsOf(list.Messages[2]).ToHashSet());
+
+        // Clic droit sur un mail hors de la sélection : lui seul.
+        list.SetSelection(list.Messages.Take(2));
+        Assert.Equal([list.Messages[3]], list.TargetsOf(list.Messages[3]));
+
+        // Un seul mail choisi : il s'ouvre, comme avant.
+        list.SetSelection([list.Messages[3]]);
+        Assert.Same(list.Messages[3], list.SelectedMessage);
+    }
+
+    [Fact]
+    public async Task A_selection_is_marked_read_then_unread_in_one_command_per_folder()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        var list = mailbox.Messages;
+        var inbox = mailbox.Items.Single(i => i.Role == FolderRole.Inbox);
+        var open = list.Messages.First(m => m.IsRead);
+        list.SelectedMessage = open;
+        await WaitForAsync(() => mailbox.Reader.HasMessage && !mailbox.Reader.IsLoading);
+        list.SetSelection(list.Messages);
+        var unread = list.Messages.Where(m => !m.IsRead).Select(m => m.Uid).ToList();
+        Assert.Equal(2, inbox.Unread);
+
+        Assert.Equal(2, await mailbox.SetReadAsync(list.SelectedMessages, read: true));
+
+        // Seuls les mails non lus sont envoyés au serveur, en une commande.
+        Assert.Equal([$"flags INBOX {string.Join(',', unread)}"], _mail.Batches);
+        Assert.All(list.Messages, m => Assert.True(m.IsRead));
+        Assert.Equal(0, inbox.Unread);
+        Assert.All(_cache.GetMessages(account.Id, "INBOX", 0, 10), h => Assert.True(h.IsRead));
+
+        Assert.Equal(4, await mailbox.SetReadAsync(list.SelectedMessages, read: false));
+
+        Assert.Equal(2, _mail.Batches.Count);
+        Assert.All(list.Messages, m => Assert.False(m.IsRead));
+        Assert.Equal(4, inbox.Unread);
+        Assert.False(mailbox.Reader.IsRead);
+        Assert.Equal(4, list.SelectedMessages.Count);
+    }
+
+    [Fact]
+    public async Task A_selection_goes_to_the_trash_in_one_command_without_opening_the_last_one()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        _mail.Folders[account.Id].Add(new MailFolderInfo("Corbeille", "Corbeille", 0, FolderRole.Trash, true, 0, 0));
+        await mailbox.RefreshAsync();
+        var list = mailbox.Messages;
+        var inbox = mailbox.Items.Single(i => i.Role == FolderRole.Inbox);
+        var open = list.Messages[0];
+        list.SelectedMessage = open;
+        await WaitForAsync(() => mailbox.Reader.HasMessage && !mailbox.Reader.IsLoading);
+        var three = list.Messages.Take(3).ToList();
+        var kept = list.Messages[3];
+        list.SetSelection(three);
+
+        // Comme la ListView : chaque mail retiré quitte la sélection, qui est renvoyée au view-model.
+        var shown = three.ToList();
+        list.Messages.CollectionChanged += (_, e) =>
+        {
+            foreach (var removed in e.OldItems?.OfType<MessageItemViewModel>() ?? [])
+            {
+                shown.Remove(removed);
+            }
+
+            list.SetSelection(shown);
+        };
+        var opened = _mail.Calls.Count(c => c.StartsWith("message ", StringComparison.Ordinal));
+        var unreadInSelection = three.Count(m => !m.IsRead);
+        var unread = inbox.Unread;
+
+        Assert.Equal(3, await mailbox.DeleteAsync(list.SelectedMessages));
+
+        Assert.Equal([$"trash INBOX {string.Join(',', three.Select(m => m.Uid))}"], _mail.Batches);
+        Assert.Empty(_dialogs.Confirmations);
+        Assert.Equal([kept], list.Messages);
+        Assert.Empty(list.SelectedMessages);
+        Assert.Null(list.SelectedMessage);
+        Assert.False(mailbox.Reader.HasMessage);
+        Assert.Equal(opened, _mail.Calls.Count(c => c.StartsWith("message ", StringComparison.Ordinal)));
+        Assert.DoesNotContain(_mail.FlagChanges, f => f.Seen == true && f.Uid != open.Uid);
+        Assert.Equal(unread - unreadInSelection, inbox.Unread);
+        Assert.Equal([kept.Uid], _cache.GetMessages(account.Id, "INBOX", 0, 10).Select(h => h.Uid));
+    }
+
+    [Fact]
+    public async Task Deleting_a_selection_for_good_asks_once_for_all_of_it()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        _mail.Trash = null;
+        var list = mailbox.Messages;
+        list.SetSelection(list.Messages.Take(3));
+
+        _dialogs.ConfirmAnswer = false;
+        Assert.Equal(0, await mailbox.DeleteAsync(list.SelectedMessages));
+        var question = Assert.Single(_dialogs.Confirmations);
+        Assert.Equal("DeleteForever_MessageMany(3)", question.Message);
+        Assert.True(question.Destructive);
+        Assert.Equal(4, list.Messages.Count);
+        Assert.Empty(_mail.PermanentlyDeleted);
+
+        _dialogs.ConfirmAnswer = true;
+        var three = list.SelectedMessages.ToList();
+        Assert.Equal(3, await mailbox.DeleteAsync(three));
+        Assert.Equal(2, _dialogs.Confirmations.Count);
+        Assert.Equal(three.Select(m => ("INBOX", m.Uid)), _mail.PermanentlyDeleted);
+        Assert.Equal($"delete INBOX {string.Join(',', three.Select(m => m.Uid))}", _mail.Batches[^1]);
+        Assert.Single(list.Messages);
+    }
+
+    [Fact]
+    public async Task A_selection_from_several_folders_trashes_what_it_can_and_asks_only_for_the_rest()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        var list = mailbox.Messages;
+        var fromInbox = list.Messages.Take(2).ToList();
+        var alreadyTrashed = new MessageItemViewModel(account.Id, "Corbeille", Header(9), "(sans objet)", Now);
+
+        Assert.Equal(3, await mailbox.DeleteAsync([.. fromInbox, alreadyTrashed]));
+
+        Assert.Equal(
+            [$"trash INBOX {fromInbox[0].Uid},{fromInbox[1].Uid}", "trash Corbeille 9", "delete Corbeille 9"],
+            _mail.Batches);
+        Assert.Equal("DeleteForever_Message(Objet 9)", Assert.Single(_dialogs.Confirmations).Message);
+    }
+
+    [Fact]
+    public async Task A_server_error_on_one_folder_leaves_its_mails_and_still_handles_the_others()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        var list = mailbox.Messages;
+        var inboxMail = list.Messages.First(m => !m.IsRead);
+        var archived = new MessageItemViewModel(account.Id, "Archives", Header(11), "(sans objet)", Now);
+        _mail.FailingFolder = "INBOX";
+
+        Assert.Equal(1, await mailbox.SetReadAsync([inboxMail, archived], read: true));
+
+        Assert.False(inboxMail.IsRead);
+        Assert.NotNull(mailbox.ErrorMessage);
+        Assert.Contains((11u, (bool?)true, (bool?)null), _mail.FlagChanges);
+        Assert.Equal(0, await mailbox.DeleteAsync([inboxMail]));
+        Assert.Contains(inboxMail, list.Messages);
+    }
+
+    [Fact]
+    public async Task A_selection_moves_in_one_command_and_mixed_accounts_cannot_be_moved()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        _mail.Folders[account.Id].Add(new MailFolderInfo("Archives", "Archives", 0, FolderRole.Archive, true, 0, 0));
+        await mailbox.RefreshAsync();
+        var list = mailbox.Messages;
+        var archives = mailbox.Items.Single(i => i.Folder?.FullName == "Archives");
+        list.SetSelection(list.Messages.Take(3));
+        var three = list.SelectedMessages.ToList();
+
+        Assert.Equal(["Archives"], mailbox.MoveTargets(three).Select(t => t.Folder!.FullName));
+        Assert.Equal(3, await mailbox.MoveAsync(three, archives));
+
+        Assert.Equal([$"move INBOX {string.Join(',', three.Select(m => m.Uid))}"], _mail.Batches);
+        Assert.Equal(three.Count(m => !m.IsRead), archives.Unread);
+        Assert.Single(list.Messages);
+
+        var other = new MessageItemViewModel("autre-compte", "INBOX", Header(20), "(sans objet)", Now);
+        Assert.Empty(mailbox.MoveTargets([list.Messages[0], other]));
+    }
+
+    [Fact]
     public async Task Search_finds_cached_mails_ignoring_accents_and_case_then_on_the_server()
     {
         var (mailbox, account) = await OpenInboxAsync();
