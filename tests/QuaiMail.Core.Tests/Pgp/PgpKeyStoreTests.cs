@@ -161,7 +161,13 @@ public sealed class PgpKeyStoreTests : IDisposable
         using var home = new TempDirectory();
         const string phrase = "clé d'été à Noël";
         string[] batch = ["--homedir", home.Path, "--batch", "--pinentry-mode", "loopback", "--passphrase", phrase];
-        Assert.Equal(0, Gpg([.. batch, "--quick-gen-key", "Camille <camille@example.org>", "ed25519", "sign", "1y"]).ExitCode);
+        var generated = Gpg([.. batch, "--quick-gen-key", "Camille <camille@example.org>", "ed25519", "sign", "1y"]);
+        if (generated.ExitCode != 0)
+        {
+            // Par exemple le gpg de Git for Windows sur le CI, qui n'accepte pas un dossier temporaire Windows.
+            Assert.Skip("GnuPG présent mais inutilisable ici : " + generated.Output.Trim().Split('\n')[0]);
+        }
+
         var export = Gpg([.. batch, "--armor", "--export-secret-keys", "camille@example.org"]);
         Assert.Equal(0, export.ExitCode);
 
