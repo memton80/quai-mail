@@ -48,8 +48,10 @@ internal static class SmokePgp
             return false;
         }
 
-        Directory.CreateDirectory(directory);
-        using var context = new Recipient(directory, ring);
+        // Un trousseau neuf par vérification, comme chez un destinataire qui n'a que la clé publique.
+        var keyring = Path.Combine(directory, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(keyring);
+        using var context = new Recipient(keyring, ring);
         return signed.Verify(context) is { Count: 1 } signatures && signatures[0].Verify();
     }
 
