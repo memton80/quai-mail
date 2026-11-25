@@ -47,6 +47,9 @@ public sealed class Draft
 
     public List<DraftAttachment> Attachments { get; set; } = [];
 
+    /// <summary>Signer avec OpenPGP à l'envoi ; <c>null</c> = selon qu'une clé existe pour l'adresse d'envoi.</summary>
+    public bool? Sign { get; set; }
+
     /// <summary>Copie dans le dossier Brouillons du serveur (UID), à remplacer à chaque synchronisation.</summary>
     public uint? ServerUid { get; set; }
 

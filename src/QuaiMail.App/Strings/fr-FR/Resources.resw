@@ -605,4 +605,89 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="Settings_NotificationsDescription" xml:space="preserve">
     <value>Une notification de Windows annonce chaque nouveau mail (expéditeur et objet) quand Quai Mail n'est pas au premier plan.</value>
   </data>
+  <data name="Composer_Sign" xml:space="preserve">
+    <value>Signer</value>
+  </data>
+  <data name="Composer_SignWith" xml:space="preserve">
+    <value>Signé avec OpenPGP : {0} (empreinte {1})</value>
+  </data>
+  <data name="Composer_SignNoKey" xml:space="preserve">
+    <value>Pas de clé OpenPGP pour cette adresse : importez la vôtre dans les Réglages, « Signature des mails ».</value>
+  </data>
+  <data name="Passphrase_Title" xml:space="preserve">
+    <value>Phrase de passe OpenPGP</value>
+  </data>
+  <data name="Passphrase_Message" xml:space="preserve">
+    <value>Pour signer ce message, saisissez la phrase de passe de votre clé.
+{0}</value>
+  </data>
+  <data name="Passphrase_Retry" xml:space="preserve">
+    <value>Phrase de passe refusée. Réessayez.</value>
+  </data>
+  <data name="Passphrase_Label" xml:space="preserve">
+    <value>Phrase de passe</value>
+  </data>
+  <data name="Passphrase_Hint" xml:space="preserve">
+    <value>Gardée en mémoire jusqu'à la fermeture de Quai Mail, jamais enregistrée.</value>
+  </data>
+  <data name="Passphrase_Sign" xml:space="preserve">
+    <value>Signer et envoyer</value>
+  </data>
+  <data name="Pgp_Section" xml:space="preserve">
+    <value>Signature des mails (OpenPGP / GPG)</value>
+  </data>
+  <data name="Pgp_Intro" xml:space="preserve">
+    <value>Importez votre clé secrète exportée de GnuPG ou de Kleopatra : vos mails partent alors signés (bouton Signer de la rédaction). La clé reste protégée par sa phrase de passe.</value>
+  </data>
+  <data name="Pgp_HowTo" xml:space="preserve">
+    <value>Kleopatra : clic droit sur votre clé, « Sauvegarder les clés secrètes… ». Ligne de commande : gpg --export-secret-keys --armor vous@exemple.fr &gt; cle.asc</value>
+  </data>
+  <data name="Pgp_Import" xml:space="preserve">
+    <value>Importer une clé…</value>
+  </data>
+  <data name="Pgp_Remove" xml:space="preserve">
+    <value>Retirer cette clé</value>
+  </data>
+  <data name="Pgp_Forget" xml:space="preserve">
+    <value>Oublier les phrases de passe</value>
+  </data>
+  <data name="Pgp_NoKey" xml:space="preserve">
+    <value>Aucune clé importée.</value>
+  </data>
+  <data name="Pgp_Imported" xml:space="preserve">
+    <value>Clé importée : {0}</value>
+  </data>
+  <data name="Pgp_Forgotten" xml:space="preserve">
+    <value>Phrases de passe oubliées : elles seront redemandées au prochain envoi signé.</value>
+  </data>
+  <data name="Pgp_NoExpiry" xml:space="preserve">
+    <value>sans date d'expiration</value>
+  </data>
+  <data name="Pgp_Expires" xml:space="preserve">
+    <value>expire le {0}</value>
+  </data>
+  <data name="Pgp_Expired" xml:space="preserve">
+    <value>expirée le {0}</value>
+  </data>
+  <data name="Pgp_RemoveMessage" xml:space="preserve">
+    <value>Retirer « {0} » (empreinte {1}) de Quai Mail ? Quai Mail ne pourra plus signer avec. La clé reste intacte dans GnuPG ou Kleopatra.</value>
+  </data>
+  <data name="Pgp_RemoveConfirm" xml:space="preserve">
+    <value>Retirer</value>
+  </data>
+  <data name="PgpError_InvalidFile" xml:space="preserve">
+    <value>Ce fichier n'est pas une clé OpenPGP lisible.</value>
+  </data>
+  <data name="PgpError_NoSecretKey" xml:space="preserve">
+    <value>Ce fichier ne contient que la clé publique : exportez la clé secrète (Kleopatra : « Sauvegarder les clés secrètes… »).</value>
+  </data>
+  <data name="PgpError_NoSigningKey" xml:space="preserve">
+    <value>Aucune clé capable de signer dans ce fichier (clé révoquée, ou gardée sur une carte à puce).</value>
+  </data>
+  <data name="PgpError_WrongPassphrase" xml:space="preserve">
+    <value>Phrase de passe refusée : le message n'a pas été envoyé.</value>
+  </data>
+  <data name="PgpError_Expired" xml:space="preserve">
+    <value>Cette clé OpenPGP a expiré : prolongez-la dans GnuPG ou Kleopatra, puis importez-la de nouveau.</value>
+  </data>
 </root>

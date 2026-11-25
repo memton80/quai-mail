@@ -61,7 +61,13 @@ public sealed class OAuthTests : IAsyncLifetime
         var challenge = Convert.ToBase64String(SHA256.HashData(Encoding.ASCII.GetBytes(form["code_verifier"]))).TrimEnd('=').Replace('+', '-').Replace('/', '_');
         Assert.Equal(query["code_challenge"], challenge);
         Assert.Equal(query["redirect_uri"], form["redirect_uri"]);
-        Assert.StartsWith("Quai Mail : connexion réussie", _browser.Pages.Single(), StringComparison.Ordinal);
+        // Le navigateur lit la page de retour un peu après que Quai Mail a reçu le code.
+        for (var i = 0; i < 100 && _browser.Pages.IsEmpty; i++)
+        {
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+        }
+
+        Assert.StartsWith("Quai Mail : connexion réussie", Assert.Single(_browser.Pages), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -263,7 +269,7 @@ public sealed class OAuthTests : IAsyncLifetime
     {
         public List<Uri> Opened { get; } = [];
 
-        public List<string> Pages { get; } = [];
+        public System.Collections.Concurrent.ConcurrentQueue<string> Pages { get; } = new();
 
         public bool Follow { get; set; } = true;
 
@@ -286,7 +292,7 @@ public sealed class OAuthTests : IAsyncLifetime
             _ = Task.Run(async () =>
             {
                 using var http = new HttpClient();
-                Pages.Add(await http.GetStringAsync(back));
+                Pages.Enqueue(await http.GetStringAsync(back));
             });
             return true;
         }

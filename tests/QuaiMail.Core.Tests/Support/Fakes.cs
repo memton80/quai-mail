@@ -73,6 +73,17 @@ public sealed class FakeDialogService : QuaiMail.Core.Services.IDialogService
         AskedDrafts.Add(subject);
         return Task.FromResult(DraftAnswers.Count > 0 ? DraftAnswers.Dequeue() : QuaiMail.Core.Services.DraftChoice.Cancel);
     }
+
+    /// <summary>Réponses successives à la phrase de passe (<c>null</c> = Annuler).</summary>
+    public Queue<string?> Passphrases { get; } = new();
+
+    public List<(string Key, bool Retry)> AskedPassphrases { get; } = [];
+
+    public Task<string?> AskPassphraseAsync(string key, bool retry)
+    {
+        AskedPassphrases.Add((key, retry));
+        return Task.FromResult(Passphrases.Count > 0 ? Passphrases.Dequeue() : null);
+    }
 }
 
 /// <summary>Coffre en mémoire (le vrai est le coffre de Windows, dans l'application).</summary>
@@ -267,6 +278,10 @@ public sealed class FakeFileDialogs : QuaiMail.Core.Services.IFileDialogs
     public List<string> ToAttach { get; } = [];
 
     public Task<IReadOnlyList<string>> PickFilesToAttachAsync() => Task.FromResult<IReadOnlyList<string>>([.. ToAttach]);
+
+    public string? KeyFile { get; set; }
+
+    public Task<string?> PickKeyFileAsync() => Task.FromResult(KeyFile);
 }
 
 /// <summary>Navigateur factice : note ce qui aurait été ouvert.</summary>

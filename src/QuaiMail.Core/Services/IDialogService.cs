@@ -24,4 +24,11 @@ public interface IDialogService
     /// <summary>« Garder ce brouillon ? » : brouillon non envoyé au moment de quitter ou de se mettre à jour.</summary>
     /// <param name="subject">Objet du brouillon (ou « (sans objet) »), pour que l'utilisateur sache lequel.</param>
     Task<DraftChoice> AskKeepDraftAsync(string subject);
+
+    /// <summary>
+    /// Phrase de passe d'une clé OpenPGP, pour signer ; <c>null</c> si l'utilisateur annule (rien n'est envoyé).
+    /// </summary>
+    /// <param name="key">La clé (identité et empreinte), pour que l'utilisateur sache laquelle.</param>
+    /// <param name="retry">La phrase précédente a été refusée.</param>
+    Task<string?> AskPassphraseAsync(string key, bool retry);
 }

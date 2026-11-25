@@ -38,6 +38,9 @@ public sealed class AppPaths
     /// <summary>Brouillons enregistrés sur cet ordinateur (un fichier par brouillon).</summary>
     public string DraftsDirectory => Path.Combine(Root, "drafts");
 
+    /// <summary>Trousseau OpenPGP de Quai Mail (clés secrètes importées, protégées par leur phrase de passe).</summary>
+    public string PgpDirectory => Path.Combine(Root, "pgp");
+
     /// <summary>Installateur de la mise à jour en cours (effacé au démarrage suivant).</summary>
     public string UpdatesDirectory => Path.Combine(Root, "updates");
 

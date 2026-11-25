@@ -9,6 +9,7 @@ using QuaiMail.Core.Compose;
 using QuaiMail.Core.Drafts;
 using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
+using QuaiMail.Core.Pgp;
 using QuaiMail.Core.Reading;
 using QuaiMail.Core.Services;
 
@@ -34,6 +35,7 @@ public sealed partial class ComposerViewModel : ObservableObject
     private readonly IStrings _strings;
     private readonly TimeProvider _time;
     private readonly ILogger _logger;
+    private readonly PgpKeyStore? _pgp;
     private bool _loading;
     private bool _dirty;
     private bool _needsServerSync;
@@ -49,8 +51,10 @@ public sealed partial class ComposerViewModel : ObservableObject
         IFileDialogs files,
         IStrings strings,
         TimeProvider? time = null,
-        ILogger<ComposerViewModel>? logger = null)
+        ILogger<ComposerViewModel>? logger = null,
+        PgpKeyStore? pgp = null)
     {
+        _pgp = pgp;
         _accounts = accounts;
         _drafts = drafts;
         _mail = mail;
@@ -74,6 +78,10 @@ public sealed partial class ComposerViewModel : ObservableObject
             }
         };
         Load(_shell.CurrentDraft);
+        if (_pgp is not null)
+        {
+            _pgp.Changed += (_, _) => UpdateSigningKey();
+        }
     }
 
     /// <summary>Comptes d'envoi possibles.</summary>
@@ -115,6 +123,23 @@ public sealed partial class ComposerViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     public partial bool IsSending { get; set; }
+
+    /// <summary>Signer ce message avec OpenPGP (clé de l'adresse d'envoi).</summary>
+    [ObservableProperty]
+    public partial bool Sign { get; set; }
+
+    /// <summary>Clé OpenPGP de l'adresse d'envoi, s'il y en a une (importée dans les réglages).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSign))]
+    [NotifyPropertyChangedFor(nameof(SignTooltip))]
+    public partial PgpKeyInfo? SigningKey { get; set; }
+
+    public bool CanSign => SigningKey is not null;
+
+    /// <summary>Bulle du bouton Signer : quelle clé signe, ou comment en ajouter une.</summary>
+    public string SignTooltip => SigningKey is { } key
+        ? _strings.Format("Composer_SignWith", key.UserId, key.DisplayFingerprint)
+        : _strings.Get("Composer_SignNoKey");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
@@ -325,6 +350,11 @@ public sealed partial class ComposerViewModel : ObservableObject
             return;
         }
 
+        if (Sign && !await SignAsync(message))
+        {
+            return;
+        }
+
         IsSending = true;
         SendOutcome outcome;
         try
@@ -425,6 +455,71 @@ public sealed partial class ComposerViewModel : ObservableObject
         {
             draft.AccountId = Accounts[value].Id;
             MarkDirty();
+            UpdateSigningKey();
+        }
+    }
+
+    partial void OnSignChanged(bool value) => Edit(d => d.Sign = value);
+
+    /// <summary>
+    /// Signature OpenPGP du message prêt à partir : phrase de passe déjà donnée pendant la session, sinon demandée
+    /// (trois essais). Annuler n'envoie rien et laisse le brouillon ouvert.
+    /// </summary>
+    private async Task<bool> SignAsync(MimeKit.MimeMessage message)
+    {
+        if (_pgp is null || SigningKey is not { } key)
+        {
+            ErrorMessage = _strings.Get("Composer_SignNoKey");
+            return false;
+        }
+
+        var passphrase = key.NeedsPassphrase ? _pgp.RememberedPassphrase(key.Fingerprint) : null;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            if (key.NeedsPassphrase && passphrase is null)
+            {
+                passphrase = await _dialogs.AskPassphraseAsync(_strings.Format("Composer_SignWith", key.UserId, key.DisplayFingerprint), retry: attempt > 0);
+                if (passphrase is null)
+                {
+                    return false;
+                }
+            }
+
+            try
+            {
+                _pgp.Sign(message, key, passphrase, _time.GetUtcNow());
+                _logger.LogInformation("Message signé (OpenPGP)");
+                return true;
+            }
+            catch (PgpKeyException ex) when (ex.Error == PgpError.WrongPassphrase)
+            {
+                passphrase = null;
+            }
+            catch (PgpKeyException ex)
+            {
+                ErrorMessage = _strings.Get("PgpError_" + ex.Error);
+                return false;
+            }
+        }
+
+        ErrorMessage = _strings.Get("PgpError_WrongPassphrase");
+        return false;
+    }
+
+    /// <summary>Clé de l'adresse d'envoi ; sans choix explicite dans ce brouillon, signer dès qu'une clé existe.</summary>
+    private void UpdateSigningKey()
+    {
+        var account = AccountIndex >= 0 && AccountIndex < Accounts.Count ? Accounts[AccountIndex] : null;
+        SigningKey = account is null ? null : _pgp?.FindForAddress(account.Address, _time.GetUtcNow());
+        var wasLoading = _loading;
+        _loading = true;
+        try
+        {
+            Sign = CanSign && (Draft?.Sign ?? true);
+        }
+        finally
+        {
+            _loading = wasLoading;
         }
     }
 
@@ -528,6 +623,8 @@ public sealed partial class ComposerViewModel : ObservableObject
             if (draft is null)
             {
                 To = Cc = Bcc = Subject = Body = string.Empty;
+                SigningKey = null;
+                Sign = false;
                 Status = null;
                 _dirty = false;
                 _needsServerSync = false;
@@ -551,6 +648,7 @@ public sealed partial class ComposerViewModel : ObservableObject
                 Attachments.Add(attachment);
             }
 
+            UpdateSigningKey();
             Status = null;
             _dirty = false;
             _lastServerSync = DateTimeOffset.MinValue;

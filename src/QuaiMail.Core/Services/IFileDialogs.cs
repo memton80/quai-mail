@@ -8,4 +8,7 @@ public interface IFileDialogs
 
     /// <summary>Fichiers à joindre à un message ; liste vide si l'utilisateur annule.</summary>
     Task<IReadOnlyList<string>> PickFilesToAttachAsync();
+
+    /// <summary>Fichier de clé OpenPGP à importer (.asc, .gpg, .key, .pgp) ; <c>null</c> si l'utilisateur annule.</summary>
+    Task<string?> PickKeyFileAsync();
 }
