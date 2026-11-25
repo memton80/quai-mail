@@ -1,0 +1,102 @@
+/*
+  Styles du gabarit de lecture des mails (reader.html), clair et sombre. Jamais de CSS dans le HTML : tout est ici.
+  Les styles propres au contenu d'un mail reçu passent par le nettoyage du HTML avant d'arriver dans le gabarit.
+*/
+
+:root {
+  color-scheme: light dark;
+  --text: #1b1b1b;
+  --text-secondary: #5f5f5f;
+  --background: #ffffff;
+  --link: #005fb8;
+  --quote: #c4c4c4;
+  --rule: #e5e5e5;
+  --code-background: #f3f3f3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #ffffff;
+    --text-secondary: #c5c5c5;
+    --background: #202020;
+    --link: #60cdff;
+    --quote: #5c5c5c;
+    --rule: #3d3d3d;
+    --code-background: #2b2b2b;
+  }
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  margin: 0;
+  padding: 16px 20px 32px;
+  color: var(--text);
+  background: var(--background);
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  -webkit-text-size-adjust: 100%;
+}
+
+.mail-body {
+  max-width: 100%;
+}
+
+a {
+  color: var(--link);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Image distante bloquée : place réservée discrète (l'image n'est chargée que sur demande). */
+img.quai-blocked {
+  display: inline-block;
+  min-width: 16px;
+  min-height: 16px;
+  outline: 1px dashed var(--quote);
+}
+
+blockquote {
+  margin: 8px 0;
+  padding: 0 0 0 12px;
+  border-left: 3px solid var(--quote);
+  color: var(--text-secondary);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+pre,
+code {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 13px;
+  background: var(--code-background);
+}
+
+pre {
+  padding: 8px 12px;
+  white-space: pre-wrap;
+  border-radius: 4px;
+}
+
+/* Mail en texte brut : retours à la ligne gardés, police lisible. */
+.mail-plain {
+  white-space: pre-wrap;
+  font-family: inherit;
+  background: none;
+  padding: 0;
+}
+
+table {
+  max-width: 100%;
+  border-collapse: collapse;
+}

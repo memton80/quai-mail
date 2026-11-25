@@ -1,0 +1,141 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>QuaiMail.App</RootNamespace>
+    <AssemblyName>QuaiMail</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\QuaiMail.ico</ApplicationIcon>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <DefaultLanguage>fr-FR</DefaultLanguage>
+
+    <!-- Application non packagée (pas de MSIX), runtime .NET et Windows App SDK embarqués. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+
+    <!--
+      Réduction à la publication (trimming), comme Quai et Quai PDF : le code .NET jamais appelé est retiré des
+      bibliothèques déclarées compatibles. Mode « partial » : les bibliothèques non déclarées compatibles restent
+      entières. Restent entières aussi l'interop WinRT, les projections (WebView2 comprise) et le cœur du runtime
+      (cible QuaiMailKeepWholeAssemblies).
+    -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <EventSourceSupport>false</EventSourceSupport>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PublishReadyToRunExclude Include="System.Private.CoreLib.dll;Microsoft.Windows.SDK.NET.dll;Microsoft.WinUI.dll;WinRT.Runtime.dll" />
+  </ItemGroup>
+
+  <!-- Permet un simple `dotnet build` sans préciser -r : le RID suit la plateforme. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == ''">
+    <RuntimeIdentifier Condition="'$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(Platform)' != 'ARM64'">win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Windows App SDK : le métapaquet reste référencé, ses composants inutilisés sont neutralisés (même réglage que
+      Quai et Quai PDF) : IA, ML, recherche sémantique, widgets, DWriteCore et paquet Runtime (mode dépendant du
+      framework).
+    -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.DWrite" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" />
+    <PackageReference Include="System.Numerics.Tensors" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuaiMail.Core\QuaiMail.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    WebView2 : gardé, il sert uniquement à afficher le corps des mails (verrouillé, voir CLAUDE.md). Contrairement à
+    Quai et Quai PDF, ni Microsoft.Web.WebView2.Core.dll ni WebView2Loader.dll ne sont retirés. La projection C# est
+    demandée explicitement : son choix automatique (paquet WebView2) dépend du paquet Microsoft.WindowsAppSDK.Runtime,
+    neutralisé plus haut (même constat que Quai, voir docs/DECISIONS.md).
+
+    Allègement de la publication (repris de Quai) :
+    - Langues de WinUI : seuls le français et l'anglais (repli) sont gardés, l'interface est forcée en fr-FR.
+    - Carte (map.html) de WinUI : sert au contrôle MapControl, absent de Quai Mail.
+    - Outils de diagnostic du runtime .NET : retirés à la publication seulement.
+  -->
+  <PropertyGroup>
+    <WebView2EnableCsWinRTProjection>true</WebView2EnableCsWinRTProjection>
+  </PropertyGroup>
+
+  <!--
+    Gardées entières au trimming : l'interop WinRT (les view-models et collections de QuaiMail.Core passent à WinUI
+    par des interfaces COM que CsWinRT construit par réflexion), les projections et le cœur du runtime.
+  -->
+  <Target Name="QuaiMailKeepWholeAssemblies" BeforeTargets="PrepareForILLink">
+    <ItemGroup>
+      <ManagedAssemblyToLink Condition="'%(Filename)' == 'WinRT.Runtime'
+                                        or '%(Filename)' == 'System.Private.CoreLib'
+                                        or '%(Filename)' == 'Microsoft.Windows.SDK.NET'
+                                        or '%(Filename)' == 'Microsoft.WinUI'
+                                        or $([System.String]::Copy('%(Filename)').EndsWith('.Projection'))">
+        <TrimMode>copy</TrimMode>
+      </ManagedAssemblyToLink>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="QuaiMailExcludeWindowsAppSdkPayload"
+          BeforeTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromComponents"
+          DependsOnTargets="GetWindowsAppSDKNativePlatform">
+    <PropertyGroup>
+      <_QuaiMailWasdkNative>runtimes-framework\win-$(NativePlatform)\native</_QuaiMailWasdkNative>
+    </PropertyGroup>
+    <ItemGroup>
+      <MicrosoftWindowsAppSDKFilesExcluded Include="%(WindowsAppSdkComponentPackages.Identity)$(_QuaiMailWasdkNative)\**\*.mui"
+                                           Exclude="%(WindowsAppSdkComponentPackages.Identity)$(_QuaiMailWasdkNative)\fr-FR\**;%(WindowsAppSdkComponentPackages.Identity)$(_QuaiMailWasdkNative)\en-US\**;%(WindowsAppSdkComponentPackages.Identity)$(_QuaiMailWasdkNative)\en-us\**" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="%(WindowsAppSdkComponentPackages.Identity)$(_QuaiMailWasdkNative)\**\map.html" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="QuaiMailExcludeRuntimeDiagnostics" AfterTargets="ResolveRuntimePackAssets" Condition="'$(_IsPublishing)' == 'true'">
+    <ItemGroup>
+      <_QuaiMailRuntimeDiagnostics Include="@(RuntimePackAsset)"
+                                   Condition="'%(Filename)%(Extension)' == 'createdump.exe'
+                                              or '%(Filename)%(Extension)' == 'mscordbi.dll'
+                                              or $([System.String]::Copy('%(Filename)').StartsWith('mscordaccore'))
+                                              or $([System.String]::Copy('%(Filename)').StartsWith('Microsoft.DiaSymReader.Native'))" />
+      <RuntimePackAsset Remove="@(_QuaiMailRuntimeDiagnostics)" />
+      <ReferenceCopyLocalPaths Remove="@(_QuaiMailRuntimeDiagnostics)" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Les fichiers d'Assets sont copiés tels quels à côté de l'exécutable (icône, gabarit de lecture des mails). -->
+  <PropertyGroup>
+    <EnableDefaultAssets>false</EnableDefaultAssets>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Assets\**" />
+    <Content Include="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!--
+  Gabarit de lecture d'un mail (Quai Mail). Affiché par le WebView2 verrouillé : JavaScript coupé, navigation
+  interdite, rien de distant (voir CLAUDE.md, « WebView2 : verrouillé »).
+  Aucun style ici (règle du projet) : tout est dans mail.css, servi par le nom d'hôte virtuel de l'application.
+  Aucun script, jamais. Le corps du mail, déjà nettoyé, remplace le marqueur QUAI_MAIL_BODY.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'; img-src data: https://reader.quaimail.example; style-src https://reader.quaimail.example 'unsafe-inline'; font-src https://reader.quaimail.example">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="https://reader.quaimail.example/mail.css">
+<title>Mail</title>
+</head>
+<body>
+<main class="mail-body">
+<!-- QUAI_MAIL_BODY -->
+</main>
+</body>
+</html>

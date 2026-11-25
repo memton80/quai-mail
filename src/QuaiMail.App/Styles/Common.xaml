@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Tous les styles de l'application sont ici : les vues n'ont pas de mise en forme en ligne répétée
+        (repris de Quai PDF, sans ce qui était propre au PDF).
+    -->
+
+    <!-- Barre de titre personnalisée. -->
+    <Style x:Key="TitleBarPanelStyle" TargetType="StackPanel">
+        <Setter Property="Margin" Value="16,0,0,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="Spacing" Value="12" />
+    </Style>
+
+    <Style x:Key="TitleBarIconStyle" TargetType="Image">
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="18" />
+    </Style>
+
+    <Style
+        x:Key="TitleBarTextStyle"
+        BasedOn="{StaticResource CaptionTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- Bandeau « nouvelle version disponible », sous la barre de titre. -->
+    <Style x:Key="UpdateInfoBarStyle" TargetType="InfoBar">
+        <Setter Property="Margin" Value="12,0,12,8" />
+        <Setter Property="IsClosable" Value="True" />
+    </Style>
+
+    <Style x:Key="UpdateProgressStyle" TargetType="ProgressBar">
+        <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+
+    <!--
+        Trois volets : comptes et dossiers (posé sur le Mica, à gauche), liste des mails et lecture (surface détachée du
+        Mica, coin supérieur gauche arrondi, comme le contenu d'une page Windows 11).
+    -->
+    <Style x:Key="FolderPaneStyle" TargetType="Grid">
+        <Setter Property="Width" Value="248" />
+        <Setter Property="Padding" Value="12,0,12,12" />
+        <Setter Property="RowSpacing" Value="8" />
+    </Style>
+
+    <Style x:Key="ContentSurfaceStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource LayerFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1,1,0,0" />
+        <Setter Property="CornerRadius" Value="8,0,0,0" />
+    </Style>
+
+    <Style x:Key="MessageListPaneStyle" TargetType="Grid">
+        <Setter Property="Width" Value="340" />
+        <Setter Property="RowSpacing" Value="8" />
+    </Style>
+
+    <Style x:Key="ReaderPaneStyle" TargetType="Grid">
+        <Setter Property="RowSpacing" Value="8" />
+    </Style>
+
+    <!-- Trait vertical entre la liste et la lecture. -->
+    <Style x:Key="PaneDividerStyle" TargetType="Rectangle">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}" />
+    </Style>
+
+    <Style
+        x:Key="PaneHeaderStyle"
+        BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Margin" Value="4,8,4,0" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <Style
+        x:Key="SurfaceHeaderStyle"
+        BasedOn="{StaticResource PaneHeaderStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Margin" Value="16,12,16,0" />
+    </Style>
+
+    <!-- Bouton en bas du volet de gauche (réglages) : arrondi de Windows 11, icône puis texte. -->
+    <Style
+        x:Key="PaneButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Height" Value="36" />
+        <Setter Property="Padding" Value="12,0" />
+    </Style>
+
+    <Style x:Key="ButtonContentStyle" TargetType="StackPanel">
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="Spacing" Value="10" />
+    </Style>
+
+    <Style x:Key="ButtonIconStyle" TargetType="FontIcon">
+        <Setter Property="FontSize" Value="16" />
+    </Style>
+
+    <!-- Brouillon en cours, dans le volet de lecture. -->
+    <Style x:Key="DraftCardStyle" TargetType="Border">
+        <Setter Property="Margin" Value="16,0,16,16" />
+        <Setter Property="Padding" Value="16,12" />
+        <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <Style x:Key="DraftCardPanelStyle" TargetType="StackPanel">
+        <Setter Property="Spacing" Value="4" />
+    </Style>
+
+    <Style
+        x:Key="DraftCardLabelStyle"
+        BasedOn="{StaticResource CaptionTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+    </Style>
+
+    <Style
+        x:Key="DraftCardTitleStyle"
+        BasedOn="{StaticResource SubtitleTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- État vide centré (icône, titre, explication). -->
+    <Style x:Key="EmptyStatePanelStyle" TargetType="StackPanel">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="MaxWidth" Value="320" />
+        <Setter Property="Margin" Value="16" />
+        <Setter Property="Spacing" Value="12" />
+    </Style>
+
+    <Style x:Key="EmptyStateIconStyle" TargetType="FontIcon">
+        <Setter Property="FontSize" Value="40" />
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+    </Style>
+
+    <Style
+        x:Key="EmptyStateTitleStyle"
+        BasedOn="{StaticResource SubtitleTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+
+    <Style
+        x:Key="EmptyStateHintStyle"
+        BasedOn="{StaticResource BodyTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- Formulaires des boîtes de dialogue. -->
+    <Style x:Key="DialogFormStyle" TargetType="StackPanel">
+        <Setter Property="Spacing" Value="12" />
+        <Setter Property="MinWidth" Value="360" />
+    </Style>
+
+    <Style
+        x:Key="DialogHintStyle"
+        BasedOn="{StaticResource CaptionTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="IsTextSelectionEnabled" Value="True" />
+    </Style>
+
+</ResourceDictionary>

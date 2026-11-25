@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Annuler</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Fermer</value>
+  </data>
+  <data name="App_Title" xml:space="preserve">
+    <value>Quai Mail</value>
+  </data>
+  <data name="Pane_Accounts" xml:space="preserve">
+    <value>Comptes et dossiers</value>
+  </data>
+  <data name="Pane_NoAccountTitle" xml:space="preserve">
+    <value>Aucun compte</value>
+  </data>
+  <data name="Pane_NoAccountHint" xml:space="preserve">
+    <value>L'ajout d'un compte (IMAP / SMTP) arrive dans la prochaine version de Quai Mail.</value>
+  </data>
+  <data name="Pane_Messages" xml:space="preserve">
+    <value>Mails</value>
+  </data>
+  <data name="Pane_NoMessagesTitle" xml:space="preserve">
+    <value>Aucun mail</value>
+  </data>
+  <data name="Pane_NoMessagesHint" xml:space="preserve">
+    <value>Les mails du dossier choisi s'afficheront ici.</value>
+  </data>
+  <data name="Pane_Reader" xml:space="preserve">
+    <value>Lecture</value>
+  </data>
+  <data name="Reader_EmptyTitle" xml:space="preserve">
+    <value>Aucun mail ouvert</value>
+  </data>
+  <data name="Reader_EmptyHint" xml:space="preserve">
+    <value>Le mail choisi dans la liste s'affiche ici.</value>
+  </data>
+  <data name="Draft_Current" xml:space="preserve">
+    <value>Brouillon en cours</value>
+  </data>
+  <data name="Draft_NoSubject" xml:space="preserve">
+    <value>(sans objet)</value>
+  </data>
+  <data name="Draft_SaveFailedTitle" xml:space="preserve">
+    <value>Brouillon non enregistré</value>
+  </data>
+  <data name="Draft_SaveFailedMessage" xml:space="preserve">
+    <value>Quai Mail n'a pas pu enregistrer ce brouillon sur cet ordinateur. Il reste ouvert : rien n'est perdu.</value>
+  </data>
+  <data name="KeepDraft_Title" xml:space="preserve">
+    <value>Garder ce brouillon ?</value>
+  </data>
+  <data name="KeepDraft_Message" xml:space="preserve">
+    <value>« {0} » n'est pas envoyé. Gardé, il est enregistré sur cet ordinateur et Quai Mail le rouvre à son prochain démarrage.</value>
+  </data>
+  <data name="KeepDraft_Keep" xml:space="preserve">
+    <value>Garder</value>
+  </data>
+  <data name="KeepDraft_Discard" xml:space="preserve">
+    <value>Supprimer</value>
+  </data>
+  <data name="Toolbar_Settings" xml:space="preserve">
+    <value>Réglages</value>
+  </data>
+  <data name="Toolbar_SettingsTooltip" xml:space="preserve">
+    <value>Thème, mises à jour, images distantes</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Réglages</value>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>Thème</value>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>Selon Windows</value>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>Clair</value>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>Sombre</value>
+  </data>
+  <data name="Settings_RemoteImages" xml:space="preserve">
+    <value>Bloquer les images distantes</value>
+  </data>
+  <data name="Settings_RemoteImagesDescription" xml:space="preserve">
+    <value>Les images hébergées sur Internet ne sont chargées que sur votre demande (bouton « Afficher les images ») : l'expéditeur ne sait pas quand vous lisez son mail.</value>
+  </data>
+  <data name="Settings_Updates" xml:space="preserve">
+    <value>Rechercher les mises à jour</value>
+  </data>
+  <data name="Settings_UpdatesDescription" xml:space="preserve">
+    <value>Au démarrage, Quai Mail demande à GitHub le numéro de la dernière version publiée (rien sur vous ni sur vos mails).</value>
+  </data>
+  <data name="Settings_Version" xml:space="preserve">
+    <value>Quai Mail {0}</value>
+  </data>
+  <data name="Settings_OpenLogs" xml:space="preserve">
+    <value>Ouvrir le dossier des journaux</value>
+  </data>
+  <data name="Update_Title" xml:space="preserve">
+    <value>Mise à jour disponible</value>
+  </data>
+  <data name="Update_Message" xml:space="preserve">
+    <value>Quai Mail {0} est disponible (vous avez la version {1}).</value>
+  </data>
+  <data name="Update_Download" xml:space="preserve">
+    <value>Télécharger</value>
+  </data>
+  <data name="Update_Install" xml:space="preserve">
+    <value>Mettre à jour</value>
+  </data>
+  <data name="Update_Cancel" xml:space="preserve">
+    <value>Annuler</value>
+  </data>
+  <data name="Update_Retry" xml:space="preserve">
+    <value>Réessayer</value>
+  </data>
+  <data name="Update_Downloading" xml:space="preserve">
+    <value>Téléchargement de Quai Mail {0}…</value>
+  </data>
+  <data name="Update_Installing" xml:space="preserve">
+    <value>Quai Mail {0} est téléchargé et vérifié : Quai Mail se ferme pour l'installer, puis redémarre tout seul au même endroit.</value>
+  </data>
+  <data name="Update_Ready" xml:space="preserve">
+    <value>Quai Mail {0} est téléchargé. Cliquez sur « Mettre à jour » quand vous aurez fini votre brouillon.</value>
+  </data>
+  <data name="Update_Failed" xml:space="preserve">
+    <value>La mise à jour vers Quai Mail {0} a échoué. {1}</value>
+  </data>
+  <data name="Update_FailedDownload" xml:space="preserve">
+    <value>Le téléchargement n'a pas abouti : vérifiez la connexion, puis réessayez.</value>
+  </data>
+  <data name="Update_FailedIntegrity" xml:space="preserve">
+    <value>Le fichier reçu ne correspond pas à celui publié : il a été supprimé sans être exécuté.</value>
+  </data>
+  <data name="Update_FailedInstall" xml:space="preserve">
+    <value>L'installateur n'a pas pu être lancé.</value>
+  </data>
+  <data name="Update_ProgressName" xml:space="preserve">
+    <value>Progression du téléchargement de la mise à jour</value>
+  </data>
+</root>
