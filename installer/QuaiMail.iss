@@ -22,7 +22,7 @@
 
 #define AppName "Quai Mail"
 #define AppExe "QuaiMail.exe"
-; Dossier des données (%LOCALAPPDATA%\QuaiMail : réglages, journaux), voir AppPaths.cs.
+; Dossier des données (%LOCALAPPDATA%\QuaiMail : réglages, brouillons, journaux), voir AppPaths.cs.
 #define DataDir "QuaiMail"
 #define AppUrl "https://github.com/memton80/quai-mail"
 
@@ -76,7 +76,7 @@ UninstallDisplayIcon={app}\{#AppExe}
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [CustomMessages]
-french.RemoveUserData=Supprimer aussi vos réglages et journaux de Quai Mail ?%n%nVos mails restent sur vos serveurs, ils ne sont jamais touchés.
+french.RemoveUserData=Supprimer aussi vos réglages, brouillons gardés sur cet ordinateur et journaux de Quai Mail ?%n%nVos mails restent sur vos serveurs, ils ne sont jamais touchés.
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked

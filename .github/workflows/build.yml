@@ -131,7 +131,7 @@ jobs:
           Get-ChildItem $dir | Sort-Object Name | Format-Table Name, Length -AutoSize | Out-String -Width 200
           $required = @(
             'QuaiMail.exe', 'QuaiMail.dll', 'QuaiMail.Core.dll', 'QuaiMail.pri', 'Microsoft.WinUI.dll', 'Microsoft.Web.WebView2.Core.dll', 'WebView2Loader.dll',
-            'Assets/QuaiMail.ico', 'Assets/AppIcon.png', 'Assets/Mail/mail.css', 'fr-FR/Microsoft.ui.xaml.dll.mui', 'en-US/Microsoft.ui.xaml.dll.mui')
+            'Assets/QuaiMail.ico', 'Assets/AppIcon.png', 'Assets/Mail/reader.html', 'Assets/Mail/mail.css', 'fr-FR/Microsoft.ui.xaml.dll.mui', 'en-US/Microsoft.ui.xaml.dll.mui')
           $missing = $required | Where-Object { -not (Test-Path (Join-Path $dir $_)) }
           if ($missing) { throw "Fichiers manquants dans la publication : $($missing -join ', ')" }
 
@@ -286,7 +286,7 @@ jobs:
             else {
               # La nouvelle version sait qu'elle vient d'être relancée (--after-update) et restaure l'état de la fenêtre.
               # (expressions régulières : Serilog écrit les noms de fichiers entre guillemets)
-              $expected = @('Démarrage juste après une mise à jour', 'État de la fenêtre restauré après la mise à jour')
+              $expected = @('Démarrage juste après une mise à jour', 'Brouillon rouvert après la mise à jour', 'État de la fenêtre restauré après la mise à jour')
               $missing = $expected
               $deadline = (Get-Date).AddSeconds(30)
               while ($missing -and (Get-Date) -lt $deadline) {
@@ -316,7 +316,7 @@ jobs:
             if (Test-Path $log) { Get-Content $log -Tail 40 }
             throw $failure
           }
-          $line = 'Mise à jour en place : installateur téléchargé et vérifié (SHA-256), installé en silencieux, Quai Mail relancé, état de la fenêtre restauré : OK'
+          $line = 'Mise à jour en place : installateur téléchargé et vérifié (SHA-256), installé en silencieux, Quai Mail relancé, état de la fenêtre et brouillon restaurés : OK'
           $line
           @('### Mise à jour en place', '', $line, '') | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
 
