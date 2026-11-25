@@ -25,6 +25,9 @@ public sealed class AppPaths
     /// <summary>Comptes configurés (sans mot de passe : ceux-ci sont dans le coffre de Windows).</summary>
     public string AccountsFile => Path.Combine(Root, "accounts.json");
 
+    /// <summary>Expéditeurs sûrs (adresses et domaines), sur cet ordinateur seulement.</summary>
+    public string TrustedSendersFile => Path.Combine(Root, "trusted-senders.json");
+
     /// <summary>Cache local (dossiers, en-têtes) : peut être effacé à tout moment, il se reconstruit depuis les serveurs.</summary>
     public string CacheDirectory => Path.Combine(Root, "cache");
 

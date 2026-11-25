@@ -705,4 +705,73 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="PgpError_Expired" xml:space="preserve">
     <value>Cette clé OpenPGP a expiré : prolongez-la dans GnuPG ou Kleopatra, puis importez-la de nouveau.</value>
   </data>
+  <data name="Safety_UnknownTitle" xml:space="preserve">
+    <value>Expéditeur inconnu</value>
+  </data>
+  <data name="Safety_SuspiciousTitle" xml:space="preserve">
+    <value>Mail à vérifier</value>
+  </data>
+  <data name="Safety_SpoofedTitle" xml:space="preserve">
+    <value>Expéditeur peut-être usurpé</value>
+  </data>
+  <data name="Safety_Unknown" xml:space="preserve">
+    <value>{0} n'est pas dans vos expéditeurs sûrs : images bloquées, chaque lien vérifié avant de s'ouvrir.</value>
+  </data>
+  <data name="Safety_TrustedFailed" xml:space="preserve">
+    <value>{0} est dans vos expéditeurs sûrs, mais rien ne prouve que ce mail vienne vraiment de lui : la confiance est suspendue pour ce mail.</value>
+  </data>
+  <data name="Safety_NoAddress" xml:space="preserve">
+    <value>Cet expéditeur sans adresse</value>
+  </data>
+  <data name="Safety_AuthenticationFailed" xml:space="preserve">
+    <value>Le serveur de réception n'a pas pu confirmer que ce mail vient bien de {0} (contrôles DMARC / SPF / DKIM en échec).</value>
+  </data>
+  <data name="Safety_NameShowsOtherAddress" xml:space="preserve">
+    <value>Le nom affiché contient l'adresse {0}, mais le mail vient de {1}.</value>
+  </data>
+  <data name="Safety_ReplyToElsewhere" xml:space="preserve">
+    <value>Une réponse partirait vers {0}, pas vers l'expéditeur.</value>
+  </data>
+  <data name="Safety_LookalikeDomain" xml:space="preserve">
+    <value>Le domaine {0} ressemble à {1} sans être le même.</value>
+  </data>
+  <data name="Safety_InternationalDomain" xml:space="preserve">
+    <value>Le domaine {0} ({1}) utilise des caractères internationaux qui peuvent imiter un nom connu.</value>
+  </data>
+  <data name="Safety_DeceptiveLink" xml:space="preserve">
+    <value>Un lien affiche « {0} » mais mène à {1}.</value>
+  </data>
+  <data name="Safety_NumericLink" xml:space="preserve">
+    <value>Un lien mène à une adresse IP ({0}) au lieu d'un nom de site.</value>
+  </data>
+  <data name="Safety_Trust" xml:space="preserve">
+    <value>Faire confiance</value>
+  </data>
+  <data name="Safety_TrustAddress" xml:space="preserve">
+    <value>Cette adresse ({0})</value>
+  </data>
+  <data name="Safety_TrustDomain" xml:space="preserve">
+    <value>Tout le domaine {0}</value>
+  </data>
+  <data name="Link_Deceptive" xml:space="preserve">
+    <value>Attention : le texte de ce lien annonçait une autre adresse que celle où il mène.</value>
+  </data>
+  <data name="Link_UnknownSender" xml:space="preserve">
+    <value>Ce mail vient d'un expéditeur qui n'est pas dans vos expéditeurs sûrs.</value>
+  </data>
+  <data name="Trusted_Section" xml:space="preserve">
+    <value>Expéditeurs sûrs</value>
+  </data>
+  <data name="Trusted_Intro" xml:space="preserve">
+    <value>Leurs mails s'affichent normalement, images comprises ; les autres sont lus en mode méfiant (bandeau, liens et domaines trompeurs signalés). Ajoutez-en avec « Faire confiance » en lisant un de leurs mails. La liste reste sur cet ordinateur.</value>
+  </data>
+  <data name="Trusted_None" xml:space="preserve">
+    <value>Aucun expéditeur sûr pour l'instant.</value>
+  </data>
+  <data name="Trusted_DomainEntry" xml:space="preserve">
+    <value>{0} (tout le domaine)</value>
+  </data>
+  <data name="Trusted_Remove" xml:space="preserve">
+    <value>Retirer {0} des expéditeurs sûrs</value>
+  </data>
 </root>

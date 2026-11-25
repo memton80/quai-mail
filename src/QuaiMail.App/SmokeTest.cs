@@ -9,6 +9,7 @@ using QuaiMail.Core.Accounts;
 using QuaiMail.Core.Cache;
 using QuaiMail.Core.Drafts;
 using QuaiMail.Core.Mail;
+using QuaiMail.Core.Safety;
 using QuaiMail.Core.Services;
 using QuaiMail.Core.Storage;
 using QuaiMail.Core.Updates;
@@ -359,6 +360,10 @@ internal static class SmokeTest
         await WaitForAsync(() => view.ServedRequests >= 2, "page et image jointe servies par l'hôte local");
         await Task.Delay(1200);
         Check(view.RefusedRequests.Count == 0, $"requêtes vers l'extérieur : {string.Join(", ", view.RefusedRequests)}");
+
+        // Mode méfiant : contrôles DMARC en échec et lien trompeur ; « Faire confiance » n'est pas proposé.
+        Check(reader is { Sender: Core.Safety.SenderStatus.Spoofed, HasSafetyNotice: true, CanTrustSender: false }, $"mode méfiant du mail piégé : {reader.Sender}");
+        Check(reader.SafetyMessage.Contains("evil.example", StringComparison.Ordinal), "lien trompeur non signalé dans le bandeau");
         await CaptureAsync(hwnd, directory, "10-lecture.png", report);
         report.Add($"Lecture : mail piégé affiché, {reader.BlockedImages} image(s) distante(s) bloquée(s), {view.ServedRequests} ressources locales, aucune requête vers l'extérieur");
 
@@ -417,6 +422,30 @@ internal static class SmokeTest
         Check(messages.Messages[0] is { IsFlagged: true, IsRead: false }, "étoile et non lu dans la liste");
         Check(mail.FlagChanges.Contains((SmokeMailService.TrappedUid, null, true)) && mail.FlagChanges.Contains((SmokeMailService.TrappedUid, false, null)), "drapeaux envoyés au serveur");
         report.Add("Lu / non lu et étoile : OK");
+
+        // Expéditeur sûr : « Faire confiance » depuis un mail ordinaire, puis retiré dans les Réglages.
+        var trusted = services.GetRequiredService<TrustedSenders>();
+        var ordinary = messages.Messages.First(m => m.Uid != SmokeMailService.TrappedUid);
+        messages.SelectedMessage = ordinary;
+        await WaitForAsync(() => reader.Content?.Uid == ordinary.Uid && !reader.IsLoading, "mail ordinaire affiché");
+        Check(reader is { Sender: Core.Safety.SenderStatus.Unknown, CanTrustSender: true, CanTrustDomain: true }, $"expéditeur inconnu : {reader.Sender}");
+        reader.TrustSenderCommand.Execute(null);
+        Check(reader.Sender == Core.Safety.SenderStatus.Trusted && !reader.HasSafetyNotice && trusted.Addresses.Count == 1, "expéditeur non ajouté aux expéditeurs sûrs");
+        var settingsDialog = window.ShowSettingsAsync();
+        await WaitForAsync(() => dialogs.Current is not null, "réglages (expéditeurs sûrs)");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "22-expediteurs-surs.png", report);
+        var list = services.GetRequiredService<TrustedSendersViewModel>();
+        Check(list.Items.Count == 1, $"expéditeurs sûrs dans les réglages : {list.Items.Count}");
+        list.Remove(list.Items[0]);
+        Check(trusted.Addresses.Count == 0 && reader.Sender == Core.Safety.SenderStatus.Unknown, "expéditeur retiré mais encore sûr");
+        dialogs.Current?.Hide();
+        await WithTimeout(settingsDialog, "fermeture des réglages");
+        report.Add("Expéditeurs sûrs : « Faire confiance » depuis la lecture, retiré dans les Réglages ; mail piégé en mode méfiant (DMARC en échec, lien trompeur)");
+
+        // Retour au mail piégé (la suite y répond).
+        messages.SelectedMessage = messages.Messages.First(m => m.Uid == SmokeMailService.TrappedUid);
+        await WaitForAsync(() => reader.Content?.Uid == SmokeMailService.TrappedUid && !reader.IsLoading, "retour au mail piégé");
     }
 
     /// <summary>

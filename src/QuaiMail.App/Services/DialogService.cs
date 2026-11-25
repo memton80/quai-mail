@@ -91,10 +91,10 @@ internal sealed class DialogService : IDialogService
         });
 
     /// <summary>Réglages (thème, mises à jour, images distantes, cache, clés OpenPGP).</summary>
-    public Task ShowSettingsAsync(SettingsViewModel settings, MailboxViewModel mailbox, PgpKeysViewModel keys) =>
+    public Task ShowSettingsAsync(SettingsViewModel settings, MailboxViewModel mailbox, PgpKeysViewModel keys, TrustedSendersViewModel trusted) =>
         OnUiAsync(async () =>
         {
-            await ShowAsync(new SettingsDialog(settings, mailbox, keys));
+            await ShowAsync(new SettingsDialog(settings, mailbox, keys, trusted));
             return true;
         });
 

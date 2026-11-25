@@ -21,6 +21,7 @@ namespace QuaiMail.Core.Storage;
 [JsonSerializable(typeof(WindowState))]
 [JsonSerializable(typeof(Draft))]
 [JsonSerializable(typeof(AccountList))]
+[JsonSerializable(typeof(Safety.TrustedSenderList))]
 internal sealed partial class QuaiMailJsonContext : JsonSerializerContext;
 
 /// <summary>Énumération écrite en texte camelCase (<c>"dark"</c>) ; les nombres restent acceptés en lecture.</summary>

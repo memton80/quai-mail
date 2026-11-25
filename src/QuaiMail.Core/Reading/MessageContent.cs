@@ -34,6 +34,8 @@ public sealed class MessageContent
         Date = message.Date;
         Html = message.HtmlBody;
         Text = message.TextBody;
+        AuthenticationFailed = Safety.MessageSafety.AuthenticationFailed(message);
+        Links = Safety.MessageSafety.Links(Html);
 
         _images = message.BodyParts
             .OfType<MimePart>()
@@ -91,6 +93,12 @@ public sealed class MessageContent
     public string? Text { get; }
 
     public IReadOnlyList<AttachmentInfo> Attachments { get; }
+
+    /// <summary>Le serveur de réception n'a pas pu confirmer l'expéditeur (voir <see cref="Safety.MessageSafety"/>).</summary>
+    public bool AuthenticationFailed { get; }
+
+    /// <summary>Liens http et https du corps HTML, avec leur texte visible.</summary>
+    public IReadOnlyList<Safety.MailLink> Links { get; }
 
     /// <summary>Identifiants des images jointes (référencées en <c>cid:</c> dans le HTML).</summary>
     public IReadOnlyCollection<string> ContentIds => _images.Keys;

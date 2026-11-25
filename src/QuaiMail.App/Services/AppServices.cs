@@ -10,6 +10,7 @@ using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
 using QuaiMail.Core.Pgp;
 using QuaiMail.Core.Reading;
+using QuaiMail.Core.Safety;
 using QuaiMail.Core.Services;
 using QuaiMail.Core.Storage;
 using QuaiMail.Core.Updates;
@@ -112,6 +113,8 @@ internal static class AppServices
         // Lecture : gabarit Assets/Mail/reader.html (lu une fois), liens ouverts dans le navigateur après confirmation,
         // pièces jointes enregistrées avec la marque du web (aussi pendant les tests de fumée : rien ne sort de l'ordinateur).
         services.AddSingleton<AttachmentSafety>();
+        services.AddSingleton(provider => new TrustedSenders(paths, provider.GetService<ILogger<TrustedSenders>>()));
+        services.AddSingleton<TrustedSendersViewModel>();
         services.AddSingleton<IAttachmentSafety>(provider => provider.GetRequiredService<AttachmentSafety>());
         services.AddSingleton(new ReaderTemplate(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Assets", "Mail", "reader.html"))));
         if (testing)
@@ -133,7 +136,8 @@ internal static class AppServices
             provider.GetRequiredService<ReaderTemplate>(),
             provider.GetService<ILogger<ReaderViewModel>>(),
             provider.GetRequiredService<MailCache>(),
-            provider.GetRequiredService<IAttachmentSafety>()));
+            provider.GetRequiredService<IAttachmentSafety>(),
+            provider.GetRequiredService<TrustedSenders>()));
         // Signature OpenPGP : trousseau de Quai Mail (clés importées), phrases de passe en mémoire seulement.
         services.AddSingleton(provider => new PgpKeyStore(paths, provider.GetService<ILogger<PgpKeyStore>>()));
         services.AddSingleton(provider => new PgpKeysViewModel(

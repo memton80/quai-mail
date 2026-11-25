@@ -17,6 +17,14 @@ public static class UiHelpers
     public static Microsoft.UI.Xaml.Controls.InfoBarSeverity WarningIf(bool value) =>
         value ? Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning : Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational;
 
+    /// <summary>Bandeau du mode méfiant : information (inconnu), avertissement (indices), erreur (peut-être usurpé).</summary>
+    public static Microsoft.UI.Xaml.Controls.InfoBarSeverity SafetySeverity(Core.Safety.SenderStatus status) => status switch
+    {
+        Core.Safety.SenderStatus.Spoofed => Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error,
+        Core.Safety.SenderStatus.Suspicious => Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning,
+        _ => Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational,
+    };
+
     public static Microsoft.UI.Xaml.Controls.InfoBarSeverity ErrorIf(bool value) =>
         value ? Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error : Microsoft.UI.Xaml.Controls.InfoBarSeverity.Success;
 

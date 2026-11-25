@@ -140,7 +140,8 @@ public sealed partial class MainWindow : Window
     internal object? NavSelection => NavList.SelectedItem;
 
     /// <summary>Ouvre les réglages (bouton du volet de gauche, test de fumée).</summary>
-    internal Task ShowSettingsAsync() => _dialogs.ShowSettingsAsync(_settings, Mailbox, _services.GetRequiredService<PgpKeysViewModel>());
+    internal Task ShowSettingsAsync() => _dialogs.ShowSettingsAsync(
+        _settings, Mailbox, _services.GetRequiredService<PgpKeysViewModel>(), _services.GetRequiredService<TrustedSendersViewModel>());
 
     /// <summary>Démarre la réception en direct (après le premier chargement des comptes).</summary>
     internal void StartWatching() => _watcher.Watch(_services.GetRequiredService<AccountStore>().All);

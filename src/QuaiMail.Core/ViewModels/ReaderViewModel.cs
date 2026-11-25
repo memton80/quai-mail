@@ -7,6 +7,7 @@ using QuaiMail.Core.Accounts;
 using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
 using QuaiMail.Core.Reading;
+using QuaiMail.Core.Safety;
 using QuaiMail.Core.Services;
 using QuaiMail.Core.Storage;
 
@@ -15,7 +16,9 @@ namespace QuaiMail.Core.ViewModels;
 /// <summary>
 /// Volet de lecture : le mail ouvert (en-têtes natifs, corps nettoyé dans la WebView2 verrouillée), ses pièces jointes,
 /// lu / non lu, étoile. Images distantes bloquées sauf demande (« Afficher les images ») ou réglage contraire. Liens :
-/// ouverts dans le navigateur seulement après confirmation, adresse réelle affichée.
+/// ouverts dans le navigateur seulement après confirmation, adresse réelle affichée. Expéditeur sûr (liste locale) :
+/// affichage normal, images comprises ; sinon mode méfiant (bandeau, indices de hameçonnage, liens trompeurs signalés),
+/// et un échec des contrôles d'authentification suspend la confiance.
 /// </summary>
 public sealed partial class ReaderViewModel : ObservableObject
 {
@@ -29,6 +32,8 @@ public sealed partial class ReaderViewModel : ObservableObject
     private readonly ReaderTemplate _template;
     private readonly ILogger _logger;
     private readonly IAttachmentSafety? _safety;
+    private readonly TrustedSenders? _trusted;
+    private IReadOnlySet<string> _deceptiveHosts = new HashSet<string>();
     private CancellationTokenSource? _loading;
     private Account? _account;
     private string? _folder;
@@ -46,10 +51,12 @@ public sealed partial class ReaderViewModel : ObservableObject
         ReaderTemplate template,
         ILogger<ReaderViewModel>? logger = null,
         Cache.MailCache? cache = null,
-        IAttachmentSafety? safety = null)
+        IAttachmentSafety? safety = null,
+        TrustedSenders? trusted = null)
     {
         _mail = mail;
         _safety = safety;
+        _trusted = trusted;
         _cache = cache;
         _settings = settings;
         _dialogs = dialogs;
@@ -63,6 +70,14 @@ public sealed partial class ReaderViewModel : ObservableObject
         To = string.Empty;
         Cc = string.Empty;
         DateText = string.Empty;
+        SafetyTitle = string.Empty;
+        SafetyMessage = string.Empty;
+        TrustAddressText = string.Empty;
+        TrustDomainText = string.Empty;
+        if (trusted is not null)
+        {
+            trusted.Changed += (_, _) => OnTrustChanged();
+        }
     }
 
     /// <summary>Une nouvelle page est prête (<see cref="Page"/>) : la vue la charge dans la WebView2.</summary>
@@ -145,6 +160,35 @@ public sealed partial class ReaderViewModel : ObservableObject
 
     public bool HasError => ErrorMessage is not null;
 
+    /// <summary>Confiance dans l'expéditeur du mail affiché.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSafetyNotice))]
+    public partial SenderStatus Sender { get; set; }
+
+    /// <summary>Mode méfiant : bandeau en tête du mail.</summary>
+    public bool HasSafetyNotice => Sender is SenderStatus.Unknown or SenderStatus.Suspicious or SenderStatus.Spoofed;
+
+    [ObservableProperty]
+    public partial string SafetyTitle { get; set; }
+
+    /// <summary>Pourquoi se méfier, une raison par ligne.</summary>
+    [ObservableProperty]
+    public partial string SafetyMessage { get; set; }
+
+    /// <summary>« Faire confiance » proposé (jamais quand l'authentification a échoué).</summary>
+    [ObservableProperty]
+    public partial bool CanTrustSender { get; set; }
+
+    /// <summary>« Tout le domaine » proposé (jamais pour une messagerie ouverte à tous).</summary>
+    [ObservableProperty]
+    public partial bool CanTrustDomain { get; set; }
+
+    [ObservableProperty]
+    public partial string TrustAddressText { get; set; }
+
+    [ObservableProperty]
+    public partial string TrustDomainText { get; set; }
+
     /// <summary>Ouvre un mail : en-têtes tout de suite, puis le contenu ; marqué lu sur le serveur s'il ne l'était pas.</summary>
     public async Task ShowAsync(Account account, string folder, MessageHeader header)
     {
@@ -168,6 +212,7 @@ public sealed partial class ReaderViewModel : ObservableObject
         BlockedImages = 0;
         Attachments.Clear();
         HasAttachments = false;
+        ResetSender();
         SetPage(string.Empty);
 
         IsLoading = true;
@@ -200,6 +245,7 @@ public sealed partial class ReaderViewModel : ObservableObject
             }
 
             HasAttachments = Attachments.Count > 0;
+            EvaluateSender();
             Render();
 
             // Texte gardé en cache pour la recherche plein texte (sur cet ordinateur seulement).
@@ -241,6 +287,27 @@ public sealed partial class ReaderViewModel : ObservableObject
         Render();
     }
 
+    /// <summary>« Faire confiance à cette adresse » : ses mails s'affichent normalement, images comprises.</summary>
+    [RelayCommand]
+    public void TrustSender()
+    {
+        if (CanTrustSender && Content is { } content && _trusted?.TrustAddress(content.FromAddress) == true)
+        {
+            _logger.LogInformation("Expéditeur ajouté aux expéditeurs sûrs");
+        }
+    }
+
+    /// <summary>« Faire confiance à tout le domaine » (sauf messagerie ouverte à tous).</summary>
+    [RelayCommand]
+    public void TrustDomain()
+    {
+        if (CanTrustDomain && Content is { } content && MailAddressRules.TryGetDomain(content.FromAddress, out var domain)
+            && _trusted?.TrustDomain(domain) == true)
+        {
+            _logger.LogInformation("Domaine ajouté aux expéditeurs sûrs");
+        }
+    }
+
     [RelayCommand]
     public Task ToggleReadAsync() => SetFlagsAsync(seen: !IsRead, flagged: null);
 
@@ -249,7 +316,8 @@ public sealed partial class ReaderViewModel : ObservableObject
 
     /// <summary>
     /// Un lien du mail : seulement http, https et mailto, et seulement après confirmation montrant l'adresse réelle
-    /// (pas le texte du lien, qui peut mentir).
+    /// (pas le texte du lien, qui peut mentir). Lien dont le texte annonçait une autre adresse, ou expéditeur pas sûr :
+    /// la confirmation le dit.
     /// </summary>
     public async Task<bool> OpenLinkAsync(Uri uri)
     {
@@ -260,10 +328,22 @@ public sealed partial class ReaderViewModel : ObservableObject
             return false;
         }
 
+        var message = _strings.Format("Link_Message", uri.AbsoluteUri, uri.IsDefaultPort || uri.Scheme == "mailto" ? uri.Host : $"{uri.Host}:{uri.Port}");
+        var deceptive = uri.Scheme != "mailto" && _deceptiveHosts.Contains(uri.IdnHost);
+        if (deceptive)
+        {
+            message = _strings.Get("Link_Deceptive") + "\n\n" + message;
+        }
+        else if (HasSafetyNotice)
+        {
+            message += "\n\n" + _strings.Get("Link_UnknownSender");
+        }
+
         var confirmed = await _dialogs.ConfirmAsync(
             _strings.Get(uri.Scheme == "mailto" ? "Link_MailTitle" : "Link_Title"),
-            _strings.Format("Link_Message", uri.AbsoluteUri, uri.IsDefaultPort || uri.Scheme == "mailto" ? uri.Host : $"{uri.Host}:{uri.Port}"),
-            _strings.Get("Link_Open"));
+            message,
+            _strings.Get("Link_Open"),
+            isDestructive: deceptive);
         return confirmed && _launcher.Open(uri);
     }
 
@@ -345,8 +425,111 @@ public sealed partial class ReaderViewModel : ObservableObject
         BlockedImages = 0;
         Attachments.Clear();
         HasAttachments = false;
+        ResetSender();
         SetPage(string.Empty);
     }
+
+    /// <summary>
+    /// Expéditeur sûr (liste, ou l'adresse du compte lui-même) et aucun échec d'authentification : affichage normal,
+    /// images comprises. Sinon mode méfiant : bandeau, raisons de se méfier, liens trompeurs notés pour la confirmation.
+    /// </summary>
+    private void EvaluateSender()
+    {
+        if (Content is not { } content)
+        {
+            ResetSender();
+            return;
+        }
+
+        var address = content.FromAddress;
+        var normalized = TrustedSenders.NormalizeAddress(address);
+        var own = normalized is not null && _account is { } account && normalized == TrustedSenders.NormalizeAddress(account.Address);
+        var trusted = own || (_trusted?.IsTrusted(address) ?? false);
+        var failed = content.AuthenticationFailed;
+        if (trusted && !failed)
+        {
+            ResetSender();
+            Sender = SenderStatus.Trusted;
+            _imagesAllowed = true;
+            return;
+        }
+
+        var warnings = MessageSafety.Analyze(content.FromName, address, content.ReplyToAddresses.Select(a => a.Address), failed, content.Links, KnownDomains());
+        _deceptiveHosts = MessageSafety.DeceptiveHosts(content.Links);
+        var shown = string.IsNullOrWhiteSpace(address) ? _strings.Get("Safety_NoAddress") : address;
+        var lines = new List<string> { _strings.Format(trusted ? "Safety_TrustedFailed" : "Safety_Unknown", shown) };
+        lines.AddRange(warnings.Select(w => "• " + Describe(w)));
+        SafetyMessage = string.Join("\n", lines);
+        Sender = failed ? SenderStatus.Spoofed : warnings.Count > 0 ? SenderStatus.Suspicious : SenderStatus.Unknown;
+        SafetyTitle = _strings.Get(Sender switch
+        {
+            SenderStatus.Spoofed => "Safety_SpoofedTitle",
+            SenderStatus.Suspicious => "Safety_SuspiciousTitle",
+            _ => "Safety_UnknownTitle",
+        });
+
+        var domain = normalized?[(normalized.LastIndexOf('@') + 1)..];
+        CanTrustSender = !trusted && !failed && normalized is not null && _trusted is not null;
+        CanTrustDomain = CanTrustSender && TrustedSenders.CanTrustDomain(domain);
+        TrustAddressText = _strings.Format("Safety_TrustAddress", normalized ?? string.Empty);
+        TrustDomainText = _strings.Format("Safety_TrustDomain", domain ?? string.Empty);
+    }
+
+    private void ResetSender()
+    {
+        Sender = SenderStatus.None;
+        SafetyTitle = string.Empty;
+        SafetyMessage = string.Empty;
+        CanTrustSender = false;
+        CanTrustDomain = false;
+        _deceptiveHosts = new HashSet<string>();
+    }
+
+    /// <summary>Liste des expéditeurs sûrs changée (ici ou dans les Réglages) : le mail affiché est réévalué.</summary>
+    private void OnTrustChanged()
+    {
+        if (Content is null)
+        {
+            return;
+        }
+
+        var imagesBefore = _imagesAllowed;
+        EvaluateSender();
+        if (_imagesAllowed != imagesBefore)
+        {
+            Render();
+        }
+    }
+
+    /// <summary>Domaines connus : un domaine qui leur ressemble sans être le même est signalé.</summary>
+    private List<string> KnownDomains()
+    {
+        var domains = new List<string>(KnownProviders.PublicDomains);
+        if (_trusted is not null)
+        {
+            domains.AddRange(_trusted.Domains);
+            domains.AddRange(_trusted.Addresses.Select(a => a[(a.LastIndexOf('@') + 1)..]));
+        }
+
+        if (_account is { } account && MailAddressRules.TryGetDomain(account.Address, out var own))
+        {
+            domains.Add(own);
+        }
+
+        return domains;
+    }
+
+    private string Describe(SafetyWarning warning) => warning.Kind switch
+    {
+        SafetyWarningKind.AuthenticationFailed => _strings.Format("Safety_AuthenticationFailed", warning.First),
+        SafetyWarningKind.NameShowsOtherAddress => _strings.Format("Safety_NameShowsOtherAddress", warning.First, warning.Second ?? string.Empty),
+        SafetyWarningKind.ReplyToElsewhere => _strings.Format("Safety_ReplyToElsewhere", warning.First),
+        SafetyWarningKind.LookalikeDomain => _strings.Format("Safety_LookalikeDomain", warning.First, warning.Second ?? string.Empty),
+        SafetyWarningKind.InternationalDomain => _strings.Format("Safety_InternationalDomain", warning.First, warning.Second ?? string.Empty),
+        SafetyWarningKind.DeceptiveLink => _strings.Format("Safety_DeceptiveLink", warning.First, warning.Second ?? string.Empty),
+        SafetyWarningKind.NumericLink => _strings.Format("Safety_NumericLink", warning.First),
+        _ => string.Empty,
+    };
 
     private void Render()
     {

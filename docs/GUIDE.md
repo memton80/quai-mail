@@ -65,6 +65,18 @@ Le contenu d'un mail vient de l'extérieur : Quai Mail le traite comme tel.
 - **Liens** : un clic sur un lien n'ouvre rien directement. Quai Mail montre d'abord **l'adresse réelle** et le site visé (le texte d'un lien peut montrer une autre destination que la vraie, ce que font les arnaques) ; **Ouvrir** lance votre navigateur. Seuls les liens web et `mailto:` sont acceptés.
 - Un mail sans version mise en forme s'affiche en texte, avec ses liens cliquables (même confirmation).
 
+### Expéditeurs sûrs et mode méfiant
+
+Un mail dont l'expéditeur n'est pas dans vos **expéditeurs sûrs** est lu en **mode méfiant** : un bandeau le signale, ses images distantes restent bloquées et la confirmation d'un lien le rappelle. Quai Mail y relève aussi, sans rien envoyer sur Internet, les indices d'hameçonnage :
+
+- **contrôles d'authentification en échec** (DMARC, ou SPF sans signature DKIM valable), tels que notés par votre serveur de réception : l'expéditeur est peut-être usurpé, le bandeau est rouge ;
+- un **nom affiché** qui contient une autre adresse (« service@paypal.com » envoyé depuis une autre adresse) ;
+- des **réponses** qui partiraient vers un autre domaine que celui de l'expéditeur ;
+- un **domaine sosie** d'un domaine connu (`paypa1.com`, `exarnple.org`), ou écrit en caractères internationaux qui imitent un nom latin ;
+- un **lien trompeur** (son texte annonce un site, il mène à un autre ; la confirmation le dit en premier) ou qui mène à une adresse IP.
+
+**Faire confiance**, dans le bandeau, ajoute l'expéditeur à vos expéditeurs sûrs : cette adresse, ou tout son domaine (impossible pour une messagerie ouverte à tous comme gmail.com ou orange.fr, où n'importe qui crée une adresse). Leurs mails s'affichent ensuite normalement, images comprises. Les mails de vos propres adresses sont sûrs d'office. Un expéditeur sûr dont un mail échoue aux contrôles d'authentification perd la confiance pour ce mail-là : quelqu'un se fait peut-être passer pour lui. La liste se gère dans les **Réglages** (section **Expéditeurs sûrs**) et reste sur cet ordinateur.
+
 ## Écrire
 
 - **Nouveau message** (`Ctrl+N`), ou, depuis un mail ouvert, **Répondre**, **Répondre à tous** ou **Transférer** (boutons en haut à droite du mail).
@@ -109,6 +121,7 @@ Chaque pièce jointe enregistrée reçoit la **marque du web**, comme un fichier
 | **Rechercher les mises à jour** | activé par défaut : au démarrage, Quai Mail demande à GitHub le numéro de la dernière version publiée |
 | **Notifications des nouveaux mails** | activé par défaut : une notification de Windows quand un mail arrive et que Quai Mail n'est pas au premier plan |
 | **Vider le cache** | efface les dossiers et en-têtes gardés sur cet ordinateur ; tout est relu sur vos serveurs, rien n'est perdu |
+| **Expéditeurs sûrs** | la liste des adresses et domaines lus sans le mode méfiant ; le bouton à droite d'une ligne la retire |
 
 Les réglages s'appliquent et s'enregistrent immédiatement, sans bouton « Enregistrer ». La version installée est affichée en bas des réglages.
 
@@ -139,6 +152,7 @@ Quai Mail pose la même question **« Garder ce brouillon ? »**. Si l'enregistr
 - Comptes : `%LOCALAPPDATA%\QuaiMail\accounts.json` (adresse, serveurs, identifiant ; **aucun mot de passe**). Mots de passe : coffre de Windows (Gestionnaire d'identification, « QuaiMail »).
 - Cache : `%LOCALAPPDATA%\QuaiMail\cache\mail.db` (dossiers et en-têtes), effaçable à tout moment.
 - Affichage des mails : `%LOCALAPPDATA%\QuaiMail\webview`, effacé à chaque démarrage et fermeture (aucun cookie gardé).
+- Expéditeurs sûrs : `%LOCALAPPDATA%\QuaiMail\trusted-senders.json` (adresses et domaines que vous avez ajoutés).
 - Clés OpenPGP importées : `%LOCALAPPDATA%\QuaiMail\pgp`, protégées par leur phrase de passe (jamais enregistrée).
 - Brouillons : `%LOCALAPPDATA%\QuaiMail\drafts`, un fichier par brouillon (et ses pièces jointes copiées), effacé une fois le mail envoyé ou le brouillon supprimé.
 - Journaux : `%LOCALAPPDATA%\QuaiMail\logs` (7 jours). Jamais de mot de passe, d'objet, de contenu ni d'adresse de correspondant.
@@ -151,6 +165,6 @@ Quai Mail ne se connecte qu'aux serveurs mail de vos comptes, aux sites des imag
 
 ## Limites actuelles
 
-Version 0.7 : la signature OpenPGP ne chiffre pas les mails et ne vérifie pas encore les signatures reçues (la signature d'un mail reçu apparaît comme une pièce jointe `signature.asc`) ; pas de clé sur carte à puce. Pas encore de connexion à Gmail / Outlook.com par le navigateur (boutons grisés « à venir ») ; Gmail fonctionne avec un mot de passe d'application, Outlook.com et Hotmail pas encore. La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes ne peuvent pas encore être autorisées pour un expéditeur.
+Version 0.7 : la signature OpenPGP ne chiffre pas les mails et ne vérifie pas encore les signatures reçues (la signature d'un mail reçu apparaît comme une pièce jointe `signature.asc`) ; pas de clé sur carte à puce. Pas encore de connexion à Gmail / Outlook.com par le navigateur (boutons grisés « à venir ») ; Gmail fonctionne avec un mot de passe d'application, Outlook.com et Hotmail pas encore. La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes s'autorisent pour un expéditeur en le déclarant sûr (pas de réglage « images seulement »).
 
 Affichage : le moteur WebView2 de Microsoft (déjà présent sur Windows 11 et la plupart des Windows 10) est nécessaire. S'il manque, Quai Mail le dit et donne le lien officiel.

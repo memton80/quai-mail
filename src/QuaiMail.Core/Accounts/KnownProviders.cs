@@ -42,6 +42,22 @@ public static class KnownProviders
             "imap.laposte.net", 993, MailSecurity.SslOnConnect, "smtp.laposte.net", 465, MailSecurity.SslOnConnect),
     ];
 
+    /// <summary>Autres messageries ouvertes à tous (pas de réglages connus ici, mais n'importe qui peut y créer une adresse).</summary>
+    private static readonly HashSet<string> OtherPublicDomains = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "proton.me", "protonmail.com", "protonmail.ch", "pm.me", "gmx.com", "gmx.fr", "gmx.de", "gmx.net", "web.de",
+        "mail.com", "yandex.com", "yandex.ru", "zoho.com", "tutanota.com", "tuta.io", "mailo.com", "bbox.fr", "aliceadsl.fr",
+        "numericable.fr", "outlook.be", "live.be", "hotmail.be", "hotmail.co.uk", "yahoo.co.uk", "skynet.be", "bluewin.ch",
+        "gmail.fr", "icloud.fr", "mail.ru", "qq.com", "163.com",
+    };
+
+    /// <summary>Domaines des messageries ouvertes à tous (sosies signalés en mode méfiant).</summary>
+    public static IEnumerable<string> PublicDomains => Providers.SelectMany(p => p.Domains).Concat(OtherPublicDomains);
+
+    /// <summary>Messagerie ouverte à tous (gmail.com, orange.fr…) : on ne peut pas faire confiance à tout le domaine.</summary>
+    public static bool IsPublicDomain(string domain) =>
+        OtherPublicDomains.Contains(domain) || Providers.Any(p => p.Domains.Contains(domain, StringComparer.OrdinalIgnoreCase));
+
     /// <returns>Les réglages du fournisseur de cette adresse, ou <c>null</c> s'il n'est pas dans la table.</returns>
     public static MailSettings? Find(string address)
     {

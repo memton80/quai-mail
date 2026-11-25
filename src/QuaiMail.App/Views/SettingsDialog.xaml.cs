@@ -11,10 +11,11 @@ public sealed partial class SettingsDialog : ContentDialog
 {
     private readonly MailboxViewModel _mailbox;
 
-    public SettingsDialog(SettingsViewModel settings, MailboxViewModel mailbox, PgpKeysViewModel keys)
+    public SettingsDialog(SettingsViewModel settings, MailboxViewModel mailbox, PgpKeysViewModel keys, TrustedSendersViewModel trusted)
     {
         Settings = settings;
         Keys = keys;
+        Trusted = trusted;
         _mailbox = mailbox;
         InitializeComponent();
 
@@ -23,6 +24,7 @@ public sealed partial class SettingsDialog : ContentDialog
         Closed += (_, _) =>
         {
             KeysRepeater.ItemsSource = null;
+            TrustedRepeater.ItemsSource = null;
             Bindings.StopTracking();
         };
     }
@@ -31,6 +33,17 @@ public sealed partial class SettingsDialog : ContentDialog
 
     /// <summary>Clés OpenPGP pour signer les mails.</summary>
     public PgpKeysViewModel Keys { get; }
+
+    /// <summary>Expéditeurs sûrs (lus sans le mode méfiant).</summary>
+    public TrustedSendersViewModel Trusted { get; }
+
+    private void OnRemoveTrustedClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is TrustedSenderItem item)
+        {
+            Trusted.Remove(item);
+        }
+    }
 
     private async void OnImportKeyClick(object sender, RoutedEventArgs e)
     {

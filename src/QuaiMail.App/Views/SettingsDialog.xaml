@@ -34,6 +34,41 @@
                 <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_ClearCacheDescription}" />
             </StackPanel>
 
+            <!-- Expéditeurs sûrs : ajoutés depuis la lecture d'un mail (« Faire confiance »), retirés ici. -->
+            <StackPanel Style="{StaticResource PgpSectionStyle}">
+                <TextBlock Style="{StaticResource DialogSectionStyle}" Text="{l:Str Key=Trusted_Section}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Trusted_Intro}" />
+                <TextBlock
+                    Style="{StaticResource DialogHintStyle}"
+                    Text="{l:Str Key=Trusted_None}"
+                    Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Trusted.HasItems), Mode=OneWay}" />
+                <ItemsRepeater x:Name="TrustedRepeater" ItemsSource="{x:Bind Trusted.Items}">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="4" />
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="vm:TrustedSenderItem">
+                            <Grid Style="{StaticResource TrustedRowStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource TrustedNameStyle}" Text="{x:Bind Label}" />
+                                <Button
+                                    Grid.Column="1"
+                                    AutomationProperties.Name="{x:Bind RemoveName}"
+                                    Click="OnRemoveTrustedClick"
+                                    Style="{StaticResource ReaderActionButtonStyle}"
+                                    Tag="{x:Bind}"
+                                    ToolTipService.ToolTip="{x:Bind RemoveName}">
+                                    <FontIcon Glyph="&#xE711;" Style="{StaticResource ButtonIconStyle}" />
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
+            </StackPanel>
+
             <!-- Signature des mails : clés secrètes importées de GnuPG ou de Kleopatra. -->
             <StackPanel Style="{StaticResource PgpSectionStyle}">
                 <TextBlock Style="{StaticResource DialogSectionStyle}" Text="{l:Str Key=Pgp_Section}" />

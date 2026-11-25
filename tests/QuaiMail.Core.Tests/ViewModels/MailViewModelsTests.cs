@@ -3,6 +3,7 @@ using QuaiMail.Core.Accounts;
 using QuaiMail.Core.Cache;
 using QuaiMail.Core.Drafts;
 using QuaiMail.Core.Mail;
+using QuaiMail.Core.Safety;
 using QuaiMail.Core.Storage;
 using QuaiMail.Core.Tests.Support;
 using QuaiMail.Core.ViewModels;
@@ -366,6 +367,79 @@ public sealed class MailViewModelsTests : IDisposable
     }
 
     [Fact]
+    public async Task An_unknown_sender_is_read_in_suspicious_mode_until_trusted()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        _mail.Contents[3] = From("Banque <info@banque.example>", """<p>Promo <img src="https://cdn.banque.example/logo.png"></p><a href="https://evil.example/x">https://www.banque.example/compte</a>""");
+        var reader = mailbox.Reader;
+
+        mailbox.Messages.SelectedMessage = mailbox.Messages.Messages.Single(m => m.Uid == 3);
+        await WaitForAsync(() => !reader.IsLoading && reader.Content is not null);
+
+        Assert.Equal(SenderStatus.Suspicious, reader.Sender);
+        Assert.True(reader.HasSafetyNotice);
+        Assert.Equal("Safety_SuspiciousTitle", reader.SafetyTitle);
+        Assert.Equal("Safety_Unknown(info@banque.example)\n• Safety_DeceptiveLink(www.banque.example,evil.example)", reader.SafetyMessage);
+        Assert.Equal(1, reader.BlockedImages);
+        Assert.True(reader.CanTrustSender);
+        Assert.True(reader.CanTrustDomain);
+        Assert.Equal("Safety_TrustDomain(banque.example)", reader.TrustDomainText);
+
+        // Lien trompeur : la confirmation le dit d'abord, et « Annuler » est le choix proposé.
+        _dialogs.ConfirmAnswer = false;
+        Assert.False(await reader.OpenLinkAsync(new Uri("https://evil.example/x")));
+        var confirmation = Assert.Single(_dialogs.Confirmations);
+        Assert.StartsWith("Link_Deceptive\n\n", confirmation.Message, StringComparison.Ordinal);
+        Assert.True(confirmation.Destructive);
+
+        reader.TrustSenderCommand.Execute(null);
+
+        Assert.Equal(["info@banque.example"], Trusted.Addresses);
+        Assert.Equal(SenderStatus.Trusted, reader.Sender);
+        Assert.False(reader.HasSafetyNotice);
+        Assert.Equal(0, reader.BlockedImages);
+        Assert.Contains("https://cdn.banque.example/logo.png", reader.Page, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_trusted_sender_whose_mail_fails_authentication_is_not_trusted_for_that_mail()
+    {
+        Trusted.TrustDomain("banque.example");
+        var (mailbox, _) = await OpenInboxAsync();
+        var spoofed = From("Banque <info@banque.example>", """<img src="https://cdn.banque.example/logo.png">""");
+        spoofed.Headers.Add("Authentication-Results", "mx.example.org; spf=fail smtp.mailfrom=banque.example; dkim=none; dmarc=fail header.from=banque.example");
+        _mail.Contents[3] = spoofed;
+        var reader = mailbox.Reader;
+
+        mailbox.Messages.SelectedMessage = mailbox.Messages.Messages.Single(m => m.Uid == 3);
+        await WaitForAsync(() => !reader.IsLoading && reader.Content is not null);
+
+        Assert.Equal(SenderStatus.Spoofed, reader.Sender);
+        Assert.Equal("Safety_SpoofedTitle", reader.SafetyTitle);
+        Assert.StartsWith("Safety_TrustedFailed(info@banque.example)\n• Safety_AuthenticationFailed(banque.example)", reader.SafetyMessage, StringComparison.Ordinal);
+        Assert.False(reader.CanTrustSender);
+        Assert.Equal(1, reader.BlockedImages);
+    }
+
+    [Fact]
+    public async Task Mails_from_the_account_itself_are_trusted_and_public_domains_cannot_be_trusted_whole()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        var reader = mailbox.Reader;
+        _mail.Contents[3] = From("Alice <alice@example.org>", "<p>Note</p>");
+        mailbox.Messages.SelectedMessage = mailbox.Messages.Messages.Single(m => m.Uid == 3);
+        await WaitForAsync(() => !reader.IsLoading && reader.Content is not null);
+        Assert.Equal(SenderStatus.Trusted, reader.Sender);
+
+        _mail.Contents[2] = From("Paul <paul@gmail.com>", "<p>Salut</p>");
+        mailbox.Messages.SelectedMessage = mailbox.Messages.Messages.Single(m => m.Uid == 2);
+        await WaitForAsync(() => !reader.IsLoading && reader.Content?.Uid == 2);
+        Assert.Equal(SenderStatus.Unknown, reader.Sender);
+        Assert.True(reader.CanTrustSender);
+        Assert.False(reader.CanTrustDomain);
+    }
+
+    [Fact]
     public async Task With_the_setting_off_remote_images_are_shown_directly()
     {
         _settings.Update(s => s.BlockRemoteImages = false);
@@ -508,6 +582,9 @@ public sealed class MailViewModelsTests : IDisposable
         await WaitForAsync(() => !mailbox.Messages.IsLoading && mailbox.Messages.Messages.Count == 4);
         return (mailbox, account);
     }
+
+    private static MimeKit.MimeMessage From(string from, string html) =>
+        new([MimeKit.MailboxAddress.Parse(from)], [new MimeKit.MailboxAddress("Alice", "alice@example.org")], "Objet", new MimeKit.TextPart("html") { Text = html });
 
     private static MimeKit.MimeMessage Html(uint uid, string html) =>
         new([new MimeKit.MailboxAddress("Bob", "bob@example.org")], [], $"Objet {uid}", new MimeKit.TextPart("html") { Text = html });
@@ -701,11 +778,15 @@ public sealed class MailViewModelsTests : IDisposable
 
     internal FakeAttachmentSafety Safety { get; } = new();
 
+    internal TrustedSenders Trusted => _trusted ??= new TrustedSenders(_paths);
+
+    private TrustedSenders? _trusted;
+
     private MailboxViewModel Mailbox() =>
         new(_accounts, _credentials, _mail, _cache, _shell, new MessageListViewModel(_mail, _cache, new KeyStrings(), new FixedTime(Now)), Reader(), _dialogs, new KeyStrings(), settings: _settings);
 
     private ReaderViewModel Reader() =>
-        new(_mail, _settings, _dialogs, Files, Launcher, new KeyStrings(), new QuaiMail.Core.Reading.ReaderTemplate(File.ReadAllText(Reading.HtmlCleanerTests.TemplatePath())), null, _cache, Safety);
+        new(_mail, _settings, _dialogs, Files, Launcher, new KeyStrings(), new QuaiMail.Core.Reading.ReaderTemplate(File.ReadAllText(Reading.HtmlCleanerTests.TemplatePath())), null, _cache, Safety, Trusted);
 
     private Account AddAccount(string address)
     {

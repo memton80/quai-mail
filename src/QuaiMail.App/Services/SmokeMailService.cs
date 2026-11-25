@@ -149,7 +149,8 @@ internal sealed class SmokeMailService : IMailService
 
     /// <summary>
     /// Mail piégé : script, cadre, formulaire, pixel espion, image d'arrière-plan distante, lien trompeur, plus une
-    /// image jointe (cid:), une pièce jointe ordinaire et un exécutable.
+    /// image jointe (cid:), une pièce jointe ordinaire et un exécutable ; refusé par les contrôles DMARC du serveur de
+    /// réception (expéditeur usurpé).
     /// </summary>
     private static MimeMessage Trapped()
     {
@@ -176,11 +177,13 @@ internal sealed class SmokeMailService : IMailService
         logo.ContentId = "logo@example.org";
         builder.Attachments.Add("facture-novembre.pdf", "%PDF-1.7 facture de test"u8.ToArray(), new ContentType("application", "pdf"));
         builder.Attachments.Add("mise-a-jour.exe", "MZ exécutable de test"u8.ToArray(), new ContentType("application", "octet-stream"));
-        return new MimeMessage(
+        var message = new MimeMessage(
             [new MailboxAddress("Service client", "contact1@example.org")],
             [new MailboxAddress("Camille", "camille@example.org")],
             "Votre facture de novembre",
             builder.ToMessageBody());
+        message.Headers.Add("Authentication-Results", "mx.example.org; spf=fail smtp.mailfrom=evil.example; dkim=none; dmarc=fail (p=REJECT) header.from=example.org");
+        return message;
     }
 
     private static MimeMessage Simple(uint uid) => new(

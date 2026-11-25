@@ -14,6 +14,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -88,8 +89,34 @@
             Style="{StaticResource ListBusyBarStyle}"
             Visibility="{x:Bind ui:UiHelpers.VisibleIf(Reader.IsLoading), Mode=OneWay}" />
 
+        <!--
+            Mode méfiant : expéditeur pas dans les expéditeurs sûrs, ou contrôles d'authentification en échec. Les raisons
+            de se méfier, une par ligne ; « Faire confiance » (jamais quand l'expéditeur est peut-être usurpé).
+        -->
         <InfoBar
             Grid.Row="2"
+            IsOpen="{x:Bind Reader.HasSafetyNotice, Mode=OneWay}"
+            Message="{x:Bind Reader.SafetyMessage, Mode=OneWay}"
+            Severity="{x:Bind ui:UiHelpers.SafetySeverity(Reader.Sender), Mode=OneWay}"
+            Style="{StaticResource ListInfoBarStyle}"
+            Title="{x:Bind Reader.SafetyTitle, Mode=OneWay}">
+            <InfoBar.ActionButton>
+                <DropDownButton Content="{l:Str Key=Safety_Trust}" Visibility="{x:Bind ui:UiHelpers.VisibleIf(Reader.CanTrustSender), Mode=OneWay}">
+                    <DropDownButton.Flyout>
+                        <MenuFlyout Placement="Bottom">
+                            <MenuFlyoutItem Command="{x:Bind Reader.TrustSenderCommand}" Text="{x:Bind Reader.TrustAddressText, Mode=OneWay}" />
+                            <MenuFlyoutItem
+                                Command="{x:Bind Reader.TrustDomainCommand}"
+                                Text="{x:Bind Reader.TrustDomainText, Mode=OneWay}"
+                                Visibility="{x:Bind ui:UiHelpers.VisibleIf(Reader.CanTrustDomain), Mode=OneWay}" />
+                        </MenuFlyout>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
+            </InfoBar.ActionButton>
+        </InfoBar>
+
+        <InfoBar
+            Grid.Row="3"
             IsOpen="{x:Bind Reader.HasError, Mode=OneWay}"
             Message="{x:Bind Reader.ErrorMessage, Mode=OneWay}"
             Severity="Warning"
@@ -97,7 +124,7 @@
 
         <!-- Images distantes bloquées (pas de pixel espion) : affichées seulement sur demande, pour ce mail. -->
         <InfoBar
-            Grid.Row="3"
+            Grid.Row="4"
             IsOpen="{x:Bind Reader.OffersImages, Mode=OneWay}"
             Message="{x:Bind ui:UiHelpers.BlockedImagesText(Reader.BlockedImages), Mode=OneWay}"
             Severity="Informational"
@@ -109,7 +136,7 @@
 
         <!-- Pièces jointes : enregistrées sur demande, jamais ouvertes. -->
         <ScrollViewer
-            Grid.Row="4"
+            Grid.Row="5"
             Style="{StaticResource AttachmentsScrollerStyle}"
             Visibility="{x:Bind ui:UiHelpers.VisibleIf(Reader.HasAttachments), Mode=OneWay}">
             <ItemsRepeater ItemsSource="{x:Bind Reader.Attachments}">
@@ -135,13 +162,13 @@
         </ScrollViewer>
 
         <!-- Corps du mail : WebView2 verrouillée (voir ReaderView.xaml.cs). -->
-        <Border Grid.Row="5" Style="{StaticResource ReaderBodyStyle}">
+        <Border Grid.Row="6" Style="{StaticResource ReaderBodyStyle}">
             <WebView2 x:Name="Body" AutomationProperties.Name="{l:Str Key=Reader_Body}" />
         </Border>
 
         <InfoBar
             x:Name="RuntimeMissing"
-            Grid.Row="5"
+            Grid.Row="6"
             IsClosable="False"
             Message="{l:Str Key=Reader_RuntimeMissing}"
             Severity="Warning"
@@ -153,7 +180,7 @@
         </InfoBar>
 
         <StackPanel
-            Grid.Row="5"
+            Grid.Row="6"
             Style="{StaticResource EmptyStatePanelStyle}"
             Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Reader.HasMessage), Mode=OneWay}">
             <FontIcon Glyph="&#xE715;" Style="{StaticResource EmptyStateIconStyle}" />
