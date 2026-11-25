@@ -357,11 +357,20 @@ internal static class SmokeTest
         await CaptureAsync(hwnd, directory, "10-lecture.png", report);
         report.Add($"Lecture : mail piégé affiché, {reader.BlockedImages} image(s) distante(s) bloquée(s), {view.ServedRequests} ressources locales, aucune requête vers l'extérieur");
 
-        // Navigation forcée (comme une redirection) : annulée, sans question.
+        // Navigation vers une autre adresse : annulée. (Demandée par l'application elle-même, WebView2 la compte comme
+        // un geste de l'utilisateur : la confirmation apparaît alors, et un refus n'ouvre rien.)
         var cancelled = view.CancelledNavigations;
+        var page = view.LoadedPage;
         view.TryNavigate("https://evil.example/");
         await WaitForAsync(() => view.CancelledNavigations > cancelled, "navigation annulée");
-        Check(dialogs.Current is null, "une navigation non demandée ne doit rien proposer");
+        await Task.Delay(500);
+        if (dialogs.Current is not null)
+        {
+            dialogs.Choose(ContentDialogResult.None);
+            await WaitForAsync(() => dialogs.Current is null, "confirmation refusée");
+        }
+
+        Check(launcher.Opened.Count == 0 && view.LoadedPage == page, "la navigation a quitté la page du mail");
 
         // Lien trompeur : la confirmation montre l'adresse réelle ; refusée, rien ne s'ouvre.
         var link = reader.OpenLinkAsync(new Uri("https://evil.example/connexion"));
