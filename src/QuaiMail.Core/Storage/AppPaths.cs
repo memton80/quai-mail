@@ -22,6 +22,14 @@ public sealed class AppPaths
 
     public string SettingsFile => Path.Combine(Root, "settings.json");
 
+    /// <summary>Comptes configurés (sans mot de passe : ceux-ci sont dans le coffre de Windows).</summary>
+    public string AccountsFile => Path.Combine(Root, "accounts.json");
+
+    /// <summary>Cache local (dossiers, en-têtes) : peut être effacé à tout moment, il se reconstruit depuis les serveurs.</summary>
+    public string CacheDirectory => Path.Combine(Root, "cache");
+
+    public string CacheDatabase => Path.Combine(CacheDirectory, "mail.db");
+
     public string LogsDirectory => Path.Combine(Root, "logs");
 
     /// <summary>Brouillons enregistrés sur cet ordinateur (un fichier par brouillon).</summary>

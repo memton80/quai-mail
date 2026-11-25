@@ -7,9 +7,13 @@
   <ItemGroup>
     <!-- QuaiMail.Core -->
     <!--
-      Paquets de mail (MailKit / MimeKit, Microsoft.Data.Sqlite, WebView2) : à ajouter ici au moment de s'en servir,
-      avec une version vérifiée sur nuget.org et une ligne dans docs/DECISIONS.md (licence comprise).
+      Paquets ajoutés au moment de s'en servir, avec une version vérifiée sur nuget.org et une ligne dans
+      docs/DECISIONS.md (licence comprise).
     -->
+    <!-- IMAP / SMTP (MIT), avec MimeKit (MIT) pour le format des mails. -->
+    <PackageVersion Include="MailKit" Version="5.0.0" />
+    <!-- Cache local (MIT) ; SQLite natif par SQLitePCLRaw (Apache-2.0) et SQLite (domaine public). -->
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="11.0.0" />
     <!-- Comparaison des versions pour les mises à jour (règles SemVer), comme Quai. -->
     <PackageVersion Include="Semver" Version="3.0.0" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />

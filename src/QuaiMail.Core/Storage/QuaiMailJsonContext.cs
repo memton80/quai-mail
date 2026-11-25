@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using QuaiMail.Core.Accounts;
 using QuaiMail.Core.Drafts;
 using QuaiMail.Core.Models;
 
@@ -15,10 +16,11 @@ namespace QuaiMail.Core.Storage;
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     ReadCommentHandling = JsonCommentHandling.Skip,
     AllowTrailingCommas = true,
-    Converters = [typeof(CamelCaseEnumConverter<AppTheme>)])]
+    Converters = [typeof(CamelCaseEnumConverter<AppTheme>), typeof(CamelCaseEnumConverter<MailSecurity>)])]
 [JsonSerializable(typeof(AppSettings))]
 [JsonSerializable(typeof(WindowState))]
 [JsonSerializable(typeof(Draft))]
+[JsonSerializable(typeof(AccountList))]
 internal sealed partial class QuaiMailJsonContext : JsonSerializerContext;
 
 /// <summary>Énumération écrite en texte camelCase (<c>"dark"</c>) ; les nombres restent acceptés en lecture.</summary>
