@@ -4,9 +4,9 @@
 
 | Dossier | Contenu |
 |---|---|
-| `src/QuaiMail.Core` | sans interface : mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
-| `src/QuaiMail.App` | WinUI 3 : fenêtre et ses trois volets, bandeau de mise à jour, dialogues, réglages, installation des mises à jour (`Services/UpdateInstaller.cs`), test de fumée (`SmokeTest.cs`), gabarit de lecture des mails (`Assets/Mail`) |
-| `tests/QuaiMail.Core.Tests` | xUnit : mises à jour (source GitHub, comparaison des versions, téléchargement vérifié, bandeau), réglages, brouillons, état de la fenêtre, clés de traduction |
+| `src/QuaiMail.Core` | sans interface : comptes et détection des réglages (`Accounts/`), IMAP / SMTP par MailKit (`Mail/MailKitMailService.cs`), cache SQLite (`Cache/`), mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
+| `src/QuaiMail.App` | WinUI 3 : fenêtre et ses trois volets, ajout de compte (`Views/AccountDialog.xaml`), coffre de Windows (`Services/PasswordVaultCredentialStore.cs`), bandeau de mise à jour, dialogues, réglages, installation des mises à jour (`Services/UpdateInstaller.cs`), test de fumée (`SmokeTest.cs`, `Services/SmokeMailService.cs`), gabarit de lecture des mails (`Assets/Mail`) |
+| `tests/QuaiMail.Core.Tests` | xUnit : comptes et détection, service MailKit contre de faux serveurs IMAP / SMTP locaux en TLS (`Support/FakeImapServer.cs`, `FakeSmtpServer.cs`), cache SQLite, view-models, mises à jour, réglages, brouillons, état de la fenêtre, clés de traduction |
 | `installer/QuaiMail.iss` | installateur Inno Setup (par utilisateur, sans droits administrateur) |
 | `tools/make_icon.py` | génère l'icône (Pillow) |
 
@@ -31,6 +31,11 @@ La variable d'environnement `QUAI_MAIL_DATA_DIR` redirige toutes les données (r
 | `--smoke-test <dossier>` | test de fumée du CI : réglages, thème sombre, brouillon simulé et « Garder ce brouillon ? », état de la fenêtre noté puis restauré, bandeau de mise à jour (release fictive, sans réseau) ; captures et rapport dans le dossier, code 0 ou 1 |
 | `--update-test <dossier> <installateur>` | mise à jour en place du CI : l'installateur local est présenté comme une release plus récente (vraie taille, vraie empreinte), un brouillon et un état de fenêtre sont simulés ; Quai Mail télécharge, vérifie, garde le brouillon, lance l'installateur et se ferme |
 | `--after-update` | passé par l'installateur quand il relance Quai Mail : restaure l'état noté dans `updates/reopen.txt`, une fois |
+| `--purge-secrets` | passé par le désinstallateur (effacement des données) : retire du coffre de Windows tous les mots de passe de Quai Mail, sans fenêtre |
+
+## Tests sans vrai compte
+
+Aucun test n'utilise de vrai compte ni n'envoie de mail. Les tests de `QuaiMail.Core` démarrent de faux serveurs IMAP et SMTP sur `127.0.0.1` (port libre), en TLS ou STARTTLS avec un certificat auto-signé créé pour le test ; le service ne l'accepte que parce que le test l'épingle (sa validation normale le refuse, ce qui est testé aussi). Le faux SMTP refuse tout envoi et le compte. Le test de fumée de l'application utilise un serveur en mémoire (`SmokeMailService`) et une ressource du coffre de Windows réservée aux tests.
 
 ## Chaîne de mise à jour
 

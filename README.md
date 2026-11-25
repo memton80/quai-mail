@@ -14,7 +14,7 @@
   · Gratuit · Sans compte · Sans publicité
 </p>
 
-> **Projet en cours de démarrage.** Version 0.1 : la coquille (fenêtre, réglages, mise à jour automatique). Viennent ensuite les comptes IMAP / SMTP (0.2), la lecture (0.3) et l'écriture (0.4).
+> **Projet en cours de construction.** Version 0.2 : comptes IMAP / SMTP (réglages détectés, mot de passe dans le coffre de Windows), dossiers et liste des mails. Viennent ensuite la lecture (0.3) et l'écriture (0.4).
 
 ## Ce que sera Quai Mail
 
