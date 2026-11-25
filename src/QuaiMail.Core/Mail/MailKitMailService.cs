@@ -9,6 +9,7 @@ using MailKit.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Reading;
 
 namespace QuaiMail.Core.Mail;
 
@@ -100,10 +101,7 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(take);
         return WithImapAsync(account, async (client, ct) =>
         {
-            var mailFolder = string.Equals(folder, "INBOX", StringComparison.OrdinalIgnoreCase)
-                ? client.Inbox
-                : await client.GetFolderAsync(folder, ct).ConfigureAwait(false);
-            await mailFolder.OpenAsync(FolderAccess.ReadOnly, ct).ConfigureAwait(false);
+            var mailFolder = await OpenAsync(client, folder, FolderAccess.ReadOnly, ct).ConfigureAwait(false);
             try
             {
                 var count = mailFolder.Count;
@@ -126,13 +124,59 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
             }
             finally
             {
-                if (mailFolder.IsOpen && client.IsConnected)
-                {
-                    await mailFolder.CloseAsync(false, CancellationToken.None).ConfigureAwait(false);
-                }
+                await CloseAsync(client, mailFolder).ConfigureAwait(false);
             }
         }, cancellationToken);
     }
+
+    public Task<MessageContent> GetMessageAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default) =>
+        WithImapAsync(account, async (client, ct) =>
+        {
+            // Lecture seule : BODY.PEEK[], le mail n'est pas marqué lu par la lecture elle-même.
+            var mailFolder = await OpenAsync(client, folder, FolderAccess.ReadOnly, ct).ConfigureAwait(false);
+            try
+            {
+                var message = await mailFolder.GetMessageAsync(new UniqueId(uid), ct).ConfigureAwait(false);
+                return MessageContent.FromMime(uid, message);
+            }
+            finally
+            {
+                await CloseAsync(client, mailFolder).ConfigureAwait(false);
+            }
+        }, cancellationToken);
+
+    public Task SetFlagsAsync(Account account, string folder, uint uid, bool? seen, bool? flagged, CancellationToken cancellationToken = default) =>
+        WithImapAsync(account, async (client, ct) =>
+        {
+            var add = (seen == true ? MessageFlags.Seen : MessageFlags.None) | (flagged == true ? MessageFlags.Flagged : MessageFlags.None);
+            var remove = (seen == false ? MessageFlags.Seen : MessageFlags.None) | (flagged == false ? MessageFlags.Flagged : MessageFlags.None);
+            if (add == MessageFlags.None && remove == MessageFlags.None)
+            {
+                return true;
+            }
+
+            var mailFolder = await OpenAsync(client, folder, FolderAccess.ReadWrite, ct).ConfigureAwait(false);
+            try
+            {
+                var id = new UniqueId(uid);
+                if (add != MessageFlags.None)
+                {
+                    await mailFolder.StoreAsync(id, new StoreFlagsRequest(StoreAction.Add, add), ct).ConfigureAwait(false);
+                }
+
+                if (remove != MessageFlags.None)
+                {
+                    await mailFolder.StoreAsync(id, new StoreFlagsRequest(StoreAction.Remove, remove), ct).ConfigureAwait(false);
+                }
+
+                return true;
+            }
+            finally
+            {
+                // Fermeture sans EXPUNGE : rien n'est jamais effacé au passage.
+                await CloseAsync(client, mailFolder).ConfigureAwait(false);
+            }
+        }, cancellationToken);
 
     public async Task DisconnectAsync(string accountId)
     {
@@ -151,6 +195,23 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
     }
 
     internal static string Describe(MailServer server) => $"{server.Host}:{server.Port}";
+
+    private static async Task<IMailFolder> OpenAsync(ImapClient client, string folder, FolderAccess access, CancellationToken cancellationToken)
+    {
+        var mailFolder = string.Equals(folder, "INBOX", StringComparison.OrdinalIgnoreCase)
+            ? client.Inbox
+            : await client.GetFolderAsync(folder, cancellationToken).ConfigureAwait(false);
+        await mailFolder.OpenAsync(access, cancellationToken).ConfigureAwait(false);
+        return mailFolder;
+    }
+
+    private static async Task CloseAsync(ImapClient client, IMailFolder folder)
+    {
+        if (folder.IsOpen && client.IsConnected)
+        {
+            await folder.CloseAsync(false, CancellationToken.None).ConfigureAwait(false);
+        }
+    }
 
     private static MailFolderInfo ToInfo(IMailFolder folder, FolderNamespace? ns)
     {

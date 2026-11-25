@@ -30,6 +30,9 @@ public sealed class AppPaths
 
     public string CacheDatabase => Path.Combine(CacheDirectory, "mail.db");
 
+    /// <summary>Données de la WebView2 de lecture : vidées à la fermeture et au démarrage, aucun cookie gardé.</summary>
+    public string WebViewDirectory => Path.Combine(Root, "webview");
+
     public string LogsDirectory => Path.Combine(Root, "logs");
 
     /// <summary>Brouillons enregistrés sur cet ordinateur (un fichier par brouillon).</summary>

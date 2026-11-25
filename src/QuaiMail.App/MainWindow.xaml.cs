@@ -45,11 +45,13 @@ public sealed partial class MainWindow : Window
             AppWindow.SetIcon(icon);
         }
 
-        // Les boîtes de dialogue ont besoin de la fenêtre.
+        // Les boîtes de dialogue et sélecteurs de fichiers ont besoin de la fenêtre.
         _dialogs.Root = RootGrid;
+        _services.GetRequiredService<FileDialogs>().WindowId = AppWindow.Id;
         _services.GetRequiredService<ThemeService>().Attach(this, RootGrid);
 
         AppWindow.Closing += OnClosing;
+        Closed += (_, _) => ReaderPane.Shutdown();
         ResizeForDpi(1240, 820);
     }
 
@@ -64,6 +66,9 @@ public sealed partial class MainWindow : Window
 
     /// <summary>Liste des mails du dossier choisi.</summary>
     public MessageListViewModel Messages => Mailbox.Messages;
+
+    /// <summary>Volet de lecture (WebView2 verrouillée).</summary>
+    internal Views.ReaderView Reader => ReaderPane;
 
     /// <summary>Contenu racine de la fenêtre (test de fumée).</summary>
     public FrameworkElement Root => RootGrid;
@@ -185,14 +190,9 @@ public sealed partial class MainWindow : Window
     private void OnNavSelectionChanged(object sender, SelectionChangedEventArgs e) =>
         Mailbox.SelectedItem = NavList.SelectedItem as NavItemViewModel;
 
-    /// <summary>Mail choisi : noté dans l'état de la fenêtre (la lecture arrive avec la version 0.3).</summary>
-    private void OnMessageSelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (MessageList.SelectedItem is MessageItemViewModel message)
-        {
-            Shell.OpenMessageId = message.Uid.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        }
-    }
+    /// <summary>Mail choisi : ouvert dans le volet de lecture (voir MailboxViewModel).</summary>
+    private void OnMessageSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        Messages.SelectedMessage = MessageList.SelectedItem as MessageItemViewModel;
 
     private void ResizeForDpi(int width, int height)
     {

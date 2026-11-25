@@ -217,6 +217,210 @@ public sealed class MailViewModelsTests : IDisposable
     }
 
     [Fact]
+    public async Task Opening_a_message_shows_it_and_marks_it_read_everywhere()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        var reader = mailbox.Reader;
+        var unreadBefore = mailbox.Items[1].Unread;
+        var message = mailbox.Messages.Messages.First(m => !m.IsRead);
+
+        mailbox.Messages.SelectedMessage = message;
+        await WaitForAsync(() => reader.HasMessage && !reader.IsLoading && reader.IsRead);
+
+        Assert.Equal(message.Subject, reader.Subject);
+        Assert.Contains($"Corps {message.Uid}", reader.Page, StringComparison.Ordinal);
+        Assert.Contains("default-src 'none'", reader.Page, StringComparison.Ordinal);
+        Assert.Contains((message.Uid, (bool?)true, (bool?)null), _mail.FlagChanges);
+        Assert.True(message.IsRead);
+        Assert.Equal(unreadBefore - 1, mailbox.Items[1].Unread);
+        Assert.True(_cache.GetMessages(account.Id, "INBOX", 0, 10).Single(m => m.Uid == message.Uid).IsRead);
+        Assert.Equal(message.Uid.ToString(System.Globalization.CultureInfo.InvariantCulture), _shell.OpenMessageId);
+    }
+
+    [Fact]
+    public async Task Read_and_star_can_be_toggled()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        var reader = mailbox.Reader;
+        var message = mailbox.Messages.Messages.First(m => m.IsRead);
+        mailbox.Messages.SelectedMessage = message;
+        await WaitForAsync(() => reader.HasMessage && !reader.IsLoading);
+        var unread = mailbox.Items[1].Unread;
+
+        await reader.ToggleReadCommand.ExecuteAsync(null);
+        await reader.ToggleFlagCommand.ExecuteAsync(null);
+
+        Assert.False(reader.IsRead);
+        Assert.True(reader.IsFlagged);
+        Assert.False(message.IsRead);
+        Assert.True(message.IsFlagged);
+        Assert.Equal(unread + 1, mailbox.Items[1].Unread);
+        Assert.Equal([(message.Uid, (bool?)false, (bool?)null), (message.Uid, null, true)], _mail.FlagChanges);
+    }
+
+    [Fact]
+    public async Task Remote_images_wait_for_the_reader_to_ask()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        _mail.Contents[3] = Html(3, "<p>Promo</p><img src=\"https://tracker.example/pixel.gif\"><img src=\"https://cdn.example/photo.jpg\">");
+        var reader = mailbox.Reader;
+        var pages = 0;
+        reader.PageChanged += (_, _) => pages++;
+
+        mailbox.Messages.SelectedMessage = mailbox.Messages.Messages.Single(m => m.Uid == 3);
+        await WaitForAsync(() => !reader.IsLoading && reader.Content is not null);
+
+        Assert.Equal(2, reader.BlockedImages);
+        Assert.True(reader.OffersImages);
+        Assert.DoesNotContain("tracker.example", reader.Page, StringComparison.Ordinal);
+
+        reader.ShowImagesCommand.Execute(null);
+
+        Assert.Contains("https://tracker.example/pixel.gif", reader.Page, StringComparison.Ordinal);
+        Assert.Contains(QuaiMail.Core.Reading.ReaderPage.RemoteImageSource, reader.Page, StringComparison.Ordinal);
+        Assert.False(reader.OffersImages);
+        Assert.True(pages >= 2);
+    }
+
+    [Fact]
+    public async Task With_the_setting_off_remote_images_are_shown_directly()
+    {
+        _settings.Update(s => s.BlockRemoteImages = false);
+        var (mailbox, _) = await OpenInboxAsync();
+        _mail.Contents[3] = Html(3, "<img src=\"https://cdn.example/photo.jpg\">");
+
+        mailbox.Messages.SelectedMessage = mailbox.Messages.Messages.Single(m => m.Uid == 3);
+        await WaitForAsync(() => !mailbox.Reader.IsLoading && mailbox.Reader.Content is not null);
+
+        Assert.Contains("https://cdn.example/photo.jpg", mailbox.Reader.Page, StringComparison.Ordinal);
+        Assert.Equal(0, mailbox.Reader.BlockedImages);
+    }
+
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("file:///C:/Windows/System32/calc.exe")]
+    [InlineData("ms-settings:privacy")]
+    public async Task Other_link_schemes_are_refused_without_asking(string url)
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+
+        Assert.False(await mailbox.Reader.OpenLinkAsync(new Uri(url)));
+
+        Assert.Empty(_dialogs.Confirmations);
+        Assert.Empty(Launcher.Opened);
+    }
+
+    [Fact]
+    public async Task A_link_opens_in_the_browser_only_after_showing_its_real_address()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        var link = new Uri("https://evil.example/connexion?banque=1");
+
+        _dialogs.ConfirmAnswer = false;
+        Assert.False(await mailbox.Reader.OpenLinkAsync(link));
+        Assert.Empty(Launcher.Opened);
+
+        _dialogs.ConfirmAnswer = true;
+        Assert.True(await mailbox.Reader.OpenLinkAsync(link));
+        Assert.Equal([link], Launcher.Opened);
+        Assert.All(_dialogs.Confirmations, c => Assert.Equal("Link_Message(https://evil.example/connexion?banque=1,evil.example)", c.Message));
+    }
+
+    [Fact]
+    public async Task Attachments_are_saved_atomically_and_executables_need_a_second_thought()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        var builder = new MimeKit.BodyBuilder { TextBody = "Voir pièces jointes" };
+        builder.Attachments.Add("facture.pdf", "contenu PDF"u8.ToArray());
+        builder.Attachments.Add("outil.exe", "MZ binaire"u8.ToArray());
+        _mail.Contents[3] = new MimeKit.MimeMessage([new MimeKit.MailboxAddress("Bob", "bob@example.org")], [], "Pièces jointes", builder.ToMessageBody());
+        var reader = mailbox.Reader;
+        mailbox.Messages.SelectedMessage = mailbox.Messages.Messages.Single(m => m.Uid == 3);
+        await WaitForAsync(() => !reader.IsLoading && reader.HasAttachments);
+
+        Assert.Equal(["facture.pdf", "outil.exe"], reader.Attachments.Select(a => a.FileName));
+        Assert.Equal(11, reader.Attachments[0].Size);
+        Assert.False(reader.Attachments[0].IsExecutable);
+        Assert.True(reader.Attachments[1].IsExecutable);
+
+        var target = Path.Combine(_temp.Path, "facture.pdf");
+        Files.Answer = target;
+        Assert.Equal(target, await reader.SaveAttachmentAsync(reader.Attachments[0]));
+        Assert.Equal("contenu PDF", File.ReadAllText(target));
+        Assert.Empty(_dialogs.Confirmations);
+        Assert.Empty(Directory.GetFiles(_temp.Path, "*.tmp"));
+
+        _dialogs.ConfirmAnswer = false;
+        Files.Answer = Path.Combine(_temp.Path, "outil.exe");
+        Assert.Null(await reader.SaveAttachmentAsync(reader.Attachments[1]));
+        Assert.True(Assert.Single(_dialogs.Confirmations).Destructive);
+        Assert.False(File.Exists(Files.Answer));
+        Assert.Equal(["facture.pdf"], Files.Suggested);
+        Assert.Empty(Launcher.Opened);
+    }
+
+    [Fact]
+    public async Task A_plain_text_mail_is_shown_with_clickable_links_and_nothing_active()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        _mail.Contents[3] = new MimeKit.MimeMessage([new MimeKit.MailboxAddress("Bob", "bob@example.org")], [], "Texte",
+            new MimeKit.TextPart("plain") { Text = "Bonjour <script>alert(1)</script>\nVoir https://example.org/page" });
+
+        mailbox.Messages.SelectedMessage = mailbox.Messages.Messages.Single(m => m.Uid == 3);
+        await WaitForAsync(() => !mailbox.Reader.IsLoading && mailbox.Reader.Content is not null);
+
+        Assert.Contains("href=\"https://example.org/page\"", mailbox.Reader.Page, StringComparison.Ordinal);
+        Assert.Contains("&lt;script&gt;", mailbox.Reader.Page, StringComparison.Ordinal);
+        Assert.Contains("mail-plain", mailbox.Reader.Page, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_message_open_before_an_update_is_opened_again()
+    {
+        var account = AddAccount("alice@example.org");
+        _mail.Folders[account.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 0, 3)];
+        _mail.Messages["INBOX"] = [Header(1), Header(2), Header(3)];
+        _shell.SelectedAccountId = account.Id;
+        _shell.SelectedFolderPath = "INBOX";
+        _shell.OpenMessageId = "2";
+        var mailbox = Mailbox();
+
+        await mailbox.LoadAsync();
+        await WaitForAsync(() => mailbox.Reader.Content is { Uid: 2 });
+
+        Assert.Equal(2u, mailbox.Messages.SelectedMessage?.Uid);
+    }
+
+    [Fact]
+    public async Task Another_folder_closes_the_open_message()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        _mail.Folders[account.Id].Add(new MailFolderInfo("Envoyés", "Envoyés", 0, FolderRole.Sent, true, 0, 0));
+        await mailbox.RefreshAsync();
+        mailbox.Messages.SelectedMessage = mailbox.Messages.Messages[0];
+        await WaitForAsync(() => mailbox.Reader.HasMessage && !mailbox.Reader.IsLoading);
+
+        mailbox.SelectedItem = mailbox.Items.Single(i => i.Folder?.FullName == "Envoyés");
+
+        Assert.False(mailbox.Reader.HasMessage);
+        Assert.Null(mailbox.Messages.SelectedMessage);
+    }
+
+    private async Task<(MailboxViewModel Mailbox, Account Account)> OpenInboxAsync()
+    {
+        var account = AddAccount("alice@example.org");
+        _mail.Folders[account.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 2, 4)];
+        _mail.Messages["INBOX"] = [Header(1), Header(2), Header(3), Header(4)];
+        var mailbox = Mailbox();
+        await mailbox.LoadAsync();
+        await WaitForAsync(() => !mailbox.Messages.IsLoading && mailbox.Messages.Messages.Count == 4);
+        return (mailbox, account);
+    }
+
+    private static MimeKit.MimeMessage Html(uint uid, string html) =>
+        new([new MimeKit.MailboxAddress("Bob", "bob@example.org")], [], $"Objet {uid}", new MimeKit.TextPart("html") { Text = html });
+
+    [Fact]
     public void Dates_are_short_and_readable()
     {
         var now = new DateTimeOffset(2026, 11, 25, 15, 0, 0, TimeSpan.Zero);
@@ -229,8 +433,17 @@ public sealed class MailViewModelsTests : IDisposable
         Assert.Equal(string.Empty, MessageItemViewModel.ShortDate(DateTimeOffset.MinValue, now));
     }
 
+    private readonly JsonSettingsService _settings = new(Path.Combine(Path.GetTempPath(), "quai-mail-tests-" + Guid.NewGuid().ToString("N"), "settings.json"));
+
+    internal FakeFileDialogs Files { get; } = new();
+
+    internal FakeLauncher Launcher { get; } = new();
+
     private MailboxViewModel Mailbox() =>
-        new(_accounts, _credentials, _mail, _cache, _shell, new MessageListViewModel(_mail, _cache, new KeyStrings(), new FixedTime(Now)), _dialogs, new KeyStrings());
+        new(_accounts, _credentials, _mail, _cache, _shell, new MessageListViewModel(_mail, _cache, new KeyStrings(), new FixedTime(Now)), Reader(), _dialogs, new KeyStrings());
+
+    private ReaderViewModel Reader() =>
+        new(_mail, _settings, _dialogs, Files, Launcher, new KeyStrings(), new QuaiMail.Core.Reading.ReaderTemplate(File.ReadAllText(Reading.HtmlCleanerTests.TemplatePath())));
 
     private Account AddAccount(string address)
     {

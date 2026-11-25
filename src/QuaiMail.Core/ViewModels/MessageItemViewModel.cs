@@ -1,10 +1,11 @@
 using System.Globalization;
+using CommunityToolkit.Mvvm.ComponentModel;
 using QuaiMail.Core.Mail;
 
 namespace QuaiMail.Core.ViewModels;
 
-/// <summary>Une ligne de la liste des mails.</summary>
-public sealed class MessageItemViewModel
+/// <summary>Une ligne de la liste des mails (lu / non lu et étoile suivent les changements faits à la lecture).</summary>
+public sealed partial class MessageItemViewModel : ObservableObject
 {
     public MessageItemViewModel(MessageHeader header, string noSubject, DateTimeOffset now)
     {
@@ -13,7 +14,10 @@ public sealed class MessageItemViewModel
         DateText = ShortDate(header.Date, now);
     }
 
-    public MessageHeader Header { get; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRead))]
+    [NotifyPropertyChangedFor(nameof(IsFlagged))]
+    public partial MessageHeader Header { get; set; }
 
     public uint Uid => Header.Uid;
 

@@ -9,6 +9,7 @@ using QuaiMail.Core.Accounts;
 using QuaiMail.Core.Cache;
 using QuaiMail.Core.Drafts;
 using QuaiMail.Core.Mail;
+using QuaiMail.Core.Services;
 using QuaiMail.Core.Storage;
 using QuaiMail.Core.Updates;
 using QuaiMail.Core.ViewModels;
@@ -291,6 +292,8 @@ internal static class SmokeTest
         await Task.Delay(1000);
         await CaptureAsync(hwnd, directory, "8-boite-de-reception.png", report);
 
+        await ReadingAsync(window, services, dialogs, hwnd, directory, report);
+
         await WithTimeout(messages.LoadMoreCommand.ExecuteAsync(null), "mails plus anciens");
         Check(messages.Messages.Count == 2 * MessageListViewModel.PageSize, $"page suivante : {messages.Messages.Count} mails");
 
@@ -315,6 +318,85 @@ internal static class SmokeTest
         Check(await WithTimeout(removing, "retrait du compte"), "compte non retiré");
         Check(mailbox.HasNoAccount && credentials.GetPassword(account.Id) is null && cache.GetFolders(account.Id).Count == 0, "le compte retiré a laissé des traces");
         report.Add("Retrait du compte : confirmé, réglages, mot de passe et cache effacés");
+    }
+
+    /// <summary>
+    /// Lecture dans la WebView2 verrouillée, avec un mail piégé (script, cadre, formulaire, pixel espion, lien trompeur,
+    /// exécutable joint) : réglages verrouillés, rien ne sort de l'hôte local, navigation forcée annulée, lien ouvert
+    /// seulement après confirmation (refusée ici), images distantes seulement sur demande, pièces jointes enregistrées
+    /// sur demande (l'exécutable après un avertissement, refusé ici), lu / non lu et étoile.
+    /// </summary>
+    private static async Task ReadingAsync(MainWindow window, IServiceProvider services, DialogService dialogs, IntPtr hwnd, string directory, List<string> report)
+    {
+        var view = window.Reader;
+        var reader = view.Reader;
+        var messages = window.Messages;
+        var launcher = (SmokeLauncher)services.GetRequiredService<ILauncher>();
+        var mail = (SmokeMailService)services.GetRequiredService<IMailService>();
+        services.GetRequiredService<FileDialogs>().SmokeDirectory = directory;
+
+        await WaitForAsync(() => view.IsReady, "WebView2 de lecture prête");
+        Check(
+            view.Settings is
+            {
+                IsScriptEnabled: false, IsWebMessageEnabled: false, AreDevToolsEnabled: false, AreDefaultContextMenusEnabled: false,
+                AreBrowserAcceleratorKeysEnabled: false, IsGeneralAutofillEnabled: false, IsPasswordAutosaveEnabled: false,
+                IsPinchZoomEnabled: false, AreHostObjectsAllowed: false, AreDefaultScriptDialogsEnabled: false,
+            },
+            "WebView2 de lecture non verrouillée");
+
+        messages.SelectedMessage = messages.Messages.First(m => m.Uid == SmokeMailService.TrappedUid);
+        await WaitForAsync(() => reader.Content is { Uid: SmokeMailService.TrappedUid } && view.LoadedPage is not null, "mail piégé affiché");
+        Check(reader.Subject == "Votre facture de novembre", $"objet affiché : « {reader.Subject} »");
+        Check(reader.BlockedImages >= 1 && reader.OffersImages, $"images distantes bloquées : {reader.BlockedImages}");
+        Check(reader.Attachments.Count == 2 && !reader.Attachments[0].IsExecutable && reader.Attachments[1].IsExecutable, "pièces jointes");
+        await WaitForAsync(() => mail.FlagChanges.Contains((SmokeMailService.TrappedUid, true, null)) && messages.Messages[0].IsRead, "mail marqué lu");
+        await WaitForAsync(() => view.ServedRequests >= 2, "page et image jointe servies par l'hôte local");
+        await Task.Delay(1200);
+        Check(view.RefusedRequests.Count == 0, $"requêtes vers l'extérieur : {string.Join(", ", view.RefusedRequests)}");
+        await CaptureAsync(hwnd, directory, "10-lecture.png", report);
+        report.Add($"Lecture : mail piégé affiché, {reader.BlockedImages} image(s) distante(s) bloquée(s), {view.ServedRequests} ressources locales, aucune requête vers l'extérieur");
+
+        // Navigation forcée (comme une redirection) : annulée, sans question.
+        var cancelled = view.CancelledNavigations;
+        view.TryNavigate("https://evil.example/");
+        await WaitForAsync(() => view.CancelledNavigations > cancelled, "navigation annulée");
+        Check(dialogs.Current is null, "une navigation non demandée ne doit rien proposer");
+
+        // Lien trompeur : la confirmation montre l'adresse réelle ; refusée, rien ne s'ouvre.
+        var link = reader.OpenLinkAsync(new Uri("https://evil.example/connexion"));
+        await WaitForAsync(() => dialogs.Current is not null, "confirmation avant d'ouvrir un lien");
+        await Task.Delay(500);
+        await CaptureAsync(hwnd, directory, "11-lien.png", report);
+        dialogs.Choose(ContentDialogResult.None);
+        Check(!await WithTimeout(link, "lien refusé"), "lien ouvert malgré le refus");
+        Check(launcher.Opened.Count == 0, "le navigateur a été ouvert");
+        report.Add("Liens : navigation forcée annulée, lien ouvert seulement après confirmation (refusée)");
+
+        // Images distantes sur demande (aucun réseau pendant le test : demandées, puis refusées localement).
+        view.OfflineImages = true;
+        reader.ShowImagesCommand.Execute(null);
+        await WaitForAsync(() => view.AllowedRemoteImages > 0, "images distantes demandées");
+        Check(!reader.OffersImages, "bandeau des images encore affiché");
+        report.Add($"Images distantes : chargées seulement après « Afficher les images » ({view.AllowedRemoteImages} demandée(s))");
+
+        // Pièces jointes : enregistrement d'un bloc ; exécutable signalé (refusé ici), jamais ouvert.
+        var saved = await WithTimeout(reader.SaveAttachmentAsync(reader.Attachments[0]), "enregistrement de la pièce jointe");
+        Check(saved is not null && File.ReadAllText(saved) == "%PDF-1.7 facture de test", "pièce jointe enregistrée à l'identique");
+        var executable = reader.SaveAttachmentAsync(reader.Attachments[1]);
+        await WaitForAsync(() => dialogs.Current is not null, "avertissement avant d'enregistrer un exécutable");
+        await Task.Delay(500);
+        await CaptureAsync(hwnd, directory, "12-piece-jointe.png", report);
+        dialogs.Choose(ContentDialogResult.None);
+        Check(await WithTimeout(executable, "exécutable refusé") is null && !File.Exists(Path.Combine(directory, "mise-a-jour.exe")), "exécutable enregistré malgré le refus");
+        report.Add("Pièces jointes : enregistrée à l'identique ; exécutable signalé, rien enregistré sans accord");
+
+        // Étoile, puis non lu : la liste et le compteur suivent.
+        await reader.ToggleFlagCommand.ExecuteAsync(null);
+        await reader.ToggleReadCommand.ExecuteAsync(null);
+        Check(messages.Messages[0] is { IsFlagged: true, IsRead: false }, "étoile et non lu dans la liste");
+        Check(mail.FlagChanges.Contains((SmokeMailService.TrappedUid, null, true)) && mail.FlagChanges.Contains((SmokeMailService.TrappedUid, false, null)), "drapeaux envoyés au serveur");
+        report.Add("Lu / non lu et étoile : OK");
     }
 
     /// <summary>Bandeau de mise à jour : une release plus récente (fictive, sans réseau) l'affiche.</summary>

@@ -54,8 +54,13 @@ public sealed class FakeDialogService : QuaiMail.Core.Services.IDialogService
 
     public bool ConfirmAnswer { get; set; } = true;
 
-    public Task<bool> ConfirmAsync(string title, string message, string confirmText, bool isDestructive = false) =>
-        Task.FromResult(ConfirmAnswer);
+    public List<(string Title, string Message, bool Destructive)> Confirmations { get; } = [];
+
+    public Task<bool> ConfirmAsync(string title, string message, string confirmText, bool isDestructive = false)
+    {
+        Confirmations.Add((title, message, isDestructive));
+        return Task.FromResult(ConfirmAnswer);
+    }
 
     public Task ShowErrorAsync(string title, string message)
     {
@@ -128,9 +133,58 @@ public sealed class FakeMailService : QuaiMail.Core.Mail.IMailService
         return new QuaiMail.Core.Mail.MessagePage(1, all.Count, page);
     }
 
+    /// <summary>Mails complets par UID.</summary>
+    public Dictionary<uint, MimeKit.MimeMessage> Contents { get; } = [];
+
+    public List<(uint Uid, bool? Seen, bool? Flagged)> FlagChanges { get; } = [];
+
+    public Task<QuaiMail.Core.Reading.MessageContent> GetMessageAsync(QuaiMail.Core.Accounts.Account account, string folder, uint uid, CancellationToken cancellationToken = default)
+    {
+        Calls.Add($"message {folder} {uid}");
+        if (Failure is not null)
+        {
+            return Task.FromException<QuaiMail.Core.Reading.MessageContent>(Failure);
+        }
+
+        var message = Contents.GetValueOrDefault(uid) ?? new MimeKit.MimeMessage([new MimeKit.MailboxAddress("Bob", "bob@example.org")], [], $"Objet {uid}", new MimeKit.TextPart("plain") { Text = $"Corps {uid}" });
+        return Task.FromResult(QuaiMail.Core.Reading.MessageContent.FromMime(uid, message));
+    }
+
+    public Task SetFlagsAsync(QuaiMail.Core.Accounts.Account account, string folder, uint uid, bool? seen, bool? flagged, CancellationToken cancellationToken = default)
+    {
+        FlagChanges.Add((uid, seen, flagged));
+        return Failure is null ? Task.CompletedTask : Task.FromException(Failure);
+    }
+
     public Task DisconnectAsync(string accountId)
     {
         Calls.Add("disconnect " + accountId);
         return Task.CompletedTask;
+    }
+}
+
+/// <summary>Sélecteur de fichiers scripté.</summary>
+public sealed class FakeFileDialogs : QuaiMail.Core.Services.IFileDialogs
+{
+    public string? Answer { get; set; }
+
+    public List<string> Suggested { get; } = [];
+
+    public Task<string?> PickSaveLocationAsync(string suggestedFileName)
+    {
+        Suggested.Add(suggestedFileName);
+        return Task.FromResult(Answer);
+    }
+}
+
+/// <summary>Navigateur factice : note ce qui aurait été ouvert.</summary>
+public sealed class FakeLauncher : QuaiMail.Core.Services.ILauncher
+{
+    public List<Uri> Opened { get; } = [];
+
+    public bool Open(Uri uri)
+    {
+        Opened.Add(uri);
+        return true;
     }
 }

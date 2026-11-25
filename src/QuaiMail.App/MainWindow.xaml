@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:l="using:QuaiMail.App.Localization"
     xmlns:ui="using:QuaiMail.App"
+    xmlns:views="using:QuaiMail.App.Views"
     xmlns:vm="using:QuaiMail.Core.ViewModels">
 
     <Window.SystemBackdrop>
@@ -206,11 +207,12 @@
                             Grid.Row="3"
                             AutomationProperties.Name="{l:Str Key=Pane_Messages}"
                             ItemsSource="{x:Bind Messages.Messages}"
+                            SelectedItem="{x:Bind Messages.SelectedMessage, Mode=OneWay}"
                             SelectionChanged="OnMessageSelectionChanged"
                             Style="{StaticResource MessageListStyle}">
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:MessageItemViewModel">
-                                    <Grid AutomationProperties.Name="{x:Bind ui:UiHelpers.MessageName(Sender, Subject, DateText, IsRead)}" Style="{StaticResource MessageItemStyle}">
+                                    <Grid AutomationProperties.Name="{x:Bind ui:UiHelpers.MessageName(Sender, Subject, DateText, IsRead), Mode=OneWay}" Style="{StaticResource MessageItemStyle}">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
@@ -220,20 +222,20 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock
-                                            FontWeight="{x:Bind ui:UiHelpers.StrongIfUnread(IsRead)}"
+                                            FontWeight="{x:Bind ui:UiHelpers.StrongIfUnread(IsRead), Mode=OneWay}"
                                             Style="{StaticResource MessageSenderStyle}"
                                             Text="{x:Bind Sender}" />
                                         <StackPanel Grid.Column="1" Style="{StaticResource MessageMetaStyle}">
                                             <FontIcon
                                                 Glyph="&#xE734;"
                                                 Style="{StaticResource FlagIconStyle}"
-                                                Visibility="{x:Bind ui:UiHelpers.VisibleIf(IsFlagged)}" />
+                                                Visibility="{x:Bind ui:UiHelpers.VisibleIf(IsFlagged), Mode=OneWay}" />
                                             <TextBlock Style="{StaticResource MessageDateStyle}" Text="{x:Bind DateText}" />
                                         </StackPanel>
                                         <TextBlock
                                             Grid.Row="1"
                                             Grid.ColumnSpan="2"
-                                            FontWeight="{x:Bind ui:UiHelpers.StrongIfUnread(IsRead)}"
+                                            FontWeight="{x:Bind ui:UiHelpers.StrongIfUnread(IsRead), Mode=OneWay}"
                                             Style="{StaticResource MessageSubjectStyle}"
                                             Text="{x:Bind Subject}" />
                                     </Grid>
@@ -273,28 +275,18 @@
                         Style="{StaticResource ReaderPaneStyle}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <TextBlock Style="{StaticResource SurfaceHeaderStyle}" Text="{l:Str Key=Pane_Reader}" />
 
                         <!-- Brouillon en cours (gardé et rouvert après une mise à jour). -->
-                        <Border
-                            Grid.Row="1"
-                            Style="{StaticResource DraftCardStyle}"
-                            Visibility="{x:Bind ui:UiHelpers.VisibleIf(Shell.HasDraft), Mode=OneWay}">
+                        <Border Style="{StaticResource DraftCardStyle}" Visibility="{x:Bind ui:UiHelpers.VisibleIf(Shell.HasDraft), Mode=OneWay}">
                             <StackPanel Style="{StaticResource DraftCardPanelStyle}">
                                 <TextBlock Style="{StaticResource DraftCardLabelStyle}" Text="{l:Str Key=Draft_Current}" />
                                 <TextBlock Style="{StaticResource DraftCardTitleStyle}" Text="{x:Bind Shell.DraftTitle, Mode=OneWay}" />
                             </StackPanel>
                         </Border>
 
-                        <StackPanel Grid.Row="2" Style="{StaticResource EmptyStatePanelStyle}">
-                            <FontIcon Glyph="&#xE715;" Style="{StaticResource EmptyStateIconStyle}" />
-                            <TextBlock Style="{StaticResource EmptyStateTitleStyle}" Text="{l:Str Key=Reader_EmptyTitle}" />
-                            <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Reader_EmptyHint}" />
-                            <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Reader_ComingSoon}" />
-                        </StackPanel>
+                        <views:ReaderView x:Name="ReaderPane" Grid.Row="1" />
                     </Grid>
                 </Grid>
             </Border>

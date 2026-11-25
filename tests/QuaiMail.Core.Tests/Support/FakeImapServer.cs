@@ -6,7 +6,14 @@ using QuaiMail.Core.Accounts;
 namespace QuaiMail.Core.Tests.Support;
 
 /// <summary>Un mail du faux serveur.</summary>
-public sealed record FakeMessage(uint Uid, string Subject, string FromName, string FromAddress, DateTimeOffset Date, bool Seen = false, bool Flagged = false, int Size = 1200);
+public sealed record FakeMessage(uint Uid, string Subject, string FromName, string FromAddress, DateTimeOffset Date, bool Seen = false, bool Flagged = false, int Size = 1200)
+{
+    /// <summary>Mail complet (MIME) ; à défaut, un simple mail texte est fabriqué.</summary>
+    public byte[]? Raw { get; init; }
+
+    public byte[] Mime() => Raw ?? Encoding.UTF8.GetBytes(
+        $"From: \"{FromName}\" <{FromAddress}>\r\nTo: alice@example.org\r\nSubject: {Subject}\r\nDate: {Date:R}\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nCorps du message {Uid}.\r\n");
+}
 
 /// <summary>Un dossier du faux serveur.</summary>
 public sealed class FakeFolder(string name, params string[] attributes)
@@ -132,12 +139,22 @@ public sealed partial class FakeImapServer : FakeServer
                         "* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n"
                         + $"* {folder.Messages.Count} EXISTS\r\n* 0 RECENT\r\n"
                         + $"* OK [UIDVALIDITY {folder.UidValidity}] UID valides\r\n* OK [UIDNEXT {next}] UID suivant\r\n"
-                        + $"{tag} OK [READ-ONLY] {command} terminé\r\n",
+                        + $"{tag} OK [{(command == "SELECT" ? "READ-WRITE" : "READ-ONLY")}] {command} terminé\r\n",
                         cancellationToken);
                     break;
 
                 case "FETCH" when selected is not null && args.Count >= 3:
                     await connection.WriteAsync(Fetch(selected, args[1], byUid: false) + $"{tag} OK FETCH terminé\r\n", cancellationToken);
+                    break;
+
+                case "UID FETCH" when selected is not null && args.Count >= 3 && args[2].Contains("BODY", StringComparison.OrdinalIgnoreCase):
+                    await WriteBodiesAsync(connection, selected, args[1], cancellationToken);
+                    await connection.WriteAsync($"{tag} OK UID FETCH terminé\r\n", cancellationToken);
+                    break;
+
+                case "UID STORE" when selected is not null && args.Count >= 4:
+                    Store(selected, args[1], args[2], args[3]);
+                    await connection.WriteAsync($"{tag} OK UID STORE terminé\r\n", cancellationToken);
                     break;
 
                 case "UID FETCH" when selected is not null && args.Count >= 3:
@@ -225,6 +242,46 @@ public sealed partial class FakeImapServer : FakeServer
         }
 
         return builder.ToString();
+    }
+
+    private static async Task WriteBodiesAsync(Connection connection, FakeFolder folder, string set, CancellationToken cancellationToken)
+    {
+        var max = folder.Messages.Count == 0 ? 0 : folder.Messages.Max(m => m.Uid);
+        for (var index = 0; index < folder.Messages.Count; index++)
+        {
+            var message = folder.Messages[index];
+            if (InSet(set, message.Uid, max))
+            {
+                var mime = message.Mime();
+                await connection.WriteAsync($"* {index + 1} FETCH (UID {message.Uid} BODY[] {{{mime.Length}}}\r\n", cancellationToken);
+                await connection.WriteAsync(mime, cancellationToken);
+                await connection.WriteAsync(")\r\n", cancellationToken);
+            }
+        }
+    }
+
+    /// <summary>Change les drapeaux \\Seen et \\Flagged (seuls gérés) ; tout le reste est ignoré.</summary>
+    private static void Store(FakeFolder folder, string set, string action, string flags)
+    {
+        var max = folder.Messages.Count == 0 ? 0 : folder.Messages.Max(m => m.Uid);
+        var add = action.StartsWith('+');
+        var remove = action.StartsWith('-');
+        for (var index = 0; index < folder.Messages.Count; index++)
+        {
+            var message = folder.Messages[index];
+            if (!InSet(set, message.Uid, max))
+            {
+                continue;
+            }
+
+            var seen = flags.Contains("\\Seen", StringComparison.OrdinalIgnoreCase);
+            var flagged = flags.Contains("\\Flagged", StringComparison.OrdinalIgnoreCase);
+            folder.Messages[index] = message with
+            {
+                Seen = seen ? add || (!remove && message.Seen) : message.Seen,
+                Flagged = flagged ? add || (!remove && message.Flagged) : message.Flagged,
+            };
+        }
     }
 
     private static bool InSet(string set, uint value, uint max)

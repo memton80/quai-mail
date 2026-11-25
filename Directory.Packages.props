@@ -12,6 +12,8 @@
     -->
     <!-- IMAP / SMTP (MIT), avec MimeKit (MIT) pour le format des mails. -->
     <PackageVersion Include="MailKit" Version="5.0.0" />
+    <!-- Nettoyage du HTML des mails (MIT), avec AngleSharp et AngleSharp.Css (MIT). -->
+    <PackageVersion Include="HtmlSanitizer" Version="11.0.26" />
     <!-- Cache local (MIT) ; SQLite natif par SQLitePCLRaw (Apache-2.0) et SQLite (domaine public). -->
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="11.0.0" />
     <!-- Comparaison des versions pour les mises à jour (règles SemVer), comme Quai. -->

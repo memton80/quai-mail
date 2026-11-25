@@ -13,6 +13,8 @@
     <PackageReference Include="Semver" />
     <!-- IMAP / SMTP et format des mails. -->
     <PackageReference Include="MailKit" />
+    <!-- Nettoyage du HTML des mails avant affichage. -->
+    <PackageReference Include="HtmlSanitizer" />
     <!-- Cache local des dossiers et des en-têtes (effaçable sans perte). -->
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="CommunityToolkit.Mvvm" />

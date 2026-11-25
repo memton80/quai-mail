@@ -27,6 +27,7 @@ public sealed partial class MessageListViewModel : ObservableObject
     private Account? _account;
     private MailFolderInfo? _folder;
     private int _total;
+    private uint _uidValidity;
 
     public MessageListViewModel(IMailService mail, MailCache cache, IStrings strings, TimeProvider? time = null, ILogger<MessageListViewModel>? logger = null)
     {
@@ -65,6 +66,10 @@ public sealed partial class MessageListViewModel : ObservableObject
 
     public bool IsEmpty => HasFolder && !IsLoading && Messages.Count == 0;
 
+    /// <summary>Mail choisi dans la liste (ouvert dans le volet de lecture).</summary>
+    [ObservableProperty]
+    public partial MessageItemViewModel? SelectedMessage { get; set; }
+
     public string? AccountId => _account?.Id;
 
     public string? FolderName => _folder?.FullName;
@@ -73,6 +78,12 @@ public sealed partial class MessageListViewModel : ObservableObject
     public async Task ShowAsync(Account account, MailFolderInfo folder, string title)
     {
         var cancellation = Restart();
+        if (_account?.Id != account.Id || _folder?.FullName != folder.FullName)
+        {
+            // Autre dossier : rien de choisi (un même UID n'y désigne pas le même mail).
+            SelectedMessage = null;
+        }
+
         _account = account;
         _folder = folder;
         _total = 0;
@@ -92,6 +103,7 @@ public sealed partial class MessageListViewModel : ObservableObject
             }
 
             _total = page.Total;
+            _uidValidity = page.UidValidity;
             _cache.SaveMessages(account.Id, folder.FullName, page.UidValidity, page.Messages);
             Replace(page.Messages);
             HasMore = page.Total > Messages.Count;
@@ -135,6 +147,7 @@ public sealed partial class MessageListViewModel : ObservableObject
             }
 
             _total = page.Total;
+            _uidValidity = page.UidValidity;
             _cache.SaveMessages(account.Id, folder.FullName, page.UidValidity, page.Messages);
             var known = Messages.Select(m => m.Uid).ToHashSet();
             var now = _time.GetUtcNow();
@@ -161,12 +174,34 @@ public sealed partial class MessageListViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Lu / non lu ou étoile changé à la lecture : la ligne et le cache suivent.
+    /// </summary>
+    /// <returns>L'en-tête d'avant, ou <c>null</c> si ce mail n'est pas dans la liste.</returns>
+    public MessageHeader? UpdateHeader(MessageHeader header)
+    {
+        if (Messages.FirstOrDefault(m => m.Uid == header.Uid) is not { } item)
+        {
+            return null;
+        }
+
+        var previous = item.Header;
+        item.Header = header;
+        if (_account is { } account && _folder is { } folder && _uidValidity != 0)
+        {
+            _cache.SaveMessages(account.Id, folder.FullName, _uidValidity, [header]);
+        }
+
+        return previous;
+    }
+
     /// <summary>Plus aucun dossier choisi (compte supprimé…).</summary>
     public void Clear()
     {
         Restart();
         _account = null;
         _folder = null;
+        SelectedMessage = null;
         Messages.Clear();
         Title = _strings.Get("Pane_Messages");
         HasFolder = false;
@@ -187,6 +222,7 @@ public sealed partial class MessageListViewModel : ObservableObject
 
     private void Replace(IReadOnlyList<MessageHeader> headers)
     {
+        var selected = SelectedMessage?.Uid;
         Messages.Clear();
         var now = _time.GetUtcNow();
         var noSubject = _strings.Get("Draft_NoSubject");
@@ -195,6 +231,8 @@ public sealed partial class MessageListViewModel : ObservableObject
             Messages.Add(new MessageItemViewModel(header, noSubject, now));
         }
 
+        // Liste rafraîchie (cache puis serveur) : le mail ouvert reste choisi.
+        SelectedMessage = Messages.FirstOrDefault(m => m.Uid == selected);
         OnPropertyChanged(nameof(IsEmpty));
     }
 }

@@ -46,7 +46,7 @@
     <value>Aucun mail ouvert</value>
   </data>
   <data name="Reader_EmptyHint" xml:space="preserve">
-    <value>Le mail choisi dans la liste s'affiche ici.</value>
+    <value>Choisissez un mail dans la liste pour le lire ici.</value>
   </data>
   <data name="Draft_Current" xml:space="preserve">
     <value>Brouillon en cours</value>
@@ -321,13 +321,105 @@
   <data name="Pane_NoFolderTitle" xml:space="preserve">
     <value>Aucun dossier choisi</value>
   </data>
-  <data name="Reader_ComingSoon" xml:space="preserve">
-    <value>La lecture des mails arrive dans la prochaine version de Quai Mail.</value>
-  </data>
   <data name="Settings_ClearCache" xml:space="preserve">
     <value>Vider le cache</value>
   </data>
   <data name="Settings_ClearCacheDescription" xml:space="preserve">
     <value>Efface les dossiers et en-têtes gardés sur cet ordinateur ; tout est relu sur vos serveurs, rien n'est perdu.</value>
+  </data>
+  <data name="Link_Title" xml:space="preserve">
+    <value>Ouvrir ce lien ?</value>
+  </data>
+  <data name="Link_MailTitle" xml:space="preserve">
+    <value>Écrire à cette adresse ?</value>
+  </data>
+  <data name="Link_Message" xml:space="preserve">
+    <value>Adresse réelle du lien :
+{0}
+
+Site : {1}
+
+Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le seulement si vous reconnaissez ce site.</value>
+  </data>
+  <data name="Link_Open" xml:space="preserve">
+    <value>Ouvrir</value>
+  </data>
+  <data name="Attachment_DangerTitle" xml:space="preserve">
+    <value>Pièce jointe potentiellement dangereuse</value>
+  </data>
+  <data name="Attachment_DangerMessage" xml:space="preserve">
+    <value>« {0} » peut lancer un programme sur votre ordinateur. Ne l'enregistrez que si vous attendiez ce fichier de cet expéditeur. Quai Mail ne l'ouvrira jamais lui-même.</value>
+  </data>
+  <data name="Attachment_SaveAnyway" xml:space="preserve">
+    <value>Enregistrer quand même</value>
+  </data>
+  <data name="Attachment_SaveFailedTitle" xml:space="preserve">
+    <value>Pièce jointe non enregistrée</value>
+  </data>
+  <data name="Attachment_SaveFailedMessage" xml:space="preserve">
+    <value>Quai Mail n'a pas pu écrire ce fichier à cet emplacement. Choisissez un autre dossier.</value>
+  </data>
+  <data name="Attachment_SaveTooltip" xml:space="preserve">
+    <value>Enregistrer la pièce jointe…</value>
+  </data>
+  <data name="Attachment_Name" xml:space="preserve">
+    <value>{0}, {1}, pièce jointe</value>
+  </data>
+  <data name="Attachment_NameDanger" xml:space="preserve">
+    <value>{0}, {1}, pièce jointe exécutable</value>
+  </data>
+  <data name="Reader_TemplateError" xml:space="preserve">
+    <value>Le gabarit de lecture est introuvable ou modifié : réinstallez Quai Mail.</value>
+  </data>
+  <data name="Reader_To" xml:space="preserve">
+    <value>À : {0}</value>
+  </data>
+  <data name="Reader_Cc" xml:space="preserve">
+    <value>Cc : {0}</value>
+  </data>
+  <data name="Reader_MarkUnread" xml:space="preserve">
+    <value>Marquer comme non lu</value>
+  </data>
+  <data name="Reader_MarkRead" xml:space="preserve">
+    <value>Marquer comme lu</value>
+  </data>
+  <data name="Reader_Flag" xml:space="preserve">
+    <value>Ajouter une étoile</value>
+  </data>
+  <data name="Reader_Unflag" xml:space="preserve">
+    <value>Retirer l'étoile</value>
+  </data>
+  <data name="Reader_BlockedImages" xml:space="preserve">
+    <value>Images distantes bloquées ({0}) : l'expéditeur ne sait pas que vous lisez ce mail.</value>
+  </data>
+  <data name="Reader_ShowImages" xml:space="preserve">
+    <value>Afficher les images</value>
+  </data>
+  <data name="Reader_Loading" xml:space="preserve">
+    <value>Chargement du mail</value>
+  </data>
+  <data name="Reader_Body" xml:space="preserve">
+    <value>Contenu du mail</value>
+  </data>
+  <data name="Reader_RuntimeMissingTitle" xml:space="preserve">
+    <value>WebView2 introuvable</value>
+  </data>
+  <data name="Reader_RuntimeMissing" xml:space="preserve">
+    <value>Le moteur d'affichage WebView2 de Microsoft est absent : les mails ne peuvent pas s'afficher. Il est déjà présent sur Windows 11 et sur la plupart des Windows 10 ; installez-le depuis le site officiel de Microsoft.</value>
+  </data>
+  <data name="Reader_RuntimeLink" xml:space="preserve">
+    <value>Télécharger WebView2 (site de Microsoft)</value>
+  </data>
+  <data name="Picker_FileType" xml:space="preserve">
+    <value>Fichier {0}</value>
+  </data>
+  <data name="Size_Bytes" xml:space="preserve">
+    <value>{0} o</value>
+  </data>
+  <data name="Size_Kilobytes" xml:space="preserve">
+    <value>{0} Ko</value>
+  </data>
+  <data name="Size_Megabytes" xml:space="preserve">
+    <value>{0} Mo</value>
   </data>
 </root>

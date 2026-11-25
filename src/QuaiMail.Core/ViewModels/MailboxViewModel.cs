@@ -35,6 +35,7 @@ public sealed partial class MailboxViewModel : ObservableObject
         MailCache cache,
         ShellViewModel shell,
         MessageListViewModel messages,
+        ReaderViewModel reader,
         IDialogService dialogs,
         IStrings strings,
         ILogger<MailboxViewModel>? logger = null)
@@ -45,14 +46,26 @@ public sealed partial class MailboxViewModel : ObservableObject
         _cache = cache;
         _shell = shell;
         Messages = messages;
+        Reader = reader;
         _dialogs = dialogs;
         _strings = strings;
         _logger = logger ?? (ILogger)NullLogger.Instance;
+        Messages.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MessageListViewModel.SelectedMessage))
+            {
+                OnMessageSelected(Messages.SelectedMessage);
+            }
+        };
+        Reader.HeaderChanged += (_, header) => OnHeaderChanged(header);
     }
 
     public ObservableCollection<NavItemViewModel> Items { get; } = [];
 
     public MessageListViewModel Messages { get; }
+
+    /// <summary>Volet de lecture.</summary>
+    public ReaderViewModel Reader { get; }
 
     [ObservableProperty]
     public partial NavItemViewModel? SelectedItem { get; set; }
@@ -158,6 +171,7 @@ public sealed partial class MailboxViewModel : ObservableObject
 
         if (Messages.AccountId == accountId)
         {
+            Reader.Clear();
             Messages.Clear();
             _shell.SelectedAccountId = null;
             _shell.SelectedFolderPath = null;
@@ -184,7 +198,7 @@ public sealed partial class MailboxViewModel : ObservableObject
         if (shown != default && Items.FirstOrDefault(i => i.Folder is { } f && (i.AccountId, f.FullName) == shown) is { } item
             && _accounts.Find(item.AccountId) is { } owner)
         {
-            await Messages.ShowAsync(owner, item.Folder!, item.Title);
+            await ShowFolderAsync(owner, item.Folder!, item.Title);
         }
     }
 
@@ -222,7 +236,55 @@ public sealed partial class MailboxViewModel : ObservableObject
 
         _shell.SelectedAccountId = account.Id;
         _shell.SelectedFolderPath = folder.FullName;
-        _ = Messages.ShowAsync(account, folder, value.Title);
+        _ = ShowFolderAsync(account, folder, value.Title);
+    }
+
+    /// <summary>Affiche un dossier, puis rouvre le mail noté dans l'état de la fenêtre (après une mise à jour).</summary>
+    private async Task ShowFolderAsync(Account account, MailFolderInfo folder, string title)
+    {
+        Reader.Clear();
+        var toReopen = _shell.OpenMessageId;
+        await Messages.ShowAsync(account, folder, title);
+        if (toReopen is not null && Messages.FolderName == folder.FullName && Messages.SelectedMessage is null
+            && Messages.Messages.FirstOrDefault(m => m.Uid.ToString(System.Globalization.CultureInfo.InvariantCulture) == toReopen) is { } message)
+        {
+            Messages.SelectedMessage = message;
+        }
+    }
+
+    private void OnMessageSelected(MessageItemViewModel? message)
+    {
+        if (message is null)
+        {
+            return;
+        }
+
+        if (_accounts.Find(Messages.AccountId) is not { } account || Messages.FolderName is not { } folder)
+        {
+            return;
+        }
+
+        if (Reader.Content?.Uid == message.Uid && Reader.HasMessage)
+        {
+            return;
+        }
+
+        _shell.OpenMessageId = message.Uid.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _ = Reader.ShowAsync(account, folder, message.Header);
+    }
+
+    /// <summary>Lu / non lu changé : ligne de la liste, cache et compteur du dossier.</summary>
+    private void OnHeaderChanged(MessageHeader header)
+    {
+        if (Messages.UpdateHeader(header) is not { } previous || previous.IsRead == header.IsRead)
+        {
+            return;
+        }
+
+        if (Items.FirstOrDefault(i => i.AccountId == Messages.AccountId && i.Folder?.FullName == Messages.FolderName) is { } item)
+        {
+            item.Unread = Math.Max(0, item.Unread + (header.IsRead ? -1 : 1));
+        }
     }
 
     private bool CanRefresh() => !IsRefreshing;

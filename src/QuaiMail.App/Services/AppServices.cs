@@ -7,6 +7,7 @@ using QuaiMail.Core.Cache;
 using QuaiMail.Core.Drafts;
 using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
+using QuaiMail.Core.Reading;
 using QuaiMail.Core.Services;
 using QuaiMail.Core.Storage;
 using QuaiMail.Core.Updates;
@@ -50,6 +51,8 @@ internal static class AppServices
         services.AddSingleton<DialogService>();
         services.AddSingleton<IDialogService>(provider => provider.GetRequiredService<DialogService>());
         services.AddSingleton<IClipboard, ClipboardService>();
+        services.AddSingleton<FileDialogs>();
+        services.AddSingleton<IFileDialogs>(provider => provider.GetRequiredService<FileDialogs>());
 
         // Comptes et mail. Tests de fumée : données de test en mémoire, ressource du coffre à part, aucun réseau.
         var testing = smokeTest || updateTestInstaller is not null;
@@ -78,6 +81,19 @@ internal static class AppServices
             TimeProvider.System,
             provider.GetService<ILogger<MessageListViewModel>>()));
         services.AddSingleton<MailboxViewModel>();
+
+        // Lecture : gabarit Assets/Mail/reader.html (lu une fois), liens ouverts dans le navigateur après confirmation.
+        services.AddSingleton(new ReaderTemplate(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Assets", "Mail", "reader.html"))));
+        if (testing)
+        {
+            services.AddSingleton<ILauncher, SmokeLauncher>();
+        }
+        else
+        {
+            services.AddSingleton<ILauncher, Launcher>();
+        }
+
+        services.AddSingleton<ReaderViewModel>();
         services.AddTransient<AccountEditorViewModel>();
 
         // Mises à jour (comme Quai) : une requête à l'API publique de GitHub, puis, sur demande, le téléchargement de

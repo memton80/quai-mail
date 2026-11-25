@@ -262,6 +262,97 @@
         <Setter Property="IsIndeterminate" Value="True" />
     </Style>
 
+
+    <!-- Volet de lecture. -->
+    <Style x:Key="ReaderHeaderStyle" TargetType="Grid">
+        <Setter Property="Padding" Value="16,4,12,8" />
+        <Setter Property="ColumnSpacing" Value="12" />
+    </Style>
+
+    <Style x:Key="ReaderHeaderTextStyle" TargetType="StackPanel">
+        <Setter Property="Spacing" Value="2" />
+    </Style>
+
+    <Style
+        x:Key="ReaderSubjectStyle"
+        BasedOn="{StaticResource SubtitleTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="IsTextSelectionEnabled" Value="True" />
+        <Setter Property="Margin" Value="0,0,0,4" />
+    </Style>
+
+    <Style
+        x:Key="ReaderFromStyle"
+        BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="IsTextSelectionEnabled" Value="True" />
+    </Style>
+
+    <Style
+        x:Key="ReaderMetaStyle"
+        BasedOn="{StaticResource CaptionTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="IsTextSelectionEnabled" Value="True" />
+    </Style>
+
+    <Style x:Key="ReaderActionsStyle" TargetType="StackPanel">
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="Spacing" Value="4" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+
+    <Style
+        x:Key="ReaderActionButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="Width" Value="40" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style x:Key="AttachmentsScrollerStyle" TargetType="ScrollViewer">
+        <Setter Property="Padding" Value="16,0,16,8" />
+        <Setter Property="HorizontalScrollMode" Value="Auto" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+        <Setter Property="VerticalScrollMode" Value="Disabled" />
+        <Setter Property="VerticalScrollBarVisibility" Value="Disabled" />
+    </Style>
+
+    <Style
+        x:Key="AttachmentButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="Height" Value="36" />
+        <Setter Property="Padding" Value="12,0" />
+    </Style>
+
+    <Style
+        x:Key="AttachmentNameStyle"
+        BasedOn="{StaticResource BodyTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="MaxWidth" Value="220" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style
+        x:Key="AttachmentSizeStyle"
+        BasedOn="{StaticResource CaptionTextBlockStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="ReaderBodyStyle" TargetType="Border">
+        <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+
     <!-- Brouillon en cours, dans le volet de lecture. -->
     <Style x:Key="DraftCardStyle" TargetType="Border">
         <Setter Property="Margin" Value="16,0,16,16" />

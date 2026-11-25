@@ -42,4 +42,32 @@ public static class UiHelpers
     /// <summary>Nom d'accessibilité d'un mail de la liste (« Non lu, Camille Martin, Réunion de jeudi, 9:30 »).</summary>
     public static string MessageName(string sender, string subject, string date, bool isRead) =>
         Loc.Format(isRead ? "Messages_ItemName" : "Messages_ItemNameUnread", sender, subject, date);
+
+    public static string Recipients(string to) => Loc.Format("Reader_To", to);
+
+    public static string CopyRecipients(string cc) => Loc.Format("Reader_Cc", cc);
+
+    public static string ReadToggleText(bool isRead) => Loc.Get(isRead ? "Reader_MarkUnread" : "Reader_MarkRead");
+
+    /// <summary>Enveloppe fermée pour « marquer non lu », ouverte pour « marquer lu ».</summary>
+    public static string ReadGlyph(bool isRead) => isRead ? "\uE715" : "\uE8C3";
+
+    public static string FlagToggleText(bool isFlagged) => Loc.Get(isFlagged ? "Reader_Unflag" : "Reader_Flag");
+
+    public static string FlagGlyph(bool isFlagged) => isFlagged ? "\uE735" : "\uE734";
+
+    public static string BlockedImagesText(int count) => Loc.Format("Reader_BlockedImages", count);
+
+    public static string AttachmentGlyph(bool isExecutable) => isExecutable ? "\uE7BA" : "\uE723";
+
+    public static string AttachmentName(string fileName, long size, bool isExecutable) =>
+        Loc.Format(isExecutable ? "Attachment_NameDanger" : "Attachment_Name", fileName, FileSize(size));
+
+    /// <summary>Taille lisible (« 820 o », « 12 Ko », « 3,4 Mo »).</summary>
+    public static string FileSize(long bytes) => bytes switch
+    {
+        < 1024 => Loc.Format("Size_Bytes", bytes),
+        < 1024 * 1024 => Loc.Format("Size_Kilobytes", Math.Max(1, (int)Math.Round(bytes / 1024.0))),
+        _ => Loc.Format("Size_Megabytes", Math.Round(bytes / (1024.0 * 1024.0), 1)),
+    };
 }

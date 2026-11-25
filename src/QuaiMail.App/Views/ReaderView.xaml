@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="QuaiMail.App.Views.ReaderView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:l="using:QuaiMail.App.Localization"
+    xmlns:reading="using:QuaiMail.Core.Reading"
+    xmlns:ui="using:QuaiMail.App">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- En-têtes du mail : natifs (pas dans la page web), sélectionnables. -->
+        <Grid Style="{StaticResource ReaderHeaderStyle}" Visibility="{x:Bind ui:UiHelpers.VisibleIf(Reader.HasMessage), Mode=OneWay}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Style="{StaticResource ReaderHeaderTextStyle}">
+                <TextBlock Style="{StaticResource ReaderSubjectStyle}" Text="{x:Bind Reader.Subject, Mode=OneWay}" />
+                <TextBlock Style="{StaticResource ReaderFromStyle}" Text="{x:Bind Reader.From, Mode=OneWay}" />
+                <TextBlock Style="{StaticResource ReaderMetaStyle}" Text="{x:Bind ui:UiHelpers.Recipients(Reader.To), Mode=OneWay}" />
+                <TextBlock
+                    Style="{StaticResource ReaderMetaStyle}"
+                    Text="{x:Bind ui:UiHelpers.CopyRecipients(Reader.Cc), Mode=OneWay}"
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Reader.HasCc), Mode=OneWay}" />
+                <TextBlock Style="{StaticResource ReaderMetaStyle}" Text="{x:Bind Reader.DateText, Mode=OneWay}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Style="{StaticResource ReaderActionsStyle}">
+                <Button
+                    AutomationProperties.Name="{x:Bind ui:UiHelpers.ReadToggleText(Reader.IsRead), Mode=OneWay}"
+                    Command="{x:Bind Reader.ToggleReadCommand}"
+                    Style="{StaticResource ReaderActionButtonStyle}"
+                    ToolTipService.ToolTip="{x:Bind ui:UiHelpers.ReadToggleText(Reader.IsRead), Mode=OneWay}">
+                    <FontIcon Glyph="{x:Bind ui:UiHelpers.ReadGlyph(Reader.IsRead), Mode=OneWay}" Style="{StaticResource ButtonIconStyle}" />
+                </Button>
+                <Button
+                    AutomationProperties.Name="{x:Bind ui:UiHelpers.FlagToggleText(Reader.IsFlagged), Mode=OneWay}"
+                    Command="{x:Bind Reader.ToggleFlagCommand}"
+                    Style="{StaticResource ReaderActionButtonStyle}"
+                    ToolTipService.ToolTip="{x:Bind ui:UiHelpers.FlagToggleText(Reader.IsFlagged), Mode=OneWay}">
+                    <FontIcon Glyph="{x:Bind ui:UiHelpers.FlagGlyph(Reader.IsFlagged), Mode=OneWay}" Style="{StaticResource ButtonIconStyle}" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <ProgressBar
+            Grid.Row="1"
+            AutomationProperties.Name="{l:Str Key=Reader_Loading}"
+            Style="{StaticResource ListBusyBarStyle}"
+            Visibility="{x:Bind ui:UiHelpers.VisibleIf(Reader.IsLoading), Mode=OneWay}" />
+
+        <InfoBar
+            Grid.Row="2"
+            IsOpen="{x:Bind Reader.HasError, Mode=OneWay}"
+            Message="{x:Bind Reader.ErrorMessage, Mode=OneWay}"
+            Severity="Warning"
+            Style="{StaticResource ListInfoBarStyle}" />
+
+        <!-- Images distantes bloquées (pas de pixel espion) : affichées seulement sur demande, pour ce mail. -->
+        <InfoBar
+            Grid.Row="3"
+            IsOpen="{x:Bind Reader.OffersImages, Mode=OneWay}"
+            Message="{x:Bind ui:UiHelpers.BlockedImagesText(Reader.BlockedImages), Mode=OneWay}"
+            Severity="Informational"
+            Style="{StaticResource ListInfoBarStyle}">
+            <InfoBar.ActionButton>
+                <Button Command="{x:Bind Reader.ShowImagesCommand}" Content="{l:Str Key=Reader_ShowImages}" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+
+        <!-- Pièces jointes : enregistrées sur demande, jamais ouvertes. -->
+        <ScrollViewer
+            Grid.Row="4"
+            Style="{StaticResource AttachmentsScrollerStyle}"
+            Visibility="{x:Bind ui:UiHelpers.VisibleIf(Reader.HasAttachments), Mode=OneWay}">
+            <ItemsRepeater ItemsSource="{x:Bind Reader.Attachments}">
+                <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="8" />
+                </ItemsRepeater.Layout>
+                <ItemsRepeater.ItemTemplate>
+                    <DataTemplate x:DataType="reading:AttachmentInfo">
+                        <Button
+                            AutomationProperties.Name="{x:Bind ui:UiHelpers.AttachmentName(FileName, Size, IsExecutable)}"
+                            Click="OnAttachmentClick"
+                            Style="{StaticResource AttachmentButtonStyle}"
+                            ToolTipService.ToolTip="{l:Str Key=Attachment_SaveTooltip}">
+                            <StackPanel Style="{StaticResource ButtonContentStyle}">
+                                <FontIcon Glyph="{x:Bind ui:UiHelpers.AttachmentGlyph(IsExecutable)}" Style="{StaticResource ButtonIconStyle}" />
+                                <TextBlock Style="{StaticResource AttachmentNameStyle}" Text="{x:Bind FileName}" />
+                                <TextBlock Style="{StaticResource AttachmentSizeStyle}" Text="{x:Bind ui:UiHelpers.FileSize(Size)}" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsRepeater.ItemTemplate>
+            </ItemsRepeater>
+        </ScrollViewer>
+
+        <!-- Corps du mail : WebView2 verrouillée (voir ReaderView.xaml.cs). -->
+        <Border Grid.Row="5" Style="{StaticResource ReaderBodyStyle}">
+            <WebView2 x:Name="Body" AutomationProperties.Name="{l:Str Key=Reader_Body}" />
+        </Border>
+
+        <InfoBar
+            x:Name="RuntimeMissing"
+            Grid.Row="5"
+            IsClosable="False"
+            Message="{l:Str Key=Reader_RuntimeMissing}"
+            Severity="Warning"
+            Style="{StaticResource ListInfoBarStyle}"
+            Title="{l:Str Key=Reader_RuntimeMissingTitle}">
+            <InfoBar.ActionButton>
+                <HyperlinkButton Content="{l:Str Key=Reader_RuntimeLink}" NavigateUri="https://developer.microsoft.com/microsoft-edge/webview2/" />
+            </InfoBar.ActionButton>
+        </InfoBar>
+
+        <StackPanel
+            Grid.Row="5"
+            Style="{StaticResource EmptyStatePanelStyle}"
+            Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Reader.HasMessage), Mode=OneWay}">
+            <FontIcon Glyph="&#xE715;" Style="{StaticResource EmptyStateIconStyle}" />
+            <TextBlock Style="{StaticResource EmptyStateTitleStyle}" Text="{l:Str Key=Reader_EmptyTitle}" />
+            <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Reader_EmptyHint}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

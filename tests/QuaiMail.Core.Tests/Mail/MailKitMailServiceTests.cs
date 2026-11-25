@@ -171,6 +171,44 @@ public sealed class MailKitMailServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_whole_message_is_read_without_marking_it_then_flags_change_on_request()
+    {
+        var builder = new MimeKit.BodyBuilder { HtmlBody = "<p>Bonjour <img src=\"cid:logo@example.org\"></p>", TextBody = "Bonjour" };
+        var logo = builder.LinkedResources.Add("logo.png", new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+        logo.ContentId = "logo@example.org";
+        builder.Attachments.Add("devis.pdf", "%PDF-1.7"u8.ToArray());
+        var mime = new MimeKit.MimeMessage([new MimeKit.MailboxAddress("Léa", "lea@example.org")], [new MimeKit.MailboxAddress("Alice", "alice@example.org")], "Devis cuisine", builder.ToMessageBody());
+        using var raw = new MemoryStream();
+        mime.WriteTo(raw);
+        var inbox = _imap.Folder("INBOX");
+        inbox.Messages[^1] = inbox.Messages[^1] with { Raw = raw.ToArray(), Seen = false };
+        var account = Stored();
+
+        var content = await _service.GetMessageAsync(account, "INBOX", 120, TestContext.Current.CancellationToken);
+
+        Assert.Equal("Devis cuisine", content.Subject);
+        Assert.Equal("Léa <lea@example.org>", content.From);
+        Assert.Equal("Alice <alice@example.org>", content.To);
+        Assert.Contains("logo@example.org", content.ContentIds);
+        Assert.Equal("devis.pdf", Assert.Single(content.Attachments).FileName);
+        Assert.Contains($"{QuaiMail.Core.Reading.HtmlCleaner.MessageOrigin}/cid/logo%40example.org", content.BodyHtml(false).Html, StringComparison.Ordinal);
+        Assert.Equal((ContentType: "image/png", Length: 4), (await content.GetImageAsync("logo@example.org", TestContext.Current.CancellationToken)) is { } image ? (image.ContentType, image.Data.Length) : default);
+        Assert.False(inbox.Messages[^1].Seen);
+        Assert.Contains(_imap.Commands, c => c.Contains("BODY.PEEK[]", StringComparison.OrdinalIgnoreCase));
+
+        await _service.SetFlagsAsync(account, "INBOX", 120, seen: true, flagged: true, TestContext.Current.CancellationToken);
+        Assert.True(inbox.Messages[^1].Seen);
+        Assert.True(inbox.Messages[^1].Flagged);
+
+        await _service.SetFlagsAsync(account, "INBOX", 120, seen: false, flagged: null, TestContext.Current.CancellationToken);
+        Assert.False(inbox.Messages[^1].Seen);
+        Assert.True(inbox.Messages[^1].Flagged);
+
+        // Jamais d'effacement au passage (ni EXPUNGE ni CLOSE sur un dossier ouvert en écriture).
+        Assert.DoesNotContain(_imap.Commands, c => c.StartsWith("EXPUNGE", StringComparison.OrdinalIgnoreCase) || c.StartsWith("CLOSE", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Without_a_stored_password_nothing_is_attempted()
     {
         var account = Account();
