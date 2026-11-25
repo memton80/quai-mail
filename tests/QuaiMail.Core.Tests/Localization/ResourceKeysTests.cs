@@ -55,6 +55,7 @@ public sealed partial class ResourceKeysTests
             .Concat(Enum.GetNames<QuaiMail.Core.Mail.FolderRole>().Where(n => n != "None").Select(n => "Folder_" + n))
             .Concat(Enum.GetNames<QuaiMail.Core.Accounts.OAuth.OAuthError>().Select(n => "OAuthError_" + n))
             .Concat(Enum.GetNames<QuaiMail.Core.Pgp.PgpError>().Select(n => "PgpError_" + n))
+            .Concat(Enum.GetNames<QuaiMail.Core.Pgp.GnuPgError>().Select(n => "GnuPgError_" + n))
             .Concat(Enum.GetNames<QuaiMail.Core.Accounts.AccountAuth>().Where(n => n != "Password").Select(n => "AccountDialog_SignIn" + n));
 
         var missing = expected.Where(k => !defined.Contains(k)).ToList();

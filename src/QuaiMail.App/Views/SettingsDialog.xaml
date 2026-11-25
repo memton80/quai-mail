@@ -116,6 +116,59 @@
                         </DataTemplate>
                     </ItemsRepeater.ItemTemplate>
                 </ItemsRepeater>
+                <!--
+                    GnuPG (Kleopatra) installé : ses clés de signature, listées à chaque ouverture des Réglages. « Importer »
+                    copie la clé dans Quai Mail (elle y reste) ; la phrase de passe se tape dans le petit menu du bouton.
+                -->
+                <StackPanel Style="{StaticResource PgpSectionStyle}" Visibility="{x:Bind ui:UiHelpers.VisibleIf(Keys.HasGnuPg), Mode=OneWay}">
+                    <TextBlock Style="{StaticResource PgpKeyNameStyle}" Text="{x:Bind Keys.GnuPgTitle, Mode=OneWay}" />
+                    <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Pgp_GnuPgHint}" />
+                    <TextBlock
+                        Style="{StaticResource DialogHintStyle}"
+                        Text="{l:Str Key=Pgp_GnuPgNone}"
+                        Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Keys.HasGnuPgKeys), Mode=OneWay}" />
+                    <ItemsRepeater x:Name="GnuPgRepeater" ItemsSource="{x:Bind Keys.GnuPgKeys}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="8" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="vm:GnuPgKeyItem">
+                                <Grid Style="{StaticResource PgpKeyRowStyle}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource PgpKeyNameStyle}" Text="{x:Bind UserId}" />
+                                        <TextBlock Style="{StaticResource PgpFingerprintStyle}" Text="{x:Bind Fingerprint}" />
+                                        <TextBlock Style="{StaticResource DialogHintStyle}" Text="{x:Bind Status}" />
+                                    </StackPanel>
+                                    <Button
+                                        Grid.Column="1"
+                                        Content="{x:Bind ActionText}"
+                                        Visibility="{x:Bind ui:UiHelpers.VisibleIf(CanImport)}">
+                                        <Button.Flyout>
+                                            <Flyout Opening="OnGnuPgFlyoutOpening">
+                                                <StackPanel Style="{StaticResource PgpConfirmStyle}">
+                                                    <TextBlock Style="{StaticResource DialogBodyStyle}" Text="{x:Bind PassphrasePrompt}" />
+                                                    <PasswordBox
+                                                        AutomationProperties.Name="{l:Str Key=Passphrase_Label}"
+                                                        KeyDown="OnGnuPgPassphraseKeyDown"
+                                                        PlaceholderText="{l:Str Key=Passphrase_Label}" />
+                                                    <Button
+                                                        Click="OnImportFromGnuPgConfirmed"
+                                                        Content="{x:Bind ActionText}"
+                                                        Style="{StaticResource AccentButtonStyle}"
+                                                        Tag="{x:Bind}" />
+                                                </StackPanel>
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </StackPanel>
                 <StackPanel Style="{StaticResource PgpButtonsStyle}">
                     <Button Click="OnImportKeyClick" Content="{l:Str Key=Pgp_Import}" />
                     <Button Click="OnForgetPassphrasesClick" Content="{l:Str Key=Pgp_Forget}" />

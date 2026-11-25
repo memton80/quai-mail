@@ -738,9 +738,26 @@ internal static class SmokeTest
         var keyFile = Path.Combine(directory, "cle-secrete-de-test.asc");
         var ring = SmokePgp.CreateKey($"Camille <{account.Address}>", keyFile);
 
-        // Réglages : importer la clé.
+        // Réglages : Kleopatra « détecté » (GnuPG du test, jamais celui de l'ordinateur), sa clé listée puis copiée dans
+        // Quai Mail avec sa phrase de passe (refusée, puis acceptée).
+        var gnupg = (SmokeGnuPgLocator)services.GetRequiredService<Core.Pgp.IGnuPgLocator>();
+        gnupg.Key = (Convert.ToHexString(ring.GetPublicKey().GetFingerprint()), $"Camille <{account.Address}>", File.ReadAllText(keyFile));
         var settings = window.ShowSettingsAsync();
         await WaitForAsync(() => dialogs.Current is SettingsDialog, "réglages (clé OpenPGP)");
+        await WaitForAsync(() => keys.HasGnuPg && keys.GnuPgKeys.Count == 1, "Kleopatra détecté dans les Réglages");
+        var found = keys.GnuPgKeys[0];
+        Check(found.CanImport && !keys.HasKeys, $"clé de Kleopatra non proposée : {found.Status}");
+        Check(
+            !await WithTimeout(keys.ImportFromGnuPgAsync(found, "pas la bonne"), "phrase de Kleopatra refusée") && keys.IsError && !keys.HasKeys,
+            "clé copiée malgré une phrase de passe refusée");
+        Check(await WithTimeout(keys.ImportFromGnuPgAsync(found, SmokePgp.Passphrase), "import depuis Kleopatra"), $"clé de Kleopatra non importée : {keys.Message}");
+        Check(keys is { HasKeys: true, IsError: false } && keys.Keys.Count == 1 && !keys.GnuPgKeys[0].CanImport, "clé copiée : la ligne de Kleopatra propose encore l'import");
+        Check(gnupg.Exports == 2, $"exports demandés à GnuPG : {gnupg.Exports}");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "20-cle-kleopatra.png", report);
+        report.Add("Kleopatra détecté : clé listée dans les Réglages, copiée dans Quai Mail avec sa phrase de passe (refusée, puis acceptée)");
+
+        // Sans Kleopatra : fichier exporté (la même clé, remplacée).
         files.SmokeKeyFile = keyFile;
         await WithTimeout(keys.ImportAsync(), "import de la clé OpenPGP");
         Check(keys is { HasKeys: true, IsError: false } && keys.Keys.Count == 1, $"clé OpenPGP non importée : {keys.Message}");

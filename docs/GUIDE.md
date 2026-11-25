@@ -98,10 +98,10 @@ Ce que vous écrivez est enregistré sur cet ordinateur toutes les 5 secondes, e
 
 Une signature OpenPGP prouve à vos correspondants que le mail vient bien de vous et qu'il n'a pas été modifié en route (Thunderbird, Kleopatra, GnuPG, Mailvelope… la vérifient). Quai Mail signe avec **votre clé existante**, sans rien installer de plus.
 
-1. **Exportez votre clé secrète** :
-   - Kleopatra : clic droit sur votre clé, **Sauvegarder les clés secrètes…**, format armuré (`.asc`) ;
-   - ligne de commande : `gpg --export-secret-keys --armor vous@exemple.fr > cle.asc`.
-2. Quai Mail, **Réglages**, **Signature des mails (OpenPGP / GPG)**, **Importer une clé…**, choisissez ce fichier. La clé apparaît avec son identité, son empreinte et sa date d'expiration. Supprimez ensuite le fichier exporté.
+1. **Copiez votre clé dans Quai Mail** : **Réglages**, **Signature des mails (OpenPGP / GPG)**.
+   - **Kleopatra (Gpg4win) ou GnuPG installé** : Quai Mail le trouve tout seul à chaque ouverture des Réglages et affiche vos clés de signature (identité, empreinte, date d'expiration). Cliquez sur **Importer** à côté de la clé, tapez sa phrase de passe (celle que demande Kleopatra ; laissez vide si la clé n'en a pas), puis **Importer**. La clé est **copiée** dans Quai Mail : elle y reste, protégée par la même phrase de passe, même si vous désinstallez Kleopatra ; rien n'est modifié dans Kleopatra et aucun fichier n'est écrit en chemin. Si vous prolongez la clé dans Kleopatra, le bouton devient **Mettre à jour**. Une clé gardée sur une carte à puce est signalée mais ne peut pas être copiée.
+   - **Sinon**, exportez la clé secrète (Kleopatra : clic droit sur la clé, **Sauvegarder les clés secrètes…**, format armuré `.asc` ; ligne de commande : `gpg --export-secret-keys --armor vous@exemple.fr > cle.asc`), puis **Importer une clé…** et choisissez ce fichier. Supprimez ensuite le fichier exporté.
+2. La clé apparaît dans la liste de Quai Mail avec son identité, son empreinte et sa date d'expiration.
 3. Écrivez un message depuis l'adresse de la clé : le bouton **Signer** de la rédaction est activé d'office (cliquez dessus pour l'enlever, pour ce message). Sa bulle indique la clé utilisée.
 4. **Envoyer** : Quai Mail demande la **phrase de passe** de la clé, signe, puis envoie. Une phrase refusée est redemandée ; **Annuler** n'envoie rien.
 

@@ -682,10 +682,10 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
     <value>Signature des mails (OpenPGP / GPG)</value>
   </data>
   <data name="Pgp_Intro" xml:space="preserve">
-    <value>Importez votre clé secrète exportée de GnuPG ou de Kleopatra : vos mails partent alors signés (bouton Signer de la rédaction). La clé reste protégée par sa phrase de passe.</value>
+    <value>Vos mails partent signés (bouton Signer de la rédaction) avec une clé secrète copiée dans Quai Mail : depuis Kleopatra ou GnuPG s'il est installé (ses clés s'affichent ci-dessous), ou depuis un fichier exporté. La clé reste protégée par sa phrase de passe.</value>
   </data>
   <data name="Pgp_HowTo" xml:space="preserve">
-    <value>Kleopatra : clic droit sur votre clé, « Sauvegarder les clés secrètes… ». Ligne de commande : gpg --export-secret-keys --armor vous@exemple.fr &gt; cle.asc</value>
+    <value>Sans Kleopatra détecté — Kleopatra : clic droit sur votre clé, « Sauvegarder les clés secrètes… ». Ligne de commande : gpg --export-secret-keys --armor vous@exemple.fr &gt; cle.asc</value>
   </data>
   <data name="Pgp_Import" xml:space="preserve">
     <value>Importer une clé…</value>
@@ -719,6 +719,51 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   </data>
   <data name="Pgp_RemoveConfirm" xml:space="preserve">
     <value>Retirer</value>
+  </data>
+  <data name="Pgp_FoundKleopatra" xml:space="preserve">
+    <value>Kleopatra (Gpg4win) est installé sur cet ordinateur</value>
+  </data>
+  <data name="Pgp_FoundGnuPg" xml:space="preserve">
+    <value>GnuPG est installé sur cet ordinateur</value>
+  </data>
+  <data name="Pgp_Kleopatra" xml:space="preserve">
+    <value>Kleopatra</value>
+  </data>
+  <data name="Pgp_GnuPg" xml:space="preserve">
+    <value>GnuPG</value>
+  </data>
+  <data name="Pgp_GnuPgHint" xml:space="preserve">
+    <value>« Importer » copie la clé dans Quai Mail : elle y reste, protégée par la même phrase de passe, même si Kleopatra est désinstallé. Rien n'est modifié dans Kleopatra.</value>
+  </data>
+  <data name="Pgp_GnuPgNone" xml:space="preserve">
+    <value>Aucune clé capable de signer dans ce trousseau (ni expirée, ni révoquée).</value>
+  </data>
+  <data name="Pgp_GnuPgImport" xml:space="preserve">
+    <value>Importer</value>
+  </data>
+  <data name="Pgp_GnuPgUpdate" xml:space="preserve">
+    <value>Mettre à jour</value>
+  </data>
+  <data name="Pgp_GnuPgAlready" xml:space="preserve">
+    <value>Déjà dans Quai Mail.</value>
+  </data>
+  <data name="Pgp_GnuPgChanged" xml:space="preserve">
+    <value>Modifiée dans {1} depuis l'import : {0}</value>
+  </data>
+  <data name="Pgp_GnuPgOnCard" xml:space="preserve">
+    <value>Sur une carte à puce : elle ne peut pas être copiée dans Quai Mail.</value>
+  </data>
+  <data name="Pgp_GnuPgPassphrase" xml:space="preserve">
+    <value>Phrase de passe de « {0} » dans {1} (laissez vide si la clé n'en a pas, ou si {1} vient de vous la demander).</value>
+  </data>
+  <data name="GnuPgError_PassphraseNeeded" xml:space="preserve">
+    <value>Cette clé est protégée : tapez sa phrase de passe (celle que demande Kleopatra), puis « Importer ».</value>
+  </data>
+  <data name="GnuPgError_WrongPassphrase" xml:space="preserve">
+    <value>Phrase de passe refusée par GnuPG. Rien n'a été copié.</value>
+  </data>
+  <data name="GnuPgError_Failed" xml:space="preserve">
+    <value>GnuPG n'a pas répondu. Réessayez, ou exportez la clé depuis Kleopatra puis « Importer une clé… ».</value>
   </data>
   <data name="PgpError_InvalidFile" xml:space="preserve">
     <value>Ce fichier n'est pas une clé OpenPGP lisible.</value>

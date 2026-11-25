@@ -140,12 +140,15 @@ internal static class AppServices
             provider.GetRequiredService<TrustedSenders>()));
         // Signature OpenPGP : trousseau de Quai Mail (clés importées), phrases de passe en mémoire seulement.
         services.AddSingleton(provider => new PgpKeyStore(paths, provider.GetService<ILogger<PgpKeyStore>>()));
+        // GnuPG (Kleopatra) de l'ordinateur, pour copier ses clés dans Quai Mail ; jamais pendant les tests de fumée.
+        services.AddSingleton<IGnuPgLocator>(testing ? new SmokeGnuPgLocator() : (IGnuPgLocator)new GnuPgLocator());
         services.AddSingleton(provider => new PgpKeysViewModel(
             provider.GetRequiredService<PgpKeyStore>(),
             provider.GetRequiredService<IFileDialogs>(),
             provider.GetRequiredService<IStrings>(),
             TimeProvider.System,
-            provider.GetService<ILogger<PgpKeysViewModel>>()));
+            provider.GetService<ILogger<PgpKeysViewModel>>(),
+            provider.GetRequiredService<IGnuPgLocator>()));
         services.AddSingleton(provider => new ComposerViewModel(
             provider.GetRequiredService<AccountStore>(),
             provider.GetRequiredService<DraftStore>(),
