@@ -230,6 +230,95 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void OnSearchAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        SearchBox.Focus(FocusState.Keyboard);
+    }
+
+    private async void OnSearchSubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        try
+        {
+            await Messages.SearchAsync(args.QueryText);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Recherche impossible");
+        }
+    }
+
+    /// <summary>Champ vidé : retour au dossier.</summary>
+    private async void OnSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        try
+        {
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput && string.IsNullOrWhiteSpace(sender.Text) && Messages.IsSearching)
+            {
+                await Messages.EndSearchAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fin de recherche impossible");
+        }
+    }
+
+    private async void OnDeleteAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        await DeleteAsync(Messages.SelectedMessage);
+    }
+
+    private async void OnDeleteMessageClick(object sender, RoutedEventArgs e) =>
+        await DeleteAsync((sender as FrameworkElement)?.DataContext as MessageItemViewModel);
+
+    /// <summary>Supprimer : corbeille, ou définitif après confirmation (voir MailboxViewModel.DeleteAsync).</summary>
+    internal async Task DeleteAsync(MessageItemViewModel? message)
+    {
+        try
+        {
+            if (message is not null)
+            {
+                await Mailbox.DeleteAsync(message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Suppression impossible");
+        }
+    }
+
+    /// <summary>Menu d'un mail : « Déplacer vers » liste les dossiers de son compte.</summary>
+    private void OnMessageMenuOpening(object? sender, object e)
+    {
+        if (sender is not MenuFlyout menu || menu.Items.OfType<MenuFlyoutSubItem>().FirstOrDefault() is not { } moveTo
+            || menu.Target?.DataContext is not MessageItemViewModel message)
+        {
+            return;
+        }
+
+        moveTo.Items.Clear();
+        foreach (var target in Mailbox.MoveTargets(message))
+        {
+            var item = new MenuFlyoutItem { Text = target.Title };
+            item.Click += async (_, _) =>
+            {
+                try
+                {
+                    await Mailbox.MoveAsync(message, target);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Déplacement impossible");
+                }
+            };
+            moveTo.Items.Add(item);
+        }
+
+        moveTo.IsEnabled = moveTo.Items.Count > 0;
+    }
+
     private void OnNavSelectionChanged(object sender, SelectionChangedEventArgs e) =>
         Mailbox.SelectedItem = NavList.SelectedItem as NavItemViewModel;
 

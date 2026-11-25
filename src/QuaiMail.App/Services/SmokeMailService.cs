@@ -109,6 +109,39 @@ internal sealed class SmokeMailService : IMailService
         return Task.CompletedTask;
     }
 
+    public List<(uint Uid, string From, string To)> Moves { get; } = [];
+
+    public List<(string Folder, uint Uid)> PermanentlyDeleted { get; } = [];
+
+    public Task MoveAsync(Account account, string folder, uint uid, string target, CancellationToken cancellationToken = default)
+    {
+        Moves.Add((uid, folder, target));
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> MoveToTrashAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default)
+    {
+        if (folder == "Corbeille")
+        {
+            return Task.FromResult(false);
+        }
+
+        Moves.Add((uid, folder, "Corbeille"));
+        return Task.FromResult(true);
+    }
+
+    public Task DeletePermanentlyAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default)
+    {
+        PermanentlyDeleted.Add((folder, uid));
+        return Task.CompletedTask;
+    }
+
+    public async Task<IReadOnlyList<MessageHeader>> SearchAsync(Account account, string folder, string text, int limit, CancellationToken cancellationToken = default)
+    {
+        var page = await GetMessagesAsync(account, folder, 0, 200, cancellationToken);
+        return [.. page.Messages.Where(m => m.Subject.Contains(text, StringComparison.OrdinalIgnoreCase) || m.FromName.Contains(text, StringComparison.OrdinalIgnoreCase)).Take(limit)];
+    }
+
     public Task DisconnectAsync(string accountId) => Task.CompletedTask;
 
     /// <summary>

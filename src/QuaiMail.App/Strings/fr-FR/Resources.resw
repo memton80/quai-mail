@@ -509,4 +509,31 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="Composer_AttachFailed" xml:space="preserve">
     <value>« {0} » n'a pas pu être joint.</value>
   </data>
+  <data name="Search_Placeholder" xml:space="preserve">
+    <value>Rechercher dans les mails (Ctrl+F)</value>
+  </data>
+  <data name="Search_Title" xml:space="preserve">
+    <value>Résultats pour « {0} »</value>
+  </data>
+  <data name="Search_Server" xml:space="preserve">
+    <value>Chercher aussi sur le serveur</value>
+  </data>
+  <data name="Messages_MoveTo" xml:space="preserve">
+    <value>Déplacer vers</value>
+  </data>
+  <data name="Messages_Delete" xml:space="preserve">
+    <value>Supprimer</value>
+  </data>
+  <data name="Messages_DeleteTooltip" xml:space="preserve">
+    <value>Supprimer (vers la corbeille) — touche Suppr dans la liste</value>
+  </data>
+  <data name="DeleteForever_Title" xml:space="preserve">
+    <value>Supprimer définitivement ?</value>
+  </data>
+  <data name="DeleteForever_Message" xml:space="preserve">
+    <value>« {0} » sera supprimé du serveur pour de bon (pas de corbeille pour ce mail). Cette action est irréversible.</value>
+  </data>
+  <data name="DeleteForever_Confirm" xml:space="preserve">
+    <value>Supprimer définitivement</value>
+  </data>
 </root>

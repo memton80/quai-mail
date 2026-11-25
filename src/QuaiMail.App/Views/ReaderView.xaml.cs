@@ -373,6 +373,22 @@ public sealed partial class ReaderView : UserControl
         }
     }
 
+    private async void OnDeleteClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var mailbox = App.Current.Services.GetRequiredService<MailboxViewModel>();
+            if (mailbox.Messages.SelectedMessage is { } message && message.Uid == Reader.Uid)
+            {
+                await mailbox.DeleteAsync(message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Suppression impossible");
+        }
+    }
+
     private void OnReplyClick(object sender, RoutedEventArgs e) => Respond(c => c.ReplyAsync(Reader.Content!, Reader.Account!, all: false));
 
     private void OnReplyAllClick(object sender, RoutedEventArgs e) => Respond(c => c.ReplyAsync(Reader.Content!, Reader.Account!, all: true));

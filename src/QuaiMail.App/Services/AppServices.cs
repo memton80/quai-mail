@@ -93,7 +93,16 @@ internal static class AppServices
             services.AddSingleton<ILauncher, Launcher>();
         }
 
-        services.AddSingleton<ReaderViewModel>();
+        services.AddSingleton(provider => new ReaderViewModel(
+            provider.GetRequiredService<IMailService>(),
+            provider.GetRequiredService<ISettingsService>(),
+            provider.GetRequiredService<IDialogService>(),
+            provider.GetRequiredService<IFileDialogs>(),
+            provider.GetRequiredService<ILauncher>(),
+            provider.GetRequiredService<IStrings>(),
+            provider.GetRequiredService<ReaderTemplate>(),
+            provider.GetService<ILogger<ReaderViewModel>>(),
+            provider.GetRequiredService<MailCache>()));
         services.AddSingleton(provider => new ComposerViewModel(
             provider.GetRequiredService<AccountStore>(),
             provider.GetRequiredService<DraftStore>(),

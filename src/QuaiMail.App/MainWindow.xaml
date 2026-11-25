@@ -13,6 +13,9 @@
     </Window.SystemBackdrop>
 
     <Grid x:Name="RootGrid">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="F" Invoked="OnSearchAccelerator" Modifiers="Control" />
+        </Grid.KeyboardAccelerators>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -212,16 +215,40 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <TextBlock Style="{StaticResource SurfaceHeaderStyle}" Text="{x:Bind Messages.Title, Mode=OneWay}" />
+
+                        <!-- Recherche plein texte (cache, sans connexion), puis éventuellement sur le serveur. -->
+                        <AutoSuggestBox
+                            x:Name="SearchBox"
+                            AutomationProperties.Name="{l:Str Key=Search_Placeholder}"
+                            PlaceholderText="{l:Str Key=Search_Placeholder}"
+                            QueryIcon="Find"
+                            QuerySubmitted="OnSearchSubmitted"
+                            Style="{StaticResource SearchBoxStyle}"
+                            TextChanged="OnSearchTextChanged" />
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource SurfaceHeaderStyle}" Text="{x:Bind Messages.Title, Mode=OneWay}" />
+                            <HyperlinkButton
+                                Grid.Column="1"
+                                Command="{x:Bind Messages.SearchServerCommand}"
+                                Content="{l:Str Key=Search_Server}"
+                                Style="{StaticResource SearchServerLinkStyle}"
+                                Visibility="{x:Bind ui:UiHelpers.VisibleIf(Messages.CanSearchServer), Mode=OneWay}" />
+                        </Grid>
                         <ProgressBar
-                            Grid.Row="1"
+                            Grid.Row="2"
                             AutomationProperties.Name="{l:Str Key=Messages_Loading}"
                             Style="{StaticResource ListBusyBarStyle}"
                             Visibility="{x:Bind ui:UiHelpers.VisibleIf(Messages.IsLoading), Mode=OneWay}" />
                         <InfoBar
-                            Grid.Row="2"
+                            Grid.Row="3"
                             IsOpen="{x:Bind Messages.HasError, Mode=OneWay}"
                             Message="{x:Bind Messages.ErrorMessage, Mode=OneWay}"
                             Severity="Warning"
@@ -229,15 +256,32 @@
 
                         <ListView
                             x:Name="MessageList"
-                            Grid.Row="3"
+                            Grid.Row="4"
                             AutomationProperties.Name="{l:Str Key=Pane_Messages}"
                             ItemsSource="{x:Bind Messages.Messages}"
                             SelectedItem="{x:Bind Messages.SelectedMessage, Mode=OneWay}"
                             SelectionChanged="OnMessageSelectionChanged"
                             Style="{StaticResource MessageListStyle}">
+                            <ListView.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="Delete" Invoked="OnDeleteAccelerator" />
+                            </ListView.KeyboardAccelerators>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:MessageItemViewModel">
                                     <Grid AutomationProperties.Name="{x:Bind ui:UiHelpers.MessageName(Sender, Subject, DateText, IsRead), Mode=OneWay}" Style="{StaticResource MessageItemStyle}">
+                                        <Grid.ContextFlyout>
+                                            <MenuFlyout Opening="OnMessageMenuOpening">
+                                                <MenuFlyoutSubItem Text="{l:Str Key=Messages_MoveTo}">
+                                                    <MenuFlyoutSubItem.Icon>
+                                                        <FontIcon Glyph="&#xE8DE;" />
+                                                    </MenuFlyoutSubItem.Icon>
+                                                </MenuFlyoutSubItem>
+                                                <MenuFlyoutItem Click="OnDeleteMessageClick" Text="{l:Str Key=Messages_Delete}">
+                                                    <MenuFlyoutItem.Icon>
+                                                        <FontIcon Glyph="&#xE74D;" />
+                                                    </MenuFlyoutItem.Icon>
+                                                </MenuFlyoutItem>
+                                            </MenuFlyout>
+                                        </Grid.ContextFlyout>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
@@ -276,7 +320,7 @@
                         </ListView>
 
                         <StackPanel
-                            Grid.Row="3"
+                            Grid.Row="4"
                             Style="{StaticResource EmptyStatePanelStyle}"
                             Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Messages.HasFolder), Mode=OneWay}">
                             <FontIcon Glyph="&#xE8C3;" Style="{StaticResource EmptyStateIconStyle}" />
@@ -284,7 +328,7 @@
                             <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Pane_NoMessagesHint}" />
                         </StackPanel>
                         <StackPanel
-                            Grid.Row="3"
+                            Grid.Row="4"
                             Style="{StaticResource EmptyStatePanelStyle}"
                             Visibility="{x:Bind ui:UiHelpers.VisibleIf(Messages.IsEmpty), Mode=OneWay}">
                             <FontIcon Glyph="&#xE8C3;" Style="{StaticResource EmptyStateIconStyle}" />

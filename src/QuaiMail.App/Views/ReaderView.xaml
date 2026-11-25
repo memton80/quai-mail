@@ -59,6 +59,13 @@
                     <FontIcon Glyph="&#xE89C;" Style="{StaticResource ButtonIconStyle}" />
                 </Button>
                 <Button
+                    AutomationProperties.Name="{l:Str Key=Messages_Delete}"
+                    Click="OnDeleteClick"
+                    Style="{StaticResource ReaderActionButtonStyle}"
+                    ToolTipService.ToolTip="{l:Str Key=Messages_DeleteTooltip}">
+                    <FontIcon Glyph="&#xE74D;" Style="{StaticResource ButtonIconStyle}" />
+                </Button>
+                <Button
                     AutomationProperties.Name="{x:Bind ui:UiHelpers.ReadToggleText(Reader.IsRead), Mode=OneWay}"
                     Command="{x:Bind Reader.ToggleReadCommand}"
                     Style="{StaticResource ReaderActionButtonStyle}"
