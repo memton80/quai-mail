@@ -42,3 +42,30 @@ public sealed class FakeUpdateInstaller : IUpdateInstaller
 
     public void OpenReleasePage(Uri page) => OpenedPages.Add(page);
 }
+
+/// <summary>Boîtes de dialogue scriptées : réponses données à l'avance, questions posées enregistrées.</summary>
+public sealed class FakeDialogService : QuaiMail.Core.Services.IDialogService
+{
+    public Queue<QuaiMail.Core.Services.DraftChoice> DraftAnswers { get; } = new();
+
+    public List<string> AskedDrafts { get; } = [];
+
+    public List<string> Errors { get; } = [];
+
+    public bool ConfirmAnswer { get; set; } = true;
+
+    public Task<bool> ConfirmAsync(string title, string message, string confirmText, bool isDestructive = false) =>
+        Task.FromResult(ConfirmAnswer);
+
+    public Task ShowErrorAsync(string title, string message)
+    {
+        Errors.Add(title);
+        return Task.CompletedTask;
+    }
+
+    public Task<QuaiMail.Core.Services.DraftChoice> AskKeepDraftAsync(string subject)
+    {
+        AskedDrafts.Add(subject);
+        return Task.FromResult(DraftAnswers.Count > 0 ? DraftAnswers.Dequeue() : QuaiMail.Core.Services.DraftChoice.Cancel);
+    }
+}

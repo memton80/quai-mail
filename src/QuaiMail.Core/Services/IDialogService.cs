@@ -1,10 +1,15 @@
 namespace QuaiMail.Core.Services;
 
 /// <summary>Réponse à « Garder ce brouillon ? ».</summary>
-public enum SaveChoice
+public enum DraftChoice
 {
-    Save,
+    /// <summary>Enregistré sur cet ordinateur (et rouvert après une mise à jour).</summary>
+    Keep,
+
+    /// <summary>Supprimé.</summary>
     Discard,
+
+    /// <summary>Rien ne se passe : le brouillon reste ouvert, l'action demandée (fermer, mettre à jour) attend.</summary>
     Cancel,
 }
 
@@ -16,6 +21,7 @@ public interface IDialogService
 
     Task ShowErrorAsync(string title, string message);
 
-    /// <summary>Brouillon non envoyé au moment de quitter ou de se mettre à jour : garder, abandonner ou annuler.</summary>
-    Task<SaveChoice> AskSaveDraftAsync(string subject);
+    /// <summary>« Garder ce brouillon ? » : brouillon non envoyé au moment de quitter ou de se mettre à jour.</summary>
+    /// <param name="subject">Objet du brouillon (ou « (sans objet) »), pour que l'utilisateur sache lequel.</param>
+    Task<DraftChoice> AskKeepDraftAsync(string subject);
 }
