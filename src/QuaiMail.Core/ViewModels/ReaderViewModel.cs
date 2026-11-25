@@ -160,6 +160,18 @@ public sealed partial class ReaderViewModel : ObservableObject
             }
 
             Content = content;
+
+            // Le mail complet fait foi (la liste n'a que l'enveloppe).
+            if (!string.IsNullOrWhiteSpace(content.Subject))
+            {
+                Subject = content.Subject;
+            }
+
+            if (!string.IsNullOrWhiteSpace(content.FromAddress))
+            {
+                From = content.From;
+            }
+
             To = content.To;
             Cc = content.Cc;
             foreach (var attachment in content.Attachments)

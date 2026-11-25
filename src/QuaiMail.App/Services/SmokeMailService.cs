@@ -49,8 +49,8 @@ internal sealed class SmokeMailService : IMailService
             .Select(i => total - skip - i)
             .Select(uid => new MessageHeader(
                 (uint)uid,
-                folder == "Archives/2026" ? "Facture d'électricité" : Subjects[uid % Subjects.Length],
-                Senders[uid % Senders.Length],
+                folder == "Archives/2026" ? "Facture d'électricité" : folder == "INBOX" && uid == TrappedUid ? "Votre facture de novembre" : Subjects[uid % Subjects.Length],
+                folder == "INBOX" && uid == TrappedUid ? "Service client" : Senders[uid % Senders.Length],
                 $"contact{uid % Senders.Length}@example.org",
                 Newest.AddHours((uid - total) * 7),
                 uid <= total - 12,

@@ -228,6 +228,7 @@ public sealed class MailViewModelsTests : IDisposable
         await WaitForAsync(() => reader.HasMessage && !reader.IsLoading && reader.IsRead);
 
         Assert.Equal(message.Subject, reader.Subject);
+        Assert.Equal("Bob <bob@example.org>", reader.From);
         Assert.Contains($"Corps {message.Uid}", reader.Page, StringComparison.Ordinal);
         Assert.Contains("default-src 'none'", reader.Page, StringComparison.Ordinal);
         Assert.Contains((message.Uid, (bool?)true, (bool?)null), _mail.FlagChanges);
