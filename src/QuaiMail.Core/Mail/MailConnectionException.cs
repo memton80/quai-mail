@@ -26,6 +26,9 @@ public enum MailError
 
     /// <summary>Aucun mot de passe enregistré pour ce compte.</summary>
     MissingPassword,
+
+    /// <summary>Connexion par le navigateur (Gmail, Outlook.com) expirée ou retirée : il faut se reconnecter.</summary>
+    SignInExpired,
 }
 
 /// <summary>Échec d'une connexion à un serveur mail : le type d'erreur et le serveur, rien d'autre.</summary>

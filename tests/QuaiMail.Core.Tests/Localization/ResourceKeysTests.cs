@@ -52,7 +52,9 @@ public sealed partial class ResourceKeysTests
     {
         var defined = LoadKeys();
         var expected = Enum.GetNames<QuaiMail.Core.Mail.MailError>().Select(n => "MailError_" + n)
-            .Concat(Enum.GetNames<QuaiMail.Core.Mail.FolderRole>().Where(n => n != "None").Select(n => "Folder_" + n));
+            .Concat(Enum.GetNames<QuaiMail.Core.Mail.FolderRole>().Where(n => n != "None").Select(n => "Folder_" + n))
+            .Concat(Enum.GetNames<QuaiMail.Core.Accounts.OAuth.OAuthError>().Select(n => "OAuthError_" + n))
+            .Concat(Enum.GetNames<QuaiMail.Core.Accounts.AccountAuth>().Where(n => n != "Password").Select(n => "AccountDialog_SignIn" + n));
 
         var missing = expected.Where(k => !defined.Contains(k)).ToList();
         Assert.True(missing.Count == 0, "Textes absents de Resources.resw : " + string.Join(", ", missing));

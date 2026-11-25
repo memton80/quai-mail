@@ -16,7 +16,7 @@ namespace QuaiMail.Core.Storage;
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     ReadCommentHandling = JsonCommentHandling.Skip,
     AllowTrailingCommas = true,
-    Converters = [typeof(CamelCaseEnumConverter<AppTheme>), typeof(CamelCaseEnumConverter<MailSecurity>), typeof(CamelCaseEnumConverter<DraftKind>)])]
+    Converters = [typeof(CamelCaseEnumConverter<AppTheme>), typeof(CamelCaseEnumConverter<MailSecurity>), typeof(CamelCaseEnumConverter<DraftKind>), typeof(CamelCaseEnumConverter<AccountAuth>)])]
 [JsonSerializable(typeof(AppSettings))]
 [JsonSerializable(typeof(WindowState))]
 [JsonSerializable(typeof(Draft))]

@@ -241,7 +241,55 @@
     <value>Réglages habituels supposés : « Ajouter » les vérifie.</value>
   </data>
   <data name="AccountEditor_RequiresOAuth" xml:space="preserve">
-    <value>{0} n'accepte plus les mots de passe : la connexion par le navigateur arrive dans une prochaine version.</value>
+    <value>{0} n'accepte plus les mots de passe, et cette copie de Quai Mail ne propose pas la connexion par le navigateur (voir le guide).</value>
+  </data>
+  <data name="AccountEditor_UseSignIn" xml:space="preserve">
+    <value>{0} n'accepte plus les mots de passe : utilisez « {1} » ci-dessus.</value>
+  </data>
+  <data name="AccountEditor_AppPasswordOrSignIn" xml:space="preserve">
+    <value>{0} : « {1} » ci-dessus, ou un mot de passe d'application (à créer dans les réglages de sécurité de votre compte).</value>
+  </data>
+  <data name="AccountEditor_SignInOffered" xml:space="preserve">
+    <value>Vous pouvez aussi utiliser « {0} » ci-dessus.</value>
+  </data>
+  <data name="AccountEditor_SignInUnavailable" xml:space="preserve">
+    <value>La connexion par le navigateur n'est pas disponible dans cette copie de Quai Mail.</value>
+  </data>
+  <data name="OAuthError_Denied" xml:space="preserve">
+    <value>Connexion refusée sur la page du fournisseur : rien n'a été enregistré.</value>
+  </data>
+  <data name="OAuthError_Timeout" xml:space="preserve">
+    <value>La connexion dans le navigateur n'a pas abouti à temps (page fermée ?). Réessayez.</value>
+  </data>
+  <data name="OAuthError_Invalid" xml:space="preserve">
+    <value>Réponse de connexion invalide : rien n'a été enregistré. Réessayez.</value>
+  </data>
+  <data name="OAuthError_Network" xml:space="preserve">
+    <value>Le fournisseur ne répond pas : vérifiez la connexion à Internet et réessayez.</value>
+  </data>
+  <data name="OAuthError_Expired" xml:space="preserve">
+    <value>L'autorisation donnée à Quai Mail a expiré ou a été retirée : reconnectez-vous.</value>
+  </data>
+  <data name="MailError_SignInExpired" xml:space="preserve">
+    <value>autorisation expirée ou retirée : clic droit sur le compte, « Se reconnecter ».</value>
+  </data>
+  <data name="AccountDialog_SignInGoogle" xml:space="preserve">
+    <value>Se connecter avec Google</value>
+  </data>
+  <data name="AccountDialog_SignInMicrosoft" xml:space="preserve">
+    <value>Se connecter avec Microsoft</value>
+  </data>
+  <data name="AccountDialog_SignInHint" xml:space="preserve">
+    <value>Gmail, Outlook.com, Hotmail : la page de connexion officielle s'ouvre dans votre navigateur. Quai Mail ne voit jamais votre mot de passe. Pour les autres comptes, saisissez le mot de passe ci-dessous.</value>
+  </data>
+  <data name="AccountDialog_SignInWaiting" xml:space="preserve">
+    <value>Terminez la connexion dans votre navigateur, puis revenez ici.</value>
+  </data>
+  <data name="Mailbox_Reconnect" xml:space="preserve">
+    <value>Se reconnecter</value>
+  </data>
+  <data name="Mailbox_Reconnected" xml:space="preserve">
+    <value>{0} : connexion rétablie.</value>
   </data>
   <data name="AccountEditor_RequiresAppPassword" xml:space="preserve">
     <value>{0} demande un mot de passe d'application, à créer dans les réglages de sécurité de votre compte.</value>

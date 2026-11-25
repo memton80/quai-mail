@@ -16,6 +16,9 @@ public sealed partial class NavItemViewModel : ObservableObject
 
     public string AccountId { get; }
 
+    /// <summary>Compte connecté par le navigateur (Gmail, Outlook.com) : « Se reconnecter » est proposé.</summary>
+    public bool UsesBrowserSignIn { get; private init; }
+
     /// <summary>Dossier, ou <c>null</c> pour la ligne du compte.</summary>
     public MailFolderInfo? Folder { get; }
 
@@ -41,11 +44,13 @@ public sealed partial class NavItemViewModel : ObservableObject
 
     public bool IsUnified => AccountId == UnifiedId;
 
-    public static NavItemViewModel ForAccount(string accountId, string title) => new(accountId, title, null);
+    public static NavItemViewModel ForAccount(string accountId, string title, bool usesBrowserSignIn = false) =>
+        new(accountId, title, null) { UsesBrowserSignIn = usesBrowserSignIn };
 
     /// <summary>Boîte de réception unifiée : les boîtes de réception de tous les comptes, mêlées par date.</summary>
     public static NavItemViewModel ForUnified(string title, int unread) =>
         new(UnifiedId, title, new MailFolderInfo("INBOX", title, 0, FolderRole.Inbox, true, unread, 0));
 
-    public static NavItemViewModel ForFolder(string accountId, MailFolderInfo folder, string title) => new(accountId, title, folder);
+    public static NavItemViewModel ForFolder(string accountId, MailFolderInfo folder, string title, bool usesBrowserSignIn = false) =>
+        new(accountId, title, folder) { UsesBrowserSignIn = usesBrowserSignIn };
 }

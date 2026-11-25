@@ -12,6 +12,19 @@ public enum MailSecurity
     StartTls,
 }
 
+/// <summary>Façon de se connecter au compte.</summary>
+public enum AccountAuth
+{
+    /// <summary>Identifiant et mot de passe (ou mot de passe d'application).</summary>
+    Password,
+
+    /// <summary>Connexion Google par le navigateur (OAuth2) : aucun mot de passe connu de Quai Mail.</summary>
+    Google,
+
+    /// <summary>Connexion Microsoft par le navigateur (OAuth2).</summary>
+    Microsoft,
+}
+
 /// <summary>Un serveur (IMAP ou SMTP) : nom, port, chiffrement.</summary>
 public sealed record MailServer
 {
@@ -45,6 +58,13 @@ public sealed record Account
     public required MailServer Imap { get; init; }
 
     public required MailServer Smtp { get; init; }
+
+    /// <summary>
+    /// Mot de passe, ou connexion par le navigateur (le coffre garde alors le jeton de renouvellement, jamais un mot de
+    /// passe). Absent du fichier pour un compte à mot de passe (fichiers des versions précédentes inchangés).
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public AccountAuth Auth { get; init; } = AccountAuth.Password;
 
     [JsonIgnore]
     public string Title => string.IsNullOrWhiteSpace(DisplayName) ? Address : DisplayName;

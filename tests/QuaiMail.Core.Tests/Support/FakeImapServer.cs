@@ -51,6 +51,9 @@ public sealed partial class FakeImapServer : FakeServer
 
     public string Password { get; set; } = "mot de passe de test";
 
+    /// <summary>Jeton d'accès accepté (XOAUTH2), comme le fournirait Google ou Microsoft.</summary>
+    public string AccessToken { get; set; } = "jeton-d-acces-de-test";
+
     public List<FakeFolder> Folders { get; } = [];
 
     /// <summary>Annonce IDLE (sinon le client doit interroger le serveur de lui-même).</summary>
@@ -166,6 +169,18 @@ public sealed partial class FakeImapServer : FakeServer
 
                     authenticated = CheckPlain(response);
                     await connection.WriteAsync(authenticated ? $"{tag} OK [CAPABILITY {Capabilities(connection, true)}] Connecté\r\n" : $"{tag} NO [AUTHENTICATIONFAILED] Identifiants refusés\r\n", cancellationToken);
+                    break;
+
+                case "AUTHENTICATE" when connection.IsTls && args.Count >= 2 && args[1].Equals("XOAUTH2", StringComparison.OrdinalIgnoreCase):
+                    var bearer = args.Count >= 3 ? args[2] : null;
+                    if (bearer is null)
+                    {
+                        await connection.WriteAsync("+ \r\n", cancellationToken);
+                        bearer = await connection.ReadLineAsync(cancellationToken) ?? string.Empty;
+                    }
+
+                    authenticated = CheckBearer(bearer, UserName, AccessToken);
+                    await connection.WriteAsync(authenticated ? $"{tag} OK [CAPABILITY {Capabilities(connection, true)}] Connecté\r\n" : $"{tag} NO [AUTHENTICATIONFAILED] Jeton refusé\r\n", cancellationToken);
                     break;
 
                 case "LIST" or "LSUB" when authenticated && args.Count >= 3:
@@ -302,7 +317,21 @@ public sealed partial class FakeImapServer : FakeServer
     private string Capabilities(Connection connection, bool authenticated) =>
         !connection.IsTls ? "IMAP4rev1 STARTTLS LOGINDISABLED"
         : authenticated ? $"IMAP4rev1 UNSELECT UIDPLUS MOVE{(SupportsIdle ? " IDLE" : string.Empty)}"
-        : "IMAP4rev1 AUTH=PLAIN SASL-IR";
+        : "IMAP4rev1 AUTH=PLAIN AUTH=XOAUTH2 SASL-IR";
+
+    /// <summary>XOAUTH2 : « user=… ^Aauth=Bearer … ^A^A » en base64.</summary>
+    internal static bool CheckBearer(string base64, string user, string token)
+    {
+        try
+        {
+            var text = Encoding.UTF8.GetString(Convert.FromBase64String(base64.Trim()));
+            return text == $"user={user}\u0001auth=Bearer {token}\u0001\u0001";
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
 
     private bool CheckPlain(string base64)
     {

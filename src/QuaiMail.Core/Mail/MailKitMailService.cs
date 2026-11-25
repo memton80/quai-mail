@@ -9,6 +9,7 @@ using MailKit.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Accounts.OAuth;
 using QuaiMail.Core.Reading;
 
 namespace QuaiMail.Core.Mail;
@@ -23,12 +24,13 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
     private readonly ICredentialStore _credentials;
+    private readonly AccessTokens? _tokens;
     private readonly ILogger _logger;
     private readonly RemoteCertificateValidationCallback _certificateValidation;
     private readonly ConcurrentDictionary<string, Session> _sessions = new();
 
-    public MailKitMailService(ICredentialStore credentials, ILogger<MailKitMailService>? logger = null)
-        : this(credentials, logger, null)
+    public MailKitMailService(ICredentialStore credentials, ILogger<MailKitMailService>? logger = null, AccessTokens? tokens = null)
+        : this(credentials, logger, null, tokens)
     {
     }
 
@@ -36,9 +38,10 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
     /// Tests seulement (certificat de test épinglé) ; par défaut, un certificat n'est accepté que si Windows ne lui
     /// trouve aucun défaut.
     /// </param>
-    internal MailKitMailService(ICredentialStore credentials, ILogger<MailKitMailService>? logger, RemoteCertificateValidationCallback? certificateValidation)
+    internal MailKitMailService(ICredentialStore credentials, ILogger<MailKitMailService>? logger, RemoteCertificateValidationCallback? certificateValidation, AccessTokens? tokens = null)
     {
         _credentials = credentials;
+        _tokens = tokens;
         _logger = logger ?? NullLogger<MailKitMailService>.Instance;
         _certificateValidation = certificateValidation ?? StrictValidation;
     }
@@ -54,13 +57,13 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(account);
         using (var imap = CreateImap())
         {
-            await ConnectAsync(imap, account.Imap, "IMAP", account.UserName, password, cancellationToken).ConfigureAwait(false);
+            await ConnectAsync(imap, account, account.Imap, "IMAP", password, cancellationToken).ConfigureAwait(false);
             await imap.DisconnectAsync(true, cancellationToken).ConfigureAwait(false);
         }
 
         using (var smtp = new SmtpClient { Timeout = (int)Timeout.TotalMilliseconds, ServerCertificateValidationCallback = _certificateValidation, CheckCertificateRevocation = true })
         {
-            await ConnectAsync(smtp, account.Smtp, "SMTP", account.UserName, password, cancellationToken).ConfigureAwait(false);
+            await ConnectAsync(smtp, account, account.Smtp, "SMTP", password, cancellationToken).ConfigureAwait(false);
             await smtp.DisconnectAsync(true, cancellationToken).ConfigureAwait(false);
         }
 
@@ -181,11 +184,10 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
     public async Task<SendOutcome> SendAsync(Account account, MimeKit.MimeMessage message, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);
-        var password = _credentials.GetPassword(account.Id)
-            ?? throw new MailConnectionException(MailError.MissingPassword, Describe(account.Smtp), "SMTP");
+        var password = await SecretAsync(account, account.Smtp, "SMTP", cancellationToken).ConfigureAwait(false);
         using (var smtp = new SmtpClient { Timeout = (int)Timeout.TotalMilliseconds, ServerCertificateValidationCallback = _certificateValidation, CheckCertificateRevocation = true })
         {
-            await ConnectAsync(smtp, account.Smtp, "SMTP", account.UserName, password, cancellationToken).ConfigureAwait(false);
+            await ConnectAsync(smtp, account, account.Smtp, "SMTP", password, cancellationToken).ConfigureAwait(false);
             try
             {
                 await smtp.SendAsync(new SendRequest(message), cancellationToken).ConfigureAwait(false);
@@ -518,10 +520,36 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Mot de passe du coffre, ou, pour un compte connecté par le navigateur, jeton d'accès (renouvelé si besoin).
+    /// </summary>
+    private async Task<string> SecretAsync(Account account, MailServer server, string protocol, CancellationToken cancellationToken)
+    {
+        if (account.Auth == AccountAuth.Password)
+        {
+            return _credentials.GetPassword(account.Id)
+                ?? throw new MailConnectionException(MailError.MissingPassword, Describe(server), protocol);
+        }
+
+        if (_tokens is null)
+        {
+            throw new MailConnectionException(MailError.Authentication, Describe(server), protocol);
+        }
+
+        try
+        {
+            return await _tokens.GetAsync(account, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OAuthException ex)
+        {
+            _logger.LogWarning("{Protocol} {Server} : autorisation {Error}", protocol, Describe(server), ex.Error);
+            throw new MailConnectionException(ex.Error == OAuthError.Network ? MailError.ConnectionFailed : MailError.SignInExpired, Describe(server), protocol, ex);
+        }
+    }
+
     private async Task ReconnectAsync(ImapClient client, Account account, CancellationToken cancellationToken)
     {
-        var password = _credentials.GetPassword(account.Id)
-            ?? throw new MailConnectionException(MailError.MissingPassword, Describe(account.Imap), "IMAP");
+        var password = await SecretAsync(account, account.Imap, "IMAP", cancellationToken).ConfigureAwait(false);
         if (client.IsConnected)
         {
             try
@@ -534,19 +562,34 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
             }
         }
 
-        await ConnectAsync(client, account.Imap, "IMAP", account.UserName, password, cancellationToken).ConfigureAwait(false);
+        await ConnectAsync(client, account, account.Imap, "IMAP", password, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task ConnectAsync(MailService client, MailServer server, string protocol, string userName, string password, CancellationToken cancellationToken)
+    /// <summary>Connexion chiffrée, puis identification : mot de passe, ou XOAUTH2 avec le jeton d'accès.</summary>
+    private async Task ConnectAsync(MailService client, Account account, MailServer server, string protocol, string secret, CancellationToken cancellationToken)
     {
         var options = server.Security == MailSecurity.StartTls ? SecureSocketOptions.StartTls : SecureSocketOptions.SslOnConnect;
         try
         {
             await client.ConnectAsync(server.Host, server.Port, options, cancellationToken).ConfigureAwait(false);
-            await client.AuthenticateAsync(userName, password, cancellationToken).ConfigureAwait(false);
+            if (account.Auth == AccountAuth.Password)
+            {
+                await client.AuthenticateAsync(account.UserName, secret, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await client.AuthenticateAsync(new SaslMechanismOAuth2(account.UserName, secret), cancellationToken).ConfigureAwait(false);
+            }
         }
-        catch (Exception ex) when (Classify(ex) is { } error)
+        catch (Exception ex) when (Classify(ex) is { } classified)
         {
+            // Jeton refusé par le serveur (autorisation retirée) : oublié, et il faudra se reconnecter par le navigateur.
+            var error = classified == MailError.Authentication && account.Auth != AccountAuth.Password ? MailError.SignInExpired : classified;
+            if (error == MailError.SignInExpired)
+            {
+                _tokens?.Forget(account.Id);
+            }
+
             _logger.LogWarning("{Protocol} {Server} : {Error} ({Type})", protocol, Describe(server), error, ex.GetType().Name);
             if (client.IsConnected)
             {

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Accounts.OAuth;
 using QuaiMail.Core.Cache;
 using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
@@ -20,6 +21,7 @@ public sealed partial class MailboxViewModel : ObservableObject
 {
     private readonly AccountStore _accounts;
     private readonly ICredentialStore _credentials;
+    private readonly AccessTokens? _tokens;
     private readonly IMailService _mail;
     private readonly MailCache _cache;
     private readonly ShellViewModel _shell;
@@ -38,8 +40,10 @@ public sealed partial class MailboxViewModel : ObservableObject
         ReaderViewModel reader,
         IDialogService dialogs,
         IStrings strings,
-        ILogger<MailboxViewModel>? logger = null)
+        ILogger<MailboxViewModel>? logger = null,
+        AccessTokens? tokens = null)
     {
+        _tokens = tokens;
         _accounts = accounts;
         _credentials = credentials;
         _mail = mail;
@@ -128,7 +132,7 @@ public sealed partial class MailboxViewModel : ObservableObject
         }
     }
 
-    /// <summary>Compte tout juste ajouté : affiché et sa boîte de réception choisie.</summary>
+    /// <summary>Compte tout juste ajouté (ou reconnecté) : affiché et sa boîte de réception choisie.</summary>
     public async Task OnAccountAddedAsync(Account account)
     {
         try
@@ -166,6 +170,7 @@ public sealed partial class MailboxViewModel : ObservableObject
         await _mail.DisconnectAsync(accountId);
         _accounts.Remove(accountId);
         _credentials.Remove(accountId);
+        _tokens?.Forget(accountId);
         _cache.RemoveAccount(accountId);
         _logger.LogInformation("Compte {Id} retiré de Quai Mail", accountId);
 
@@ -438,10 +443,11 @@ public sealed partial class MailboxViewModel : ObservableObject
 
         foreach (var account in accounts)
         {
-            items.Add(NavItemViewModel.ForAccount(account.Id, account.Title));
+            var browser = account.Auth != AccountAuth.Password;
+            items.Add(NavItemViewModel.ForAccount(account.Id, account.Title, browser));
             foreach (var folder in FolderOrder.Sort(_cache.GetFolders(account.Id)))
             {
-                items.Add(NavItemViewModel.ForFolder(account.Id, folder, FolderTitle(folder)));
+                items.Add(NavItemViewModel.ForFolder(account.Id, folder, FolderTitle(folder), browser));
             }
         }
 

@@ -14,6 +14,8 @@ public sealed class FakeSmtpServer(MailSecurity security = MailSecurity.SslOnCon
 
     public string Password { get; set; } = "mot de passe de test";
 
+    public string AccessToken { get; set; } = "jeton-d-acces-de-test";
+
     public int SendAttempts { get; private set; }
 
     /// <summary>Accepter les envois (tests de l'envoi) : le mail est gardé dans <see cref="Received"/>, jamais acheminé.</summary>
@@ -35,7 +37,7 @@ public sealed class FakeSmtpServer(MailSecurity security = MailSecurity.SslOnCon
             switch (verb)
             {
                 case "EHLO" or "HELO":
-                    var extensions = connection.IsTls ? "250-AUTH PLAIN LOGIN\r\n250 8BITMIME\r\n" : "250-STARTTLS\r\n250 8BITMIME\r\n";
+                    var extensions = connection.IsTls ? "250-AUTH PLAIN LOGIN XOAUTH2\r\n250 8BITMIME\r\n" : "250-STARTTLS\r\n250 8BITMIME\r\n";
                     await connection.WriteAsync("250-localhost\r\n" + extensions, cancellationToken);
                     break;
 
@@ -52,6 +54,11 @@ public sealed class FakeSmtpServer(MailSecurity security = MailSecurity.SslOnCon
                         var response = parts.Length >= 3 ? parts[2] : await Ask(connection, string.Empty, cancellationToken);
                         var fields = Decode(response).Split('\0');
                         ok = fields.Length == 3 && fields[1] == UserName && fields[2] == Password;
+                    }
+                    else if (parts.Length >= 2 && parts[1].Equals("XOAUTH2", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var response = parts.Length >= 3 ? parts[2] : await Ask(connection, string.Empty, cancellationToken);
+                        ok = FakeImapServer.CheckBearer(response, UserName, AccessToken);
                     }
                     else if (parts.Length >= 2 && parts[1].Equals("LOGIN", StringComparison.OrdinalIgnoreCase))
                     {

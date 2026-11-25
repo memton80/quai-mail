@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Accounts.OAuth;
 using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
 
@@ -20,6 +21,8 @@ public sealed partial class AccountEditorViewModel : ObservableObject
     private readonly ICredentialStore _credentials;
     private readonly IStrings _strings;
     private readonly ILogger _logger;
+    private readonly AccessTokens? _tokens;
+    private readonly OAuthFlow? _flow;
     private string? _detectedFor;
 
     public AccountEditorViewModel(
@@ -28,8 +31,12 @@ public sealed partial class AccountEditorViewModel : ObservableObject
         AccountStore accounts,
         ICredentialStore credentials,
         IStrings strings,
-        ILogger<AccountEditorViewModel>? logger = null)
+        ILogger<AccountEditorViewModel>? logger = null,
+        AccessTokens? tokens = null,
+        OAuthFlow? flow = null)
     {
+        _tokens = tokens;
+        _flow = flow;
         _discovery = discovery;
         _mail = mail;
         _accounts = accounts;
@@ -100,6 +107,127 @@ public sealed partial class AccountEditorViewModel : ObservableObject
 
     /// <summary>Compte enregistré par le dernier <see cref="SaveAsync"/> réussi.</summary>
     public Account? SavedAccount { get; private set; }
+
+    /// <summary>Connexion par le navigateur possible avec Google (Quai Mail inscrit chez Google).</summary>
+    public bool CanSignInWithGoogle => _flow is not null && _tokens?.Clients.For(AccountAuth.Google) is not null;
+
+    /// <summary>Connexion par le navigateur possible avec Microsoft (Outlook.com, Microsoft 365).</summary>
+    public bool CanSignInWithMicrosoft => _flow is not null && _tokens?.Clients.For(AccountAuth.Microsoft) is not null;
+
+    public bool CanSignIn => CanSignInWithGoogle || CanSignInWithMicrosoft;
+
+    /// <summary>
+    /// Connexion par le navigateur (Gmail, Outlook.com) : la page officielle du fournisseur s'ouvre ; Quai Mail ne voit
+    /// jamais le mot de passe. Le compte est vérifié (IMAP et SMTP, sans envoi) avant d'être enregistré.
+    /// </summary>
+    public async Task<Account?> SignInAsync(AccountAuth auth, CancellationToken cancellationToken = default)
+    {
+        ErrorMessage = null;
+        var address = Address.Trim();
+        if (!MailAddressRules.IsValidAddress(address))
+        {
+            ErrorMessage = _strings.Get("AccountEditor_InvalidAddress");
+            return null;
+        }
+
+        if (_flow is null || _tokens is null || _tokens.Clients.For(auth) is not { } provider)
+        {
+            ErrorMessage = _strings.Get("AccountEditor_SignInUnavailable");
+            return null;
+        }
+
+        var known = KnownProviders.Find(address);
+        var imap = known?.Imap ?? (auth == AccountAuth.Google
+            ? new MailServer { Host = "imap.gmail.com", Port = 993 }
+            : new MailServer { Host = "outlook.office365.com", Port = 993 });
+        var smtp = known?.Smtp ?? (auth == AccountAuth.Google
+            ? new MailServer { Host = "smtp.gmail.com", Port = 465 }
+            : new MailServer { Host = "smtp.office365.com", Port = 587, Security = MailSecurity.StartTls });
+        var account = !string.IsNullOrWhiteSpace(ImapHost) && BuildAccount(address) is { } form
+            ? form with { UserName = address, Auth = auth }
+            : new Account { Address = address, DisplayName = DisplayName.Trim(), UserName = address, Imap = imap, Smtp = smtp, Auth = auth };
+        if (_accounts.All.Any(a => string.Equals(a.Address, address, StringComparison.OrdinalIgnoreCase) && a.Imap.Host == account.Imap.Host))
+        {
+            ErrorMessage = _strings.Get("AccountEditor_AlreadyAdded");
+            return null;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var tokens = await _flow.SignInAsync(provider, address, cancellationToken);
+            await _mail.VerifyAsync(account, tokens.AccessToken, cancellationToken);
+            _tokens.Store(account, tokens);
+            _accounts.Save(account);
+            SavedAccount = account;
+            _logger.LogInformation("Compte {Id} ajouté (connexion {Provider})", account.Id, provider.Name);
+            return account;
+        }
+        catch (OAuthException ex)
+        {
+            ErrorMessage = _strings.Get("OAuthError_" + ex.Error);
+            return null;
+        }
+        catch (MailConnectionException ex)
+        {
+            ErrorMessage = MailErrors.Describe(_strings, ex);
+            return null;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Autorisation expirée ou retirée (Google la redemande tous les 7 jours tant que Quai Mail est « en test ») : nouvelle
+    /// connexion par le navigateur pour ce compte ; ses réglages, son cache et ses mails ne changent pas.
+    /// </summary>
+    public async Task<bool> ReconnectAsync(Account account, CancellationToken cancellationToken = default)
+    {
+        ErrorMessage = null;
+        if (_flow is null || _tokens is null || _tokens.Clients.For(account.Auth) is not { } provider)
+        {
+            ErrorMessage = _strings.Get("AccountEditor_SignInUnavailable");
+            return false;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var tokens = await _flow.SignInAsync(provider, account.UserName, cancellationToken);
+            await _mail.VerifyAsync(account, tokens.AccessToken, cancellationToken);
+            _tokens.Store(account, tokens);
+            _logger.LogInformation("Compte {Id} reconnecté ({Provider})", account.Id, provider.Name);
+            return true;
+        }
+        catch (OAuthException ex)
+        {
+            ErrorMessage = _strings.Get("OAuthError_" + ex.Error);
+            return false;
+        }
+        catch (MailConnectionException ex)
+        {
+            ErrorMessage = MailErrors.Describe(_strings, ex);
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>Connexion par le navigateur adaptée à ces réglages (serveurs de Google ou de Microsoft), si elle est proposée.</summary>
+    public AccountAuth? SignInFor(MailSettings settings)
+    {
+        var auth = settings.Imap.Host.ToLowerInvariant() switch
+        {
+            "imap.gmail.com" => AccountAuth.Google,
+            "outlook.office365.com" or "imap-mail.outlook.com" => AccountAuth.Microsoft,
+            _ => (AccountAuth?)null,
+        };
+        return auth is { } value && _flow is not null && _tokens?.Clients.For(value) is not null ? value : null;
+    }
 
     /// <summary>Cherche les réglages de l'adresse saisie (une fois par adresse).</summary>
     public async Task DetectAsync(CancellationToken cancellationToken = default)
@@ -221,9 +349,22 @@ public sealed partial class AccountEditorViewModel : ObservableObject
             MailSettingsSource.ProviderAutoconfig => _strings.Get("AccountEditor_SourceAutoconfig"),
             _ => _strings.Get("AccountEditor_SourceGuess"),
         };
-        var extra = settings.RequiresOAuth ? " " + _strings.Format("AccountEditor_RequiresOAuth", settings.ProviderName ?? string.Empty)
-            : settings.RequiresAppPassword ? " " + _strings.Format("AccountEditor_RequiresAppPassword", settings.ProviderName ?? string.Empty)
-            : string.Empty;
+        var provider = settings.ProviderName ?? string.Empty;
+        var signIn = SignInFor(settings) switch
+        {
+            AccountAuth.Google => _strings.Get("AccountDialog_SignInGoogle"),
+            AccountAuth.Microsoft => _strings.Get("AccountDialog_SignInMicrosoft"),
+            _ => null,
+        };
+        var extra = (settings.RequiresOAuth, settings.RequiresAppPassword, signIn) switch
+        {
+            (true, _, { } button) => " " + _strings.Format("AccountEditor_UseSignIn", provider, button),
+            (true, _, null) => " " + _strings.Format("AccountEditor_RequiresOAuth", provider),
+            (_, true, { } button) => " " + _strings.Format("AccountEditor_AppPasswordOrSignIn", provider, button),
+            (_, true, null) => " " + _strings.Format("AccountEditor_RequiresAppPassword", provider),
+            (_, _, { } button) => " " + _strings.Format("AccountEditor_SignInOffered", button),
+            _ => string.Empty,
+        };
         Hint = source + extra;
     }
 

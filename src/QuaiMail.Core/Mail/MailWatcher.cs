@@ -7,6 +7,7 @@ using MailKit.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Accounts.OAuth;
 
 namespace QuaiMail.Core.Mail;
 
@@ -40,18 +41,20 @@ public sealed class MailKitMailWatcher : IMailWatcher
     private static readonly TimeSpan[] DefaultBackoff = [TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15), TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5)];
 
     private readonly ICredentialStore _credentials;
+    private readonly AccessTokens? _tokens;
     private readonly ILogger _logger;
     private readonly RemoteCertificateValidationCallback _certificateValidation;
     private readonly ConcurrentDictionary<string, (Account Account, CancellationTokenSource Stop, Task Loop)> _watchers = new();
 
-    public MailKitMailWatcher(ICredentialStore credentials, ILogger<MailKitMailWatcher>? logger = null)
-        : this(credentials, logger, null)
+    public MailKitMailWatcher(ICredentialStore credentials, ILogger<MailKitMailWatcher>? logger = null, AccessTokens? tokens = null)
+        : this(credentials, logger, null, tokens)
     {
     }
 
-    internal MailKitMailWatcher(ICredentialStore credentials, ILogger<MailKitMailWatcher>? logger, RemoteCertificateValidationCallback? certificateValidation)
+    internal MailKitMailWatcher(ICredentialStore credentials, ILogger<MailKitMailWatcher>? logger, RemoteCertificateValidationCallback? certificateValidation, AccessTokens? tokens = null)
     {
         _credentials = credentials;
+        _tokens = tokens;
         _logger = logger ?? NullLogger<MailKitMailWatcher>.Instance;
         _certificateValidation = certificateValidation ?? MailKitMailService.StrictValidation;
     }
@@ -115,7 +118,9 @@ public sealed class MailKitMailWatcher : IMailWatcher
         {
             try
             {
-                var password = _credentials.GetPassword(account.Id);
+                var password = account.Auth == AccountAuth.Password
+                    ? _credentials.GetPassword(account.Id)
+                    : _tokens is null ? null : await _tokens.GetAsync(account, stop).ConfigureAwait(false);
                 if (password is null)
                 {
                     return;
@@ -129,7 +134,14 @@ public sealed class MailKitMailWatcher : IMailWatcher
                 };
                 var options = account.Imap.Security == MailSecurity.StartTls ? SecureSocketOptions.StartTls : SecureSocketOptions.SslOnConnect;
                 await client.ConnectAsync(account.Imap.Host, account.Imap.Port, options, stop).ConfigureAwait(false);
-                await client.AuthenticateAsync(account.UserName, password, stop).ConfigureAwait(false);
+                if (account.Auth == AccountAuth.Password)
+                {
+                    await client.AuthenticateAsync(account.UserName, password, stop).ConfigureAwait(false);
+                }
+                else
+                {
+                    await client.AuthenticateAsync(new SaslMechanismOAuth2(account.UserName, password), stop).ConfigureAwait(false);
+                }
                 var inbox = client.Inbox;
                 await inbox.OpenAsync(FolderAccess.ReadOnly, stop).ConfigureAwait(false);
                 Interlocked.Increment(ref Connections);
@@ -180,9 +192,15 @@ public sealed class MailKitMailWatcher : IMailWatcher
             {
                 var error = MailKitMailService.Classify(ex);
                 _logger.LogInformation("Réception en direct {Server} interrompue ({Error}, {Type}) ; reconnexion automatique", MailKitMailService.Describe(account.Imap), error?.ToString() ?? "inconnue", ex.GetType().Name);
-                if (error is MailError.Authentication or MailError.Certificate)
+                if (error is MailError.Authentication or MailError.Certificate or MailError.SignInExpired || ex is OAuthException { Error: not OAuthError.Network })
                 {
-                    // Mot de passe ou certificat refusé : inutile d'insister (l'erreur est montrée à l'ouverture du compte).
+                    // Mot de passe, autorisation ou certificat refusé : inutile d'insister (l'erreur est montrée à l'ouverture
+                    // du compte). La surveillance reprendra au prochain Watch (compte reconnecté, par exemple).
+                    if (_watchers.TryGetValue(account.Id, out var current) && current.Stop.Token == stop)
+                    {
+                        _watchers.TryRemove(account.Id, out _);
+                    }
+
                     return;
                 }
             }
