@@ -25,25 +25,25 @@
                 Header="{l:Str Key=AccountDialog_Name}"
                 PlaceholderText="{l:Str Key=AccountDialog_NamePlaceholder}"
                 Text="{x:Bind Editor.DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-            <StackPanel Style="{StaticResource SignInPanelStyle}" Visibility="{x:Bind ui:UiHelpers.VisibleIf(Editor.CanSignIn)}">
+            <PasswordBox Header="{l:Str Key=AccountDialog_Password}" Password="{x:Bind Editor.Password, Mode=TwoWay}" />
+            <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=AccountDialog_PasswordHint}" />
+
+            <!-- Gmail et Outlook.com par le navigateur : grisés « à venir » tant que la connexion n'est pas proposée. -->
+            <StackPanel Style="{StaticResource SignInPanelStyle}">
                 <Button
                     x:Name="GoogleButton"
                     Click="OnSignInGoogleClick"
-                    Content="{l:Str Key=AccountDialog_SignInGoogle}"
-                    IsEnabled="{x:Bind ui:UiHelpers.Not(Editor.IsBusy), Mode=OneWay}"
-                    Style="{StaticResource SignInButtonStyle}"
-                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Editor.CanSignInWithGoogle)}" />
+                    Content="{x:Bind Editor.GoogleSignInText}"
+                    IsEnabled="{x:Bind Editor.CanClickSignInWithGoogle, Mode=OneWay}"
+                    Style="{StaticResource SignInButtonStyle}" />
                 <Button
                     x:Name="MicrosoftButton"
                     Click="OnSignInMicrosoftClick"
-                    Content="{l:Str Key=AccountDialog_SignInMicrosoft}"
-                    IsEnabled="{x:Bind ui:UiHelpers.Not(Editor.IsBusy), Mode=OneWay}"
-                    Style="{StaticResource SignInButtonStyle}"
-                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Editor.CanSignInWithMicrosoft)}" />
-                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=AccountDialog_SignInHint}" />
+                    Content="{x:Bind Editor.MicrosoftSignInText}"
+                    IsEnabled="{x:Bind Editor.CanClickSignInWithMicrosoft, Mode=OneWay}"
+                    Style="{StaticResource SignInButtonStyle}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{x:Bind Editor.SignInHint}" />
             </StackPanel>
-            <PasswordBox Header="{l:Str Key=AccountDialog_Password}" Password="{x:Bind Editor.Password, Mode=TwoWay}" />
-            <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=AccountDialog_PasswordHint}" />
 
             <InfoBar
                 IsClosable="False"

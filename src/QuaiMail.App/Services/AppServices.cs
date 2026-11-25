@@ -65,7 +65,8 @@ internal static class AppServices
 
         // Connexion par le navigateur (Gmail, Outlook.com) : identifiants intégrés à la compilation. Tests de fumée :
         // fournisseur simulé (navigateur qui suit le retour local, jetons en mémoire), aucune requête vers l'extérieur.
-        services.AddSingleton(testing ? BrowserSignIn.Smoke : BrowserSignIn.Embedded);
+        // Pas encore proposée : aucun identifiant, boutons grisés « à venir ».
+        services.AddSingleton(!BrowserSignIn.Available ? OAuthClients.None : testing ? BrowserSignIn.Smoke : BrowserSignIn.Embedded);
         if (testing)
         {
             services.AddSingleton<SmokeBrowser>();

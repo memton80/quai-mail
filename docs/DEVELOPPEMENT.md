@@ -37,6 +37,8 @@ La variable d'environnement `QUAI_MAIL_DATA_DIR` redirige toutes les données (r
 
 ## Connexion par le navigateur (OAuth2)
 
+**À venir** : `BrowserSignIn.Available` vaut `false`, les boutons sont grisés « à venir » et le test de fumée vérifie qu'ils le sont. Le passer à `true` rebranche tout (le test de fumée rejoue alors une connexion Google complète contre un fournisseur simulé).
+
 Inscription chez Google et Microsoft : `docs/OAUTH.md`. Pour une compilation locale avec les boutons, définir avant `dotnet publish` les variables d'environnement `QuaiMailGoogleClientId`, `QuaiMailGoogleClientSecret` et `QuaiMailMicrosoftClientId` (sinon les boutons sont masqués). Les tests de `QuaiMail.Core` simulent le navigateur et le point d'émission des jetons, et les faux serveurs IMAP / SMTP acceptent `AUTH=XOAUTH2` : aucun vrai compte Google ou Microsoft n'est utilisé.
 
 ## Tests sans vrai compte

@@ -241,7 +241,7 @@
     <value>Réglages habituels supposés : « Ajouter » les vérifie.</value>
   </data>
   <data name="AccountEditor_RequiresOAuth" xml:space="preserve">
-    <value>{0} n'accepte plus les mots de passe, et cette copie de Quai Mail ne propose pas la connexion par le navigateur (voir le guide).</value>
+    <value>{0} n'accepte plus les mots de passe : sa connexion par le navigateur arrive dans une prochaine version de Quai Mail.</value>
   </data>
   <data name="AccountEditor_UseSignIn" xml:space="preserve">
     <value>{0} n'accepte plus les mots de passe : utilisez « {1} » ci-dessus.</value>
@@ -278,6 +278,15 @@
   </data>
   <data name="AccountDialog_SignInMicrosoft" xml:space="preserve">
     <value>Se connecter avec Microsoft</value>
+  </data>
+  <data name="AccountDialog_SignInGoogleSoon" xml:space="preserve">
+    <value>Se connecter avec Google (à venir)</value>
+  </data>
+  <data name="AccountDialog_SignInMicrosoftSoon" xml:space="preserve">
+    <value>Se connecter avec Microsoft (à venir)</value>
+  </data>
+  <data name="AccountDialog_SignInSoon" xml:space="preserve">
+    <value>Connexion à Gmail et Outlook.com par le navigateur : à venir dans une prochaine version. En attendant, Gmail fonctionne avec un mot de passe d'application, et les autres comptes IMAP / SMTP avec leur mot de passe.</value>
   </data>
   <data name="AccountDialog_SignInHint" xml:space="preserve">
     <value>Gmail, Outlook.com, Hotmail : la page de connexion officielle s'ouvre dans votre navigateur. Quai Mail ne voit jamais votre mot de passe. Pour les autres comptes, saisissez le mot de passe ci-dessous.</value>

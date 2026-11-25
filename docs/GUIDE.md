@@ -1,6 +1,6 @@
 # Guide de Quai Mail
 
-> **Version 0.6 : Gmail et Outlook.com par le navigateur.** Comptes IMAP / SMTP, lecture sûre, écriture, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail, et maintenant **Se connecter avec Google / Microsoft** : Quai Mail ne voit jamais votre mot de passe.
+> **Version 0.6.** Comptes IMAP / SMTP, lecture sûre, écriture, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail. La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir ») et arrive dans une prochaine version.
 
 ## La fenêtre
 
@@ -26,19 +26,14 @@ Tout se fait aussi au clavier : `Tab` passe d'un volet à l'autre, les flèches 
 
 Le mot de passe est gardé dans le **coffre de Windows** (Gestionnaire d'identification), jamais dans un fichier. Les connexions sont toujours chiffrées (SSL / TLS ou STARTTLS) et le certificat du serveur toujours vérifié : un certificat non fiable est refusé, sans possibilité de l'ignorer.
 
-### Gmail, Outlook.com, Hotmail : se connecter par le navigateur
+### Gmail, Outlook.com, Hotmail
 
-Dans **Ajouter un compte**, saisissez votre adresse, puis **Se connecter avec Google** (Gmail) ou **Se connecter avec Microsoft** (Outlook.com, Hotmail, Live, Microsoft 365) :
+- **Gmail** : utilisez un **mot de passe d'application** (compte Google, Sécurité, validation en deux étapes activée, « Mots de passe des applications »), saisi à la place de votre mot de passe habituel.
+- **Outlook.com, Hotmail, Live** : Microsoft n'accepte plus les mots de passe pour ces adresses ; elles ne peuvent pas encore être ajoutées.
 
-1. la page de connexion **officielle** de Google ou de Microsoft s'ouvre dans votre navigateur habituel ;
-2. connectez-vous comme d'habitude (double authentification comprise) et acceptez l'accès de Quai Mail à vos mails ;
-3. le navigateur affiche « Quai Mail : connexion réussie » : fermez l'onglet et revenez à Quai Mail, le compte est ajouté.
+Les boutons **Se connecter avec Google** et **Se connecter avec Microsoft** sont visibles mais grisés, marqués **à venir** : la connexion par le navigateur (page officielle de Google ou de Microsoft, sans que Quai Mail voie votre mot de passe) arrive dans une prochaine version.
 
-Quai Mail ne voit jamais votre mot de passe : Google ou Microsoft lui donnent seulement une autorisation, gardée dans le coffre de Windows. Vous pouvez la retirer à tout moment depuis votre compte Google ou Microsoft (applications autorisées). Outlook.com et Hotmail n'acceptent plus du tout les mots de passe ; pour Gmail, le **mot de passe d'application** reste possible.
-
-**Se reconnecter** : si l'autorisation expire ou est retirée, Quai Mail le dit (« autorisation expirée ou retirée ») ; clic droit sur le compte, **Se reconnecter**, et la page de connexion se rouvre. Tant que Quai Mail est en phase de test chez Google, Google redemande cette autorisation tous les 7 jours (voir les limites ci-dessous).
-
-**Retirer un compte** : clic droit sur le compte (ou l'un de ses dossiers), **Retirer ce compte de Quai Mail…**, puis confirmer. Ses réglages, son mot de passe (ou son autorisation Google / Microsoft) et son cache disparaissent de cet ordinateur ; vos mails restent sur le serveur.
+**Retirer un compte** : clic droit sur le compte (ou l'un de ses dossiers), **Retirer ce compte de Quai Mail…**, puis confirmer. Ses réglages, son mot de passe et son cache disparaissent de cet ordinateur ; vos mails restent sur le serveur.
 
 ## Dossiers et mails
 
@@ -123,7 +118,7 @@ Quai Mail pose la même question **« Garder ce brouillon ? »**. Si l'enregistr
 ## Vos données
 
 - Réglages : `%LOCALAPPDATA%\QuaiMail\settings.json` (thème, images distantes, mises à jour).
-- Comptes : `%LOCALAPPDATA%\QuaiMail\accounts.json` (adresse, serveurs, identifiant ; **aucun mot de passe**). Mots de passe, et autorisations des comptes Gmail / Outlook.com connectés par le navigateur : coffre de Windows (Gestionnaire d'identification, « QuaiMail »).
+- Comptes : `%LOCALAPPDATA%\QuaiMail\accounts.json` (adresse, serveurs, identifiant ; **aucun mot de passe**). Mots de passe : coffre de Windows (Gestionnaire d'identification, « QuaiMail »).
 - Cache : `%LOCALAPPDATA%\QuaiMail\cache\mail.db` (dossiers et en-têtes), effaçable à tout moment.
 - Affichage des mails : `%LOCALAPPDATA%\QuaiMail\webview`, effacé à chaque démarrage et fermeture (aucun cookie gardé).
 - Brouillons : `%LOCALAPPDATA%\QuaiMail\drafts`, un fichier par brouillon (et ses pièces jointes copiées), effacé une fois le mail envoyé ou le brouillon supprimé.
@@ -133,10 +128,10 @@ Quai Mail pose la même question **« Garder ce brouillon ? »**. Si l'enregistr
 
 ## Connexions
 
-Quai Mail ne se connecte qu'aux serveurs mail de vos comptes, aux sites des images distantes d'un mail seulement quand vous demandez **Afficher les images**, à GitHub pour savoir s'il existe une nouvelle version (rien sur vous ni sur vos mails ; désactivable dans les **Réglages**) et, au moment d'ajouter un compte, au site de votre fournisseur pour lire ses réglages publiés (seul le nom de domaine apparaît dans l'adresse demandée, jamais votre adresse mail). Pour un compte connecté par le navigateur, Quai Mail parle aussi à Google (`oauth2.googleapis.com`) ou à Microsoft (`login.microsoftonline.com`), seulement pour renouveler son autorisation ; la page de connexion, elle, s'ouvre dans votre navigateur. Aucune publicité, aucun pistage, aucun compte à créer.
+Quai Mail ne se connecte qu'aux serveurs mail de vos comptes, aux sites des images distantes d'un mail seulement quand vous demandez **Afficher les images**, à GitHub pour savoir s'il existe une nouvelle version (rien sur vous ni sur vos mails ; désactivable dans les **Réglages**) et, au moment d'ajouter un compte, au site de votre fournisseur pour lire ses réglages publiés (seul le nom de domaine apparaît dans l'adresse demandée, jamais votre adresse mail). Aucune publicité, aucun pistage, aucun compte à créer.
 
 ## Limites actuelles
 
-Version 0.6 : la connexion Google est en phase de test chez Google (application non encore validée par Google, procédure longue et payante) : elle est réservée aux adresses inscrites comme testeurs, et Google redemande l'autorisation tous les 7 jours (**Se reconnecter**). Les autres utilisateurs de Gmail passent par un mot de passe d'application. Chez Microsoft, la page de connexion peut indiquer « éditeur non vérifié » ; certains comptes professionnels exigent l'accord de leur administrateur. La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes ne peuvent pas encore être autorisées pour un expéditeur.
+Version 0.6 : pas encore de connexion à Gmail / Outlook.com par le navigateur (boutons grisés « à venir ») ; Gmail fonctionne avec un mot de passe d'application, Outlook.com et Hotmail pas encore. La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes ne peuvent pas encore être autorisées pour un expéditeur.
 
 Affichage : le moteur WebView2 de Microsoft (déjà présent sur Windows 11 et la plupart des Windows 10) est nécessaire. S'il manque, Quai Mail le dit et donne le lien officiel.

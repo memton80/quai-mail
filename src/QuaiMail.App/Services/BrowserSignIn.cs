@@ -9,6 +9,12 @@ namespace QuaiMail.App.Services;
 /// <summary>Identifiants OAuth2 intégrés à la compilation (secrets du dépôt GitHub, voir docs/OAUTH.md).</summary>
 internal static class BrowserSignIn
 {
+    /// <summary>
+    /// Connexion à Gmail et Outlook.com par le navigateur proposée dans cette version. Pas encore : boutons grisés
+    /// « à venir » (décision d'Alexandre, docs/DECISIONS.md) ; le code OAuth2 de QuaiMail.Core reste testé, prêt.
+    /// </summary>
+    public static bool Available { get; } = false;
+
     public static OAuthClients Embedded { get; } = new(
         Metadata("QuaiMail.GoogleClientId"),
         Metadata("QuaiMail.GoogleClientSecret"),

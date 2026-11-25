@@ -9,7 +9,8 @@ namespace QuaiMail.App.Views;
 /// <summary>
 /// Ajout d'un compte : « Ajouter » vérifie les réglages par une vraie connexion (aucun mail envoyé) et n'enregistre
 /// qu'en cas de succès ; sinon le dialogue reste ouvert avec l'explication. « Se connecter avec Google / Microsoft »
-/// ouvre la page officielle dans le navigateur ; fermer le dialogue abandonne l'attente.
+/// ouvre la page officielle dans le navigateur ; fermer le dialogue abandonne l'attente. Tant que cette connexion
+/// n'est pas proposée (<see cref="Services.BrowserSignIn.Available"/>), les deux boutons sont grisés « à venir ».
 /// </summary>
 public sealed partial class AccountDialog : ContentDialog
 {
@@ -22,6 +23,9 @@ public sealed partial class AccountDialog : ContentDialog
         Opened += (_, _) => AddressBox.Focus(FocusState.Programmatic);
         Closing += (_, _) => _signIn?.Cancel();
     }
+
+    /// <summary>Test de fumée : boutons de connexion par le navigateur cliquables ou grisés.</summary>
+    internal bool SignInButtonsEnabled => GoogleButton.IsEnabled || MicrosoftButton.IsEnabled;
 
     /// <summary>Test de fumée : clic sur « Se connecter avec Google », comme le ferait un utilisateur.</summary>
     internal void ClickSignInWithGoogle() => new ButtonAutomationPeer(GoogleButton).Invoke();

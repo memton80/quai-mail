@@ -86,6 +86,8 @@ public sealed partial class AccountEditorViewModel : ObservableObject
     public partial int SmtpSecurityIndex { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanClickSignInWithGoogle))]
+    [NotifyPropertyChangedFor(nameof(CanClickSignInWithMicrosoft))]
     public partial bool IsBusy { get; set; }
 
     /// <summary>La page de connexion du fournisseur est ouverte dans le navigateur : Quai Mail attend son retour.</summary>
@@ -119,6 +121,17 @@ public sealed partial class AccountEditorViewModel : ObservableObject
     public bool CanSignInWithMicrosoft => _flow is not null && _tokens?.Clients.For(AccountAuth.Microsoft) is not null;
 
     public bool CanSignIn => CanSignInWithGoogle || CanSignInWithMicrosoft;
+
+    public bool CanClickSignInWithGoogle => CanSignInWithGoogle && !IsBusy;
+
+    public bool CanClickSignInWithMicrosoft => CanSignInWithMicrosoft && !IsBusy;
+
+    /// <summary>Texte du bouton : « (à venir) » tant que la connexion par le navigateur n'est pas proposée.</summary>
+    public string GoogleSignInText => _strings.Get(CanSignInWithGoogle ? "AccountDialog_SignInGoogle" : "AccountDialog_SignInGoogleSoon");
+
+    public string MicrosoftSignInText => _strings.Get(CanSignInWithMicrosoft ? "AccountDialog_SignInMicrosoft" : "AccountDialog_SignInMicrosoftSoon");
+
+    public string SignInHint => _strings.Get(CanSignIn ? "AccountDialog_SignInHint" : "AccountDialog_SignInSoon");
 
     /// <summary>
     /// Connexion par le navigateur (Gmail, Outlook.com) : la page officielle du fournisseur s'ouvre ; Quai Mail ne voit

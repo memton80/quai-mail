@@ -233,6 +233,12 @@ public sealed class OAuthTests : IAsyncLifetime
         await none.DetectAsync(TestContext.Current.CancellationToken);
         Assert.Contains("AccountEditor_RequiresOAuth(Outlook.com)", none.Hint, StringComparison.Ordinal);
         Assert.False(none.CanSignIn);
+
+        // Pas encore proposée : boutons grisés, marqués « à venir ».
+        Assert.False(none.CanClickSignInWithGoogle || none.CanClickSignInWithMicrosoft);
+        Assert.Equal(("AccountDialog_SignInGoogleSoon", "AccountDialog_SignInMicrosoftSoon", "AccountDialog_SignInSoon"), (none.GoogleSignInText, none.MicrosoftSignInText, none.SignInHint));
+        Assert.Equal(("AccountDialog_SignInGoogle", "AccountDialog_SignInMicrosoft"), (outlook.GoogleSignInText, outlook.MicrosoftSignInText));
+        Assert.True(outlook.CanClickSignInWithMicrosoft);
     }
 
     [Fact]

@@ -274,9 +274,6 @@ jobs:
           if (-not (Select-String -Path (Join-Path $out 'smoke-report.txt') -SimpleMatch $expected -Quiet)) {
             throw "Inscription OAuth : « $expected » attendu dans le rapport."
           }
-          if ($google -eq 'non' -or $microsoft -eq 'non') {
-            Write-Host "::warning::Secrets OAuth absents : « Se connecter avec Google / Microsoft » n'est pas proposé par cette compilation (voir docs/OAUTH.md)."
-          }
 
       # Le bouton « Mettre à jour » pour de vrai (repris de Quai) : Quai Mail installé, avec un brouillon ouvert, se voit
       # proposer l'installateur qui vient d'être construit (servi depuis le disque à la place de GitHub, avec sa vraie

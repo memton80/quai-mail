@@ -580,6 +580,22 @@ internal static class SmokeTest
         await WaitForAsync(() => dialogs.Current is AccountDialog, "formulaire d'ajout de compte (navigateur)");
         var dialog = (AccountDialog)dialogs.Current!;
         var editor = dialog.Editor;
+        if (!BrowserSignIn.Available)
+        {
+            // Pas encore proposée : boutons grisés « à venir », l'ajout par mot de passe reste la voie normale.
+            Check(!dialog.SignInButtonsEnabled && !editor.CanSignIn, "les boutons de connexion par le navigateur doivent être grisés");
+            Check(editor.GoogleSignInText == Loc.Get("AccountDialog_SignInGoogleSoon") && editor.MicrosoftSignInText == Loc.Get("AccountDialog_SignInMicrosoftSoon"), "mention « à venir » absente");
+            editor.Address = "dominique@outlook.fr";
+            await WithTimeout(editor.DetectAsync(), "détection Outlook.com");
+            await Task.Delay(800);
+            await CaptureAsync(hwnd, directory, "19-connexion-a-venir.png", report);
+            dialogs.Current?.Hide();
+            Check(await WithTimeout(adding, "fermeture du formulaire") is null && mailbox.HasNoAccount, "aucun compte ne doit être ajouté");
+            Check(browser.Opened.Count == 0, "aucune page de connexion ne doit s'ouvrir");
+            report.Add("Connexion Gmail / Outlook.com par le navigateur : boutons grisés « à venir »");
+            return;
+        }
+
         Check(editor is { CanSignInWithGoogle: true, CanSignInWithMicrosoft: true }, "boutons « Se connecter avec Google / Microsoft » absents");
         editor.Address = "dominique@gmail.com";
         await WithTimeout(editor.DetectAsync(), "détection Gmail");

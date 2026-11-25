@@ -1,5 +1,7 @@
 # Connexion à Gmail et Outlook.com par le navigateur (OAuth2) : inscription de Quai Mail
 
+> **À venir.** Depuis la version 0.6, le code de cette connexion est dans Quai Mail (testé contre un fournisseur simulé) mais pas encore proposé : les deux boutons sont grisés « à venir ». Pour l'activer dans une version future : faire les inscriptions ci-dessous, créer les trois secrets GitHub, puis passer `BrowserSignIn.Available` à `true` (`src/QuaiMail.App/Services/BrowserSignIn.cs`).
+
 Gmail et Outlook.com refusent (ou refuseront) les mots de passe en IMAP / SMTP : ils exigent une connexion « OAuth2 ». L'utilisateur se connecte dans **son navigateur**, sur la page de Google ou de Microsoft ; Quai Mail ne voit jamais son mot de passe et reçoit seulement une autorisation, gardée dans le coffre de Windows.
 
 Pour cela, Quai Mail doit être **inscrit** chez Google et chez Microsoft. C'est fait une fois, avec les comptes du propriétaire du projet (Alexandre). Cette page dit exactement quoi cliquer. Rien de payant n'est nécessaire.
