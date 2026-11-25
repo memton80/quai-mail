@@ -36,7 +36,16 @@ public sealed partial class NavItemViewModel : ObservableObject
 
     public bool HasUnread => Unread > 0;
 
+    /// <summary>Identifiant de la boîte de réception unifiée (tous les comptes).</summary>
+    public const string UnifiedId = "*";
+
+    public bool IsUnified => AccountId == UnifiedId;
+
     public static NavItemViewModel ForAccount(string accountId, string title) => new(accountId, title, null);
+
+    /// <summary>Boîte de réception unifiée : les boîtes de réception de tous les comptes, mêlées par date.</summary>
+    public static NavItemViewModel ForUnified(string title, int unread) =>
+        new(UnifiedId, title, new MailFolderInfo("INBOX", title, 0, FolderRole.Inbox, true, unread, 0));
 
     public static NavItemViewModel ForFolder(string accountId, MailFolderInfo folder, string title) => new(accountId, title, folder);
 }

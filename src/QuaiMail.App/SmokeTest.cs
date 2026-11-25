@@ -310,6 +310,8 @@ internal static class SmokeTest
         Check(cache.GetFolders(account.Id).Count == 6, "cache reconstruit");
         report.Add("Cache : vidé puis reconstruit depuis le serveur");
 
+        await ComfortAsync(window, services, dialogs, account, hwnd, directory, report);
+
         // Retrait du compte : confirmation, puis plus rien de local (coffre compris).
         var removing = mailbox.RemoveAccountAsync(account.Id);
         await WaitForAsync(() => dialogs.Current is not null, "confirmation du retrait du compte");
@@ -470,6 +472,93 @@ internal static class SmokeTest
         await CaptureAsync(hwnd, directory, "15-envoye.png", report);
         composer.ShowSent = false;
         report.Add("Nouveau message : brouillon enregistré (local et Brouillons), destinataire invalide refusé, envoyé par le bouton Envoyer, brouillon effacé");
+    }
+
+    /// <summary>
+    /// Confort : recherche (cache puis serveur), mail reçu en direct et clic sur sa notification, corbeille, suppression
+    /// définitive seulement après confirmation (refusée ici), déplacement, boîte de réception unifiée avec un deuxième
+    /// compte, lien mailto: (brouillon prérempli, rien n'est envoyé).
+    /// </summary>
+    private static async Task ComfortAsync(MainWindow window, IServiceProvider services, DialogService dialogs, Account account, IntPtr hwnd, string directory, List<string> report)
+    {
+        var mailbox = window.Mailbox;
+        var messages = window.Messages;
+        var mail = (SmokeMailService)services.GetRequiredService<IMailService>();
+        var inbox = mailbox.Items.First(i => i.AccountId == account.Id && i.Role == FolderRole.Inbox);
+        mailbox.SelectedItem = inbox;
+        await WaitForAsync(() => !messages.IsLoading && messages.Messages.Count > 0 && messages.FolderName == "INBOX", "boîte de réception");
+
+        // Recherche plein texte dans le cache (sans accents ni casse), puis sur le serveur.
+        await WithTimeout(messages.SearchAsync("FACTURE novembre"), "recherche");
+        Check(messages.IsSearching && messages.Messages.Any(m => m.Uid == SmokeMailService.TrappedUid), $"recherche : {messages.Messages.Count} résultat(s)");
+        await Task.Delay(600);
+        await CaptureAsync(hwnd, directory, "16-recherche.png", report);
+        await WithTimeout(messages.SearchServerCommand.ExecuteAsync(null), "recherche sur le serveur");
+        await WithTimeout(messages.EndSearchAsync(), "fin de la recherche");
+        await WaitForAsync(() => !messages.IsLoading && !messages.IsSearching && messages.FolderName == "INBOX", "retour au dossier");
+        report.Add("Recherche : trouvée dans le cache (FTS5, sans accents ni casse), puis sur le serveur");
+
+        // Réception en direct (simulée) : le mail arrive en tête, le compteur suit ; clic sur sa notification.
+        var watcher = (SmokeMailWatcher)services.GetRequiredService<IMailWatcher>();
+        Check(watcher.Watched.Any(a => a.Id == account.Id), "le compte n'est pas surveillé (réception en direct)");
+        var unread = inbox.Unread;
+        var fresh = new MessageHeader(500, "Arrivé en direct", "Léa Dubois", "lea@example.org", DateTimeOffset.Now, false, false, 1000);
+        watcher.Deliver(account, [fresh]);
+        await WaitForAsync(() => messages.Messages.Count > 0 && messages.Messages[0].Uid == 500, "mail reçu en direct en tête de liste");
+        Check(inbox.Unread == unread + 1, $"compteur après un mail reçu : {inbox.Unread}");
+        mailbox.SelectedItem = mailbox.Items.First(i => i.Folder?.FullName == "Envoyés");
+        ((SmokeNotifier)services.GetRequiredService<INotifier>()).Click(account.Id);
+        await WaitForAsync(() => mailbox.SelectedItem == inbox && !messages.IsLoading, "clic sur une notification : boîte de réception");
+        report.Add("Réception en direct : mail ajouté en tête, compteur mis à jour, clic sur la notification vers la boîte de réception");
+
+        // Supprimer : vers la corbeille, sans question.
+        var victim = messages.Messages.First(m => m.Uid != SmokeMailService.TrappedUid);
+        Check(await WithTimeout(mailbox.DeleteAsync(victim), "suppression"), "mail non supprimé");
+        Check(mail.Moves.Contains((victim.Uid, "INBOX", "Corbeille")) && !messages.Messages.Contains(victim) && dialogs.Current is null, "mail non mis à la corbeille");
+
+        // Depuis la corbeille : suppression définitive seulement après confirmation (refusée ici).
+        var trashed = new MessageItemViewModel(account.Id, "Corbeille", victim.Header, "(sans objet)", DateTimeOffset.Now);
+        var forever = mailbox.DeleteAsync(trashed);
+        await WaitForAsync(() => dialogs.Current is not null, "confirmation de la suppression définitive");
+        await Task.Delay(500);
+        await CaptureAsync(hwnd, directory, "17-supprimer-definitivement.png", report);
+        dialogs.Choose(ContentDialogResult.None);
+        Check(!await WithTimeout(forever, "suppression définitive refusée") && mail.PermanentlyDeleted.Count == 0, "suppression définitive sans accord");
+
+        // Déplacer vers un autre dossier du compte.
+        var moved = messages.Messages.First(m => m.Uid != SmokeMailService.TrappedUid);
+        var target = mailbox.MoveTargets(moved).First(t => t.Folder?.FullName == "Archives/2026");
+        Check(await WithTimeout(mailbox.MoveAsync(moved, target), "déplacement"), "mail non déplacé");
+        Check(mail.Moves.Contains((moved.Uid, "INBOX", "Archives/2026")), "déplacement non demandé au serveur");
+        report.Add("Supprimer : corbeille d'abord ; définitif seulement après confirmation (refusée) ; déplacer : OK");
+
+        // Boîte de réception unifiée : un deuxième compte (même serveur de test).
+        var accounts = services.GetRequiredService<AccountStore>();
+        var credentials = services.GetRequiredService<ICredentialStore>();
+        var second = account with { Id = Guid.NewGuid().ToString("N"), Address = "dominique@example.org", DisplayName = "Dominique", UserName = "dominique@example.org" };
+        credentials.SetPassword(second.Id, SmokeMailService.Password);
+        accounts.Save(second);
+        await WithTimeout(mailbox.RefreshAsync(), "deuxième compte");
+        var unified = mailbox.Items.FirstOrDefault(i => i.IsUnified) ?? throw new InvalidOperationException("Vérification en échec : boîte de réception unifiée absente");
+        mailbox.SelectedItem = unified;
+        await WaitForAsync(() => !messages.IsLoading && messages.IsUnified && messages.Messages.Select(m => m.AccountId).Distinct().Count() == 2, "boîte de réception unifiée");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "18-boites-unifiees.png", report);
+        var removing = mailbox.RemoveAccountAsync(second.Id);
+        await WaitForAsync(() => dialogs.Current is not null, "retrait du deuxième compte");
+        dialogs.Choose(ContentDialogResult.Primary);
+        Check(await WithTimeout(removing, "retrait du deuxième compte"), "deuxième compte non retiré");
+        report.Add("Boîte de réception unifiée : deux comptes mêlés par date");
+
+        // Lien mailto: : brouillon prérempli, rien n'est envoyé.
+        var composer = window.Composer;
+        var sent = mail.Sent.Count;
+        Check(Core.Compose.MailtoLink.TryParse("mailto:lea@example.org?subject=Depuis%20un%20lien&body=Bonjour", out var link), "lien mailto illisible");
+        Check(await WithTimeout(composer.NewFromLinkAsync(link, account.Id), "lien mailto"), "lien mailto non ouvert");
+        Check(composer is { IsOpen: true, To: "lea@example.org", Subject: "Depuis un lien", Body: "Bonjour" }, "brouillon du lien mailto");
+        await DiscardAsync(composer, dialogs);
+        Check(mail.Sent.Count == sent, "un lien mailto ne doit rien envoyer");
+        report.Add("Lien mailto : brouillon prérempli, rien envoyé");
     }
 
     /// <summary>Ferme le message en cours : « Garder ce brouillon ? » → Supprimer.</summary>

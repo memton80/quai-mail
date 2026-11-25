@@ -524,6 +524,72 @@ public sealed class MailViewModelsTests : IDisposable
         Assert.Equal(expected, QuaiMail.Core.Cache.MailCache.FtsQuery(text));
 
     [Fact]
+    public async Task With_several_accounts_a_unified_inbox_mixes_them_by_date()
+    {
+        var alice = AddAccount("alice@example.org");
+        var bob = AddAccount("bob@example.org");
+        _mail.Folders[alice.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 2, 60)];
+        _mail.Folders[bob.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 1, 60)];
+        // Le faux service sert la même boîte « INBOX » aux deux comptes : 60 mails, un par heure (UID croissant = plus récent).
+        _mail.Messages["INBOX"] = [.. Enumerable.Range(1, 60).Select(i => Header((uint)i) with { Date = Now.AddHours(i - 60) })];
+        var mailbox = Mailbox();
+
+        await mailbox.LoadAsync();
+        await WaitForAsync(() => !mailbox.Messages.IsLoading && mailbox.Messages.Messages.Count == MessageListViewModel.PageSize);
+
+        var unified = mailbox.Items[0];
+        Assert.True(unified.IsUnified);
+        Assert.Equal("Folder_Unified", unified.Title);
+        Assert.Equal(3, unified.Unread);
+        Assert.Same(unified, mailbox.SelectedItem);
+        Assert.Equal(NavItemViewModel.UnifiedId, _shell.SelectedAccountId);
+        var list = mailbox.Messages.Messages;
+        Assert.True(list.Zip(list.Skip(1)).All(p => p.First.Header.Date >= p.Second.Header.Date));
+        Assert.Equal(2, list.Select(m => m.AccountId).Distinct().Count());
+        Assert.True(mailbox.Messages.HasMore);
+
+        await mailbox.Messages.LoadMoreCommand.ExecuteAsync(null);
+        await mailbox.Messages.LoadMoreCommand.ExecuteAsync(null);
+        Assert.Equal(120, list.Count);
+        Assert.False(mailbox.Messages.HasMore);
+        Assert.Equal(60, list.Count(m => m.AccountId == alice.Id));
+    }
+
+    [Fact]
+    public async Task New_mail_arrives_on_top_of_the_inbox_shown_and_in_the_counters()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        var inbox = mailbox.Items.Single(i => i.Role == FolderRole.Inbox);
+        var unread = inbox.Unread;
+        var fresh = new MessageHeader(50, "Tout frais", "Léa", "lea@example.org", Now.AddMinutes(5), false, false, 10);
+
+        var notified = mailbox.OnNewMail(_accounts.Find(account.Id)!, [fresh]);
+
+        Assert.Equal([fresh], notified);
+        Assert.Equal(50u, mailbox.Messages.Messages[0].Uid);
+        Assert.Equal(unread + 1, inbox.Unread);
+
+        // Déjà là : pas de doublon.
+        mailbox.OnNewMail(_accounts.Find(account.Id)!, [fresh]);
+        Assert.Single(mailbox.Messages.Messages, m => m.Uid == 50);
+    }
+
+    [Fact]
+    public async Task New_mail_does_not_disturb_another_folder_shown()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        _mail.Folders[account.Id].Add(new MailFolderInfo("Envoyés", "Envoyés", 0, FolderRole.Sent, true, 0, 0));
+        await mailbox.RefreshAsync();
+        mailbox.SelectedItem = mailbox.Items.Single(i => i.Folder?.FullName == "Envoyés");
+        await WaitForAsync(() => !mailbox.Messages.IsLoading);
+
+        mailbox.OnNewMail(_accounts.Find(account.Id)!, [new MessageHeader(50, "Tout frais", "Léa", "lea@example.org", Now, false, false, 10)]);
+
+        Assert.DoesNotContain(mailbox.Messages.Messages, m => m.Uid == 50);
+        Assert.Equal(3, mailbox.Items.Single(i => i.Role == FolderRole.Inbox).Unread);
+    }
+
+    [Fact]
     public void Dates_are_short_and_readable()
     {
         var now = new DateTimeOffset(2026, 11, 25, 15, 0, 0, TimeSpan.Zero);

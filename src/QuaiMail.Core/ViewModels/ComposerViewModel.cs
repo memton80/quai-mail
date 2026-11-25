@@ -147,6 +147,21 @@ public sealed partial class ComposerViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>Lien mailto: (Quai Mail choisi pour les liens mail) : un brouillon prérempli, jamais envoyé tout seul.</summary>
+    public async Task<bool> NewFromLinkAsync(MailtoLink link, string? accountId)
+    {
+        if (!await CloseCurrentAsync())
+        {
+            return false;
+        }
+
+        var account = _accounts.Find(accountId) ?? _accounts.All.FirstOrDefault();
+        _shell.OpenDraft(link.ToDraft(account?.Id));
+        MarkDirty();
+        SaveLocal();
+        return true;
+    }
+
     /// <summary>Réponse (ou réponse à tous) au mail lu.</summary>
     public async Task<bool> ReplyAsync(MessageContent original, Account account, bool all)
     {

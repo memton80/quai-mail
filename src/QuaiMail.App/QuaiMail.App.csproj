@@ -13,6 +13,9 @@
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
     <DefaultLanguage>fr-FR</DefaultLanguage>
+    <!-- Point d'entrée maison (Program.cs) : une seule instance de Quai Mail, liens mailto: redirigés vers elle. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <!-- Application non packagée (pas de MSIX), runtime .NET et Windows App SDK embarqués. -->
     <WindowsPackageType>None</WindowsPackageType>

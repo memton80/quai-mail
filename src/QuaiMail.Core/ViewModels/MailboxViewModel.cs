@@ -213,6 +213,20 @@ public sealed partial class MailboxViewModel : ObservableObject
             return;
         }
 
+        if (value.IsUnified)
+        {
+            if (_shell.SelectedAccountId != NavItemViewModel.UnifiedId)
+            {
+                _shell.OpenMessageId = null;
+            }
+
+            _shell.SelectedAccountId = NavItemViewModel.UnifiedId;
+            _shell.SelectedFolderPath = "INBOX";
+            Reader.Clear();
+            _ = Messages.ShowUnifiedAsync(_accounts.All, value.Title);
+            return;
+        }
+
         if (!value.CanSelect)
         {
             // Ligne d'un compte (ou dossier conteneur) : sa boîte de réception à la place.
@@ -285,6 +299,27 @@ public sealed partial class MailboxViewModel : ObservableObject
         {
             item.Unread = Math.Max(0, item.Unread + delta);
         }
+
+        if (folder == "INBOX" && Items.FirstOrDefault(i => i.IsUnified) is { } unified)
+        {
+            unified.Unread = Math.Max(0, unified.Unread + delta);
+        }
+    }
+
+    /// <summary>
+    /// Réception en direct : nouveaux mails ajoutés en tête de la liste affichée et aux compteurs.
+    /// </summary>
+    /// <returns>Les mails non lus parmi eux (pour une notification).</returns>
+    public IReadOnlyList<MessageHeader> OnNewMail(Account account, IReadOnlyList<MessageHeader> messages)
+    {
+        Messages.InsertNewest(account.Id, "INBOX", messages);
+        var unread = messages.Where(m => !m.IsRead).ToList();
+        if (unread.Count > 0)
+        {
+            AdjustUnread(account.Id, "INBOX", unread.Count);
+        }
+
+        return unread;
     }
 
     /// <summary>Dossiers vers lesquels un mail peut être déplacé (même compte, sauf son dossier).</summary>
@@ -384,7 +419,7 @@ public sealed partial class MailboxViewModel : ObservableObject
         var restored = Items.FirstOrDefault(i =>
             i.CanSelect && i.AccountId == _shell.SelectedAccountId && i.Folder!.FullName == _shell.SelectedFolderPath);
         var first = Items.FirstOrDefault(i => i.IsAccount);
-        SelectedItem = restored ?? (first is null ? null : InboxOf(first.AccountId));
+        SelectedItem = restored ?? Items.FirstOrDefault(i => i.IsUnified) ?? (first is null ? null : InboxOf(first.AccountId));
     }
 
     /// <summary>
@@ -394,7 +429,14 @@ public sealed partial class MailboxViewModel : ObservableObject
     {
         var selected = SelectedItem is { Folder: { } current } ? (SelectedItem.AccountId, current.FullName) : default;
         var items = new List<NavItemViewModel>();
-        foreach (var account in _accounts.All)
+        var accounts = _accounts.All;
+        if (accounts.Count > 1)
+        {
+            var unread = accounts.Sum(a => _cache.GetFolders(a.Id).FirstOrDefault(f => f.Role == FolderRole.Inbox)?.Unread ?? 0);
+            items.Add(NavItemViewModel.ForUnified(_strings.Get("Folder_Unified"), unread));
+        }
+
+        foreach (var account in accounts)
         {
             items.Add(NavItemViewModel.ForAccount(account.Id, account.Title));
             foreach (var folder in FolderOrder.Sort(_cache.GetFolders(account.Id)))
@@ -419,6 +461,6 @@ public sealed partial class MailboxViewModel : ObservableObject
             _rebuilding = false;
         }
 
-        HasAccounts = items.Count > 0;
+        HasAccounts = accounts.Count > 0;
     }
 }

@@ -218,6 +218,14 @@ jobs:
 
           $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Quai Mail.lnk'
           if (-not (Test-Path $shortcut)) { throw 'Raccourci du menu Démarrer absent.' }
+
+          # « Ouvrir avec » pour les liens mailto: (applications par défaut de Windows).
+          $command = (Get-ItemProperty 'HKCU:\Software\Classes\QuaiMail.mailto\shell\open\command').'(default)'
+          if ($command -notlike "*QuaiMail.exe*%1*") { throw "Commande des liens mailto inattendue : $command" }
+          $mailto = (Get-ItemProperty 'HKCU:\Software\Quai Mail\Capabilities\URLAssociations').mailto
+          if ($mailto -ne 'QuaiMail.mailto') { throw "Association mailto absente des capacités de Quai Mail." }
+          $registered = (Get-ItemProperty 'HKCU:\Software\RegisteredApplications' -ErrorAction SilentlyContinue).'Quai Mail'
+          if ($registered -ne 'Software\Quai Mail\Capabilities') { throw "Quai Mail absent des applications inscrites." }
           "QUAI_MAIL_INSTALL_DIR=$dir" >> $env:GITHUB_ENV
 
       - name: Test de fumée (application installée, lancement réel)
@@ -363,6 +371,10 @@ jobs:
           if (Test-Path $dir) { $left += "dossier d'installation ($((Get-ChildItem $dir -Recurse -File | Select-Object -First 5).FullName -join ', '))" }
           if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{45AC4609-96F5-4C2C-A740-E243A390EA78}_is1') { $left += 'entrée de désinstallation' }
           if (Test-Path (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Quai Mail.lnk')) { $left += 'raccourci du menu Démarrer' }
+          if (Test-Path 'HKCU:\Software\Classes\QuaiMail.mailto') { $left += 'type de lien QuaiMail.mailto' }
+          if (Test-Path 'HKCU:\Software\Quai Mail') { $left += 'capacités de Quai Mail' }
+          $registered = Get-ItemProperty 'HKCU:\Software\RegisteredApplications' -ErrorAction SilentlyContinue
+          if ($registered -and ($registered.PSObject.Properties.Name -contains 'Quai Mail')) { $left += 'inscription dans les applications par défaut' }
           if (Test-Path $data) { $left += 'données utilisateur' }
           if ($left) { throw "La désinstallation a laissé : $($left -join ' ; ')" }
           Write-Host 'Désinstallation complète : aucun fichier, raccourci ni entrée de registre restant.'

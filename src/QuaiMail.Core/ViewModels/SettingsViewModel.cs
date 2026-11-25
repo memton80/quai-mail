@@ -35,6 +35,17 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool CheckForUpdates { get; set; }
 
+    [ObservableProperty]
+    public partial bool ShowNotifications { get; set; }
+
+    partial void OnShowNotificationsChanged(bool value)
+    {
+        if (!_loading)
+        {
+            _settings.Update(s => s.ShowNotifications = value);
+        }
+    }
+
     partial void OnThemeIndexChanged(int value)
     {
         if (!_loading && Enum.IsDefined((AppTheme)value))
@@ -68,6 +79,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             ThemeIndex = (int)current.Theme;
             BlockRemoteImages = current.BlockRemoteImages;
             CheckForUpdates = current.CheckForUpdates;
+            ShowNotifications = current.ShowNotifications;
         }
         finally
         {

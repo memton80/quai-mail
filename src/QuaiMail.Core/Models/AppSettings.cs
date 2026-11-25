@@ -16,6 +16,9 @@ public sealed class AppSettings
     /// <summary>Images distantes des mails bloquées par défaut (confidentialité : pas de pixel espion). Vrai par défaut.</summary>
     public bool BlockRemoteImages { get; set; } = true;
 
+    /// <summary>Notification de Windows à l'arrivée d'un mail (quand la fenêtre n'est pas au premier plan).</summary>
+    public bool ShowNotifications { get; set; } = true;
+
     /// <summary>Au démarrage, demander à GitHub si une version plus récente est publiée (comme Quai).</summary>
     public bool CheckForUpdates { get; set; } = true;
 

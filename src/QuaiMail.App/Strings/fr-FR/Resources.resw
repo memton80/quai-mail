@@ -536,4 +536,19 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="DeleteForever_Confirm" xml:space="preserve">
     <value>Supprimer définitivement</value>
   </data>
+  <data name="Folder_Unified" xml:space="preserve">
+    <value>Toutes les boîtes de réception</value>
+  </data>
+  <data name="Notification_Several" xml:space="preserve">
+    <value>{0} nouveaux mails ({1})</value>
+  </data>
+  <data name="Notification_Latest" xml:space="preserve">
+    <value>Le plus récent : {0}</value>
+  </data>
+  <data name="Settings_Notifications" xml:space="preserve">
+    <value>Notifications des nouveaux mails</value>
+  </data>
+  <data name="Settings_NotificationsDescription" xml:space="preserve">
+    <value>Une notification de Windows annonce chaque nouveau mail (expéditeur et objet) quand Quai Mail n'est pas au premier plan.</value>
+  </data>
 </root>

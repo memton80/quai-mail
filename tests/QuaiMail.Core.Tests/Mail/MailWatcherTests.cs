@@ -84,8 +84,10 @@ public sealed class MailWatcherTests : IAsyncLifetime
     {
         _credentials.SetPassword(_account.Id, "faux");
         _watcher.Watch([_account]);
-        await Task.Delay(500, TestContext.Current.CancellationToken);
+        await WaitForAsync(() => _imap.Commands.Contains("AUTHENTICATE"));
 
+        // Plus d'une attente de reconnexion (100 ms ici) : aucune nouvelle tentative.
+        await Task.Delay(800, TestContext.Current.CancellationToken);
         Assert.Equal(1, _imap.ConnectionCount);
         Assert.Equal(0, _watcher.Connections);
     }

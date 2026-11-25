@@ -64,11 +64,17 @@ internal static class AppServices
         if (testing)
         {
             services.AddSingleton<IMailService, SmokeMailService>();
+            services.AddSingleton<IMailWatcher, SmokeMailWatcher>();
+            services.AddSingleton<INotifier, SmokeNotifier>();
         }
         else
         {
             services.AddSingleton<IMailService>(provider =>
                 new MailKitMailService(provider.GetRequiredService<ICredentialStore>(), provider.GetService<ILogger<MailKitMailService>>()));
+            services.AddSingleton<IMailWatcher>(provider =>
+                new MailKitMailWatcher(provider.GetRequiredService<ICredentialStore>(), provider.GetService<ILogger<MailKitMailWatcher>>()));
+            services.AddSingleton<AppNotifier>();
+            services.AddSingleton<INotifier>(provider => provider.GetRequiredService<AppNotifier>());
         }
 
         // View-models

@@ -25,6 +25,13 @@ public partial class App : Application
             Environment.Exit(SecretPurge.Run());
         }
 
+        // Désinstallation : Quai Mail retiré des notifications de Windows, sans fenêtre.
+        if (Environment.GetCommandLineArgs().Contains("--unregister-notifications", StringComparer.OrdinalIgnoreCase))
+        {
+            AppNotifier.UnregisterAll();
+            Environment.Exit(0);
+        }
+
         if (SmokeTest.TryGetOutputDirectory(out var smokeDirectory))
         {
             _smokeTestDirectory = smokeDirectory;
@@ -68,6 +75,12 @@ public partial class App : Application
         {
             // Relancé par l'installateur au bout du bouton « Mettre à jour » (installer/QuaiMail.iss).
             _logger.LogInformation("Démarrage juste après une mise à jour (relancé par l'installateur)");
+        }
+
+        if (_smokeTestDirectory is null && _updateTestDirectory is null)
+        {
+            // Avant la fenêtre : un clic sur une notification doit trouver l'application prête.
+            Services.GetRequiredService<AppNotifier>().Register();
         }
 
         MainWindow = new MainWindow();
@@ -120,10 +133,39 @@ public partial class App : Application
         try
         {
             await Services.GetRequiredService<MailboxViewModel>().LoadAsync();
+            MainWindow?.StartWatching();
+            if (_smokeTestDirectory is null && _updateTestDirectory is null)
+            {
+                // Lancé par un lien mailto: (Quai Mail choisi pour les liens mail), puis les liens suivants.
+                await OpenMailtoAsync(Environment.GetCommandLineArgs());
+                Program.Redirected += (_, arguments) => MainWindow?.DispatcherQueue.TryEnqueue(async () =>
+                {
+                    MainWindow.Activate();
+                    await OpenMailtoAsync([arguments]);
+                });
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Chargement des comptes impossible");
+        }
+    }
+
+    /// <summary>Un lien mailto: ouvre un message prérempli (jamais envoyé sans le bouton Envoyer).</summary>
+    private async Task OpenMailtoAsync(IEnumerable<string> arguments)
+    {
+        try
+        {
+            if (Core.Compose.MailtoLink.TryFind(arguments, out var link))
+            {
+                _logger.LogInformation("Lien mailto reçu : nouveau message prérempli");
+                var mailbox = Services.GetRequiredService<MailboxViewModel>();
+                await Services.GetRequiredService<ComposerViewModel>().NewFromLinkAsync(link, mailbox.Messages.AccountId ?? mailbox.SelectedItem?.AccountId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lien mailto non ouvert");
         }
     }
 

@@ -20,6 +20,10 @@
             <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_RemoteImagesDescription}" />
         </StackPanel>
         <StackPanel>
+            <ToggleSwitch Header="{l:Str Key=Settings_Notifications}" IsOn="{x:Bind Settings.ShowNotifications, Mode=TwoWay}" />
+            <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_NotificationsDescription}" />
+        </StackPanel>
+        <StackPanel>
             <ToggleSwitch Header="{l:Str Key=Settings_Updates}" IsOn="{x:Bind Settings.CheckForUpdates, Mode=TwoWay}" />
             <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_UpdatesDescription}" />
         </StackPanel>

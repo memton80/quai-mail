@@ -87,6 +87,7 @@ public sealed partial class MessageListViewModel : ObservableObject
 
         _account = account;
         _folder = folder;
+        _unified = [];
         _folderTitle = title;
         _total = 0;
         IsSearching = false;
@@ -136,6 +137,31 @@ public sealed partial class MessageListViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanLoadMore))]
     public async Task LoadMoreAsync()
     {
+        if (IsUnified)
+        {
+            var unifiedCancellation = _loading ?? Restart();
+            IsLoading = true;
+            try
+            {
+                foreach (var item in await NextUnifiedPageAsync(unifiedCancellation.Token))
+                {
+                    Messages.Add(item);
+                }
+            }
+            catch (OperationCanceledException) when (unifiedCancellation.IsCancellationRequested)
+            {
+            }
+            finally
+            {
+                if (!unifiedCancellation.IsCancellationRequested)
+                {
+                    IsLoading = false;
+                }
+            }
+
+            return;
+        }
+
         if (_account is not { } account || _folder is not { } folder)
         {
             return;
@@ -202,6 +228,152 @@ public sealed partial class MessageListViewModel : ObservableObject
 
     public MessageItemViewModel? Find(string accountId, string folder, uint uid) =>
         Messages.FirstOrDefault(m => m.Uid == uid && m.AccountId == accountId && m.Folder == folder);
+
+    /// <summary>Comptes mêlés dans la boîte de réception unifiée (vide sinon).</summary>
+    private List<Account> _unified = [];
+    private readonly Dictionary<string, (Queue<MessageHeader> Buffer, int Skip, bool Done, uint Validity)> _sources = [];
+
+    public bool IsUnified => _unified.Count > 0;
+
+    /// <summary>
+    /// Boîte de réception unifiée : les boîtes de réception de tous les comptes, mêlées du plus récent au plus ancien,
+    /// par pages (chaque compte est lu au fur et à mesure).
+    /// </summary>
+    public async Task ShowUnifiedAsync(IReadOnlyList<Account> accounts, string title)
+    {
+        var cancellation = Restart();
+        _account = null;
+        _folder = null;
+        _unified = [.. accounts];
+        _sources.Clear();
+        _folderTitle = title;
+        IsSearching = false;
+        SearchText = null;
+        CanSearchServer = false;
+        SelectedMessage = null;
+        Title = title;
+        HasFolder = true;
+        ErrorMessage = null;
+        HasMore = false;
+        Messages.Clear();
+        var now = _time.GetUtcNow();
+        foreach (var (account, header) in accounts
+            .SelectMany(a => _cache.GetMessages(a.Id, "INBOX", 0, PageSize).Select(h => (a, h)))
+            .OrderByDescending(p => p.h.Date).Take(PageSize))
+        {
+            Messages.Add(new MessageItemViewModel(account.Id, "INBOX", header, _strings.Get("Draft_NoSubject"), now));
+        }
+
+        IsLoading = true;
+        try
+        {
+            foreach (var account in accounts)
+            {
+                _sources[account.Id] = (new Queue<MessageHeader>(), 0, false, 0);
+            }
+
+            var page = await NextUnifiedPageAsync(cancellation.Token);
+            if (cancellation.IsCancellationRequested)
+            {
+                return;
+            }
+
+            Messages.Clear();
+            foreach (var item in page)
+            {
+                Messages.Add(item);
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (!cancellation.IsCancellationRequested)
+            {
+                IsLoading = false;
+                OnPropertyChanged(nameof(IsEmpty));
+            }
+        }
+    }
+
+    /// <summary>Page suivante de la boîte unifiée : on complète la réserve de chaque compte, puis on prend les plus récents.</summary>
+    private async Task<List<MessageItemViewModel>> NextUnifiedPageAsync(CancellationToken cancellationToken)
+    {
+        foreach (var account in _unified)
+        {
+            var source = _sources[account.Id];
+            if (source.Done || source.Buffer.Count >= PageSize)
+            {
+                continue;
+            }
+
+            try
+            {
+                var page = await _mail.GetMessagesAsync(account, "INBOX", source.Skip, PageSize, cancellationToken);
+                _cache.SaveMessages(account.Id, "INBOX", page.UidValidity, page.Messages);
+                foreach (var header in page.Messages)
+                {
+                    source.Buffer.Enqueue(header);
+                }
+
+                var skip = source.Skip + page.Messages.Count;
+                _sources[account.Id] = (source.Buffer, skip, page.Messages.Count < PageSize || skip >= page.Total, page.UidValidity);
+            }
+            catch (MailConnectionException ex)
+            {
+                // Un compte injoignable n'empêche pas les autres de s'afficher.
+                ErrorMessage = MailErrors.Describe(_strings, ex);
+                _sources[account.Id] = (source.Buffer, source.Skip, true, source.Validity);
+            }
+        }
+
+        var now = _time.GetUtcNow();
+        var taken = new List<MessageItemViewModel>();
+        while (taken.Count < PageSize)
+        {
+            var next = _unified.Where(a => _sources[a.Id].Buffer.Count > 0).OrderByDescending(a => _sources[a.Id].Buffer.Peek().Date).FirstOrDefault();
+            if (next is null)
+            {
+                break;
+            }
+
+            taken.Add(new MessageItemViewModel(next.Id, "INBOX", _sources[next.Id].Buffer.Dequeue(), _strings.Get("Draft_NoSubject"), now));
+        }
+
+        HasMore = _unified.Any(a => _sources[a.Id].Buffer.Count > 0 || !_sources[a.Id].Done);
+        return taken;
+    }
+
+    /// <summary>
+    /// Nouveaux mails arrivés (réception en direct) : ajoutés en tête si cette boîte de réception est affichée.
+    /// </summary>
+    public void InsertNewest(string accountId, string folder, IReadOnlyList<MessageHeader> headers)
+    {
+        var shown = !IsSearching
+            && ((_account?.Id == accountId && _folder?.FullName == folder) || (folder == "INBOX" && _unified.Any(a => a.Id == accountId)));
+        if (!shown)
+        {
+            return;
+        }
+
+        var now = _time.GetUtcNow();
+        foreach (var header in headers.OrderBy(h => h.Date))
+        {
+            if (Find(accountId, folder, header.Uid) is null)
+            {
+                Messages.Insert(0, new MessageItemViewModel(accountId, folder, header, _strings.Get("Draft_NoSubject"), now));
+                _total++;
+            }
+        }
+
+        if (_account?.Id == accountId && _uidValidity != 0)
+        {
+            _cache.SaveMessages(accountId, folder, _uidValidity, headers);
+        }
+
+        OnPropertyChanged(nameof(IsEmpty));
+    }
 
     /// <summary>Mail déplacé ou supprimé : retiré de la liste (et du cache).</summary>
     public void Remove(MessageItemViewModel item)
@@ -324,6 +496,10 @@ public sealed partial class MessageListViewModel : ObservableObject
         {
             await ShowAsync(account, folder, _folderTitle ?? folder.Name);
         }
+        else if (_unified.Count > 0)
+        {
+            await ShowUnifiedAsync(_unified, _folderTitle ?? string.Empty);
+        }
         else
         {
             Clear();
@@ -336,6 +512,7 @@ public sealed partial class MessageListViewModel : ObservableObject
         Restart();
         _account = null;
         _folder = null;
+        _unified = [];
         SelectedMessage = null;
         Messages.Clear();
         Title = _strings.Get("Pane_Messages");

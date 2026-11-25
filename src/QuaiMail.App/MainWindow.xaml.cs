@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Input;
 using QuaiMail.App.Services;
 using QuaiMail.Core;
 using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Mail;
 using QuaiMail.Core.ViewModels;
 using Windows.Graphics;
 
@@ -21,6 +22,9 @@ public sealed partial class MainWindow : Window
     private readonly SettingsViewModel _settings;
 
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _autoSave;
+    private readonly IMailWatcher _watcher;
+    private readonly INotifier _notifier;
+    private bool _isActive = true;
 
     // Fermeture : question en cours, puis fermeture accordée (brouillon gardé ou supprimé).
     private bool _closeRequested;
@@ -75,6 +79,26 @@ public sealed partial class MainWindow : Window
             }
         };
         _autoSave.Start();
+
+        // Réception en direct : nouveaux mails dans la liste, les compteurs, et une notification si la fenêtre n'est pas au premier plan.
+        _watcher = _services.GetRequiredService<IMailWatcher>();
+        _notifier = _services.GetRequiredService<INotifier>();
+        _watcher.NewMail += (_, e) => DispatcherQueue.TryEnqueue(() => OnNewMail(e));
+        _notifier.Invoked += (_, accountId) => DispatcherQueue.TryEnqueue(() => OnNotificationClicked(accountId));
+        var accounts = _services.GetRequiredService<AccountStore>();
+        accounts.Changed += (_, _) => DispatcherQueue.TryEnqueue(() => _watcher.Watch(accounts.All));
+        Activated += (_, e) => _isActive = e.WindowActivationState != WindowActivationState.Deactivated;
+        Closed += async (_, _) =>
+        {
+            try
+            {
+                await _watcher.DisposeAsync();
+            }
+            catch (Exception)
+            {
+                // Fermeture au mieux.
+            }
+        };
         ResizeForDpi(1240, 820);
     }
 
@@ -101,6 +125,28 @@ public sealed partial class MainWindow : Window
 
     /// <summary>Ouvre les réglages (bouton du volet de gauche, test de fumée).</summary>
     internal Task ShowSettingsAsync() => _dialogs.ShowSettingsAsync(_settings, Mailbox);
+
+    /// <summary>Démarre la réception en direct (après le premier chargement des comptes).</summary>
+    internal void StartWatching() => _watcher.Watch(_services.GetRequiredService<AccountStore>().All);
+
+    private void OnNewMail(NewMailEventArgs e)
+    {
+        var unread = Mailbox.OnNewMail(e.Account, e.Messages);
+        if (unread.Count > 0 && !_isActive && _services.GetRequiredService<Core.Storage.ISettingsService>().Current.ShowNotifications)
+        {
+            _notifier.Show(e.Account, unread);
+        }
+    }
+
+    /// <summary>Clic sur une notification : la fenêtre revient, sur la boîte de réception du compte.</summary>
+    private void OnNotificationClicked(string accountId)
+    {
+        Activate();
+        if (Mailbox.Items.FirstOrDefault(i => i.AccountId == accountId && i.Role == Core.Mail.FolderRole.Inbox && i.CanSelect) is { } inbox)
+        {
+            Mailbox.SelectedItem = inbox;
+        }
+    }
 
     /// <summary>« Ajouter un compte » : formulaire, vérification, puis le compte apparaît avec sa boîte de réception ouverte.</summary>
     internal async Task<Account?> AddAccountAsync()

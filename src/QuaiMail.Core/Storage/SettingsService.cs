@@ -82,6 +82,7 @@ public sealed class JsonSettingsService : ISettingsService
     private static bool Same(AppSettings a, AppSettings b) =>
         a.Theme == b.Theme
         && a.BlockRemoteImages == b.BlockRemoteImages
+        && a.ShowNotifications == b.ShowNotifications
         && a.CheckForUpdates == b.CheckForUpdates;
 
     private AppSettings Load()
