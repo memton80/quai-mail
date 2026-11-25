@@ -20,12 +20,18 @@ internal static class SmokePgp
     /// Clé d'un correspondant (« Service client », expéditeur du mail du dossier Archives/2026, qu'elle signe), connue du
     /// seul faux serveur de clés.
     /// </summary>
-    public static readonly Lazy<PgpSecretKeyRing> Correspondent = new(() => NewRing($"Service client <{SmokeMailService.SignerAddress}>"));
+    public static readonly Lazy<PgpSecretKeyRing> Correspondent = new(() => NewRing($"Service client <{SmokeMailService.SignerAddress}>", CorrespondentPassphrase));
+
+    /// <summary>
+    /// Phrase de passe du correspondant, en ASCII : elle est passée telle quelle à MimeKit, qui lit une phrase octet par
+    /// octet (Quai Mail, lui, convertit les phrases accentuées : voir PgpKeyStore).
+    /// </summary>
+    private const string CorrespondentPassphrase = "phrase du correspondant";
 
     /// <summary>Écrit la clé secrète armurée dans <paramref name="path"/> ; retourne le trousseau, pour vérifier.</summary>
     public static PgpSecretKeyRing CreateKey(string userId, string path)
     {
-        var ring = NewRing(userId);
+        var ring = NewRing(userId, Passphrase);
         using (var file = File.Create(path))
         using (var armor = new ArmoredOutputStream(file))
         {
@@ -70,7 +76,7 @@ internal static class SmokePgp
         }
     }
 
-    private static PgpSecretKeyRing NewRing(string userId)
+    private static PgpSecretKeyRing NewRing(string userId, string passphrase)
     {
         var random = new SecureRandom();
         var generator = new RsaKeyPairGenerator();
@@ -79,7 +85,7 @@ internal static class SmokePgp
         var flags = new PgpSignatureSubpacketGenerator();
         flags.SetKeyFlags(false, PgpKeyFlags.CanCertify | PgpKeyFlags.CanSign);
         return new PgpKeyRingGenerator(
-            PgpSignature.PositiveCertification, pair, userId, SymmetricKeyAlgorithmTag.Aes256, true, Passphrase.ToCharArray(), true,
+            PgpSignature.PositiveCertification, pair, userId, SymmetricKeyAlgorithmTag.Aes256, true, passphrase.ToCharArray(), true,
             flags.Generate(), null, random).GenerateSecretKeyRing();
     }
 
@@ -103,7 +109,7 @@ internal static class SmokePgp
 
     private sealed class Signer(string directory) : GnuPGContext(directory)
     {
-        protected override string GetPasswordForKey(PgpSecretKey key) => Passphrase;
+        protected override string GetPasswordForKey(PgpSecretKey key) => CorrespondentPassphrase;
     }
 
     private sealed class Recipient : GnuPGContext
