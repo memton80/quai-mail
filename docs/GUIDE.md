@@ -1,6 +1,6 @@
 # Guide de Quai Mail
 
-> **Version 0.4 : écrire.** Ajoutez vos comptes IMAP / SMTP, lisez vos mails en toute sécurité, écrivez, répondez, transférez. Recherche, déplacement et réception en direct arrivent dans la version 0.5.
+> **Version 0.5 : confort.** Comptes IMAP / SMTP, lecture sûre, écriture, et maintenant recherche, suppression et déplacement, réception en direct avec notifications, boîte de réception unifiée, liens mail. Gmail et Outlook.com par le navigateur arrivent dans la version 0.6.
 
 ## La fenêtre
 
@@ -12,7 +12,7 @@ Trois volets, de gauche à droite :
 | **Mails** | les mails du dossier choisi, du plus récent au plus ancien : expéditeur, objet, date ; les non lus en gras |
 | **Lecture** | le mail ouvert : expéditeur, destinataires, date, pièces jointes, puis son contenu ; ou le message que vous écrivez |
 
-Tout se fait aussi au clavier : `Tab` passe d'un volet à l'autre, les flèches parcourent les dossiers et les mails, `F5` actualise les dossiers, `Ctrl+N` écrit un nouveau message.
+Tout se fait aussi au clavier : `Tab` passe d'un volet à l'autre, les flèches parcourent les dossiers et les mails, `F5` actualise les dossiers, `Ctrl+N` écrit un nouveau message, `Ctrl+F` cherche, `Suppr` supprime le mail choisi.
 
 ## Ajouter un compte
 
@@ -35,7 +35,18 @@ Outlook.com et Hotmail n'acceptent plus les mots de passe : leur connexion par l
 - Les dossiers particuliers (Boîte de réception, Brouillons, Envoyés, Archives, Indésirables, Corbeille) viennent en premier, puis les autres, sous-dossiers en retrait.
 - La liste montre les 50 mails les plus récents ; **Afficher les mails plus anciens**, en bas de la liste, charge les 50 suivants.
 - Quai Mail garde une copie des dossiers et des en-têtes (cache) pour les afficher tout de suite au démarrage, puis les met à jour depuis le serveur. Si un serveur est injoignable, un bandeau le dit et le cache reste affiché.
-- Ouvrir un mail le marque lu sur le serveur. Sur le serveur, Quai Mail ne change que lu / non lu, l'étoile, et range vos brouillons et mails envoyés : ni déplacement, ni suppression de vos mails à ce stade.
+- Ouvrir un mail le marque lu sur le serveur.
+- Avec plusieurs comptes, **Toutes les boîtes de réception** (en haut) les réunit, du plus récent au plus ancien.
+- **Réception en direct** : les nouveaux mails arrivent tout seuls en haut de la liste, sans rien actualiser. Si Quai Mail n'est pas au premier plan, une notification de Windows les annonce (expéditeur et objet) ; un clic dessus ramène à la boîte de réception. Les notifications se coupent dans les **Réglages**. Après une coupure (veille, réseau), Quai Mail se reconnecte tout seul et annonce ce qui est arrivé entre-temps.
+
+## Chercher
+
+Tapez quelques mots dans **Rechercher** (`Ctrl+F`) en haut de la liste, puis `Entrée` : Quai Mail cherche dans tous vos comptes et dossiers déjà ouverts sur cet ordinateur (objet, expéditeur, et texte des mails déjà lus), sans tenir compte des accents ni des majuscules, même sans connexion. **Chercher aussi sur le serveur** complète avec le texte de tous les mails du dossier d'où vous cherchez. Videz le champ pour revenir au dossier.
+
+## Supprimer, déplacer
+
+- **Supprimer** (touche `Suppr`, bouton corbeille en haut du mail, ou clic droit sur le mail) : le mail va dans la **corbeille** de votre compte. Depuis la corbeille (ou si le compte n'en a pas), la suppression est **définitive** : Quai Mail demande confirmation, « Annuler » étant le choix par défaut.
+- **Déplacer** : clic droit sur le mail, **Déplacer vers**, puis le dossier.
 
 ## Lire un mail
 
@@ -73,6 +84,7 @@ Elles apparaissent sous les en-têtes du mail. Un clic **enregistre** la pièce 
 | **Thème** | Selon Windows, Clair ou Sombre, appliqué tout de suite |
 | **Bloquer les images distantes** | activé par défaut : les images hébergées sur Internet ne sont chargées que sur votre demande, l'expéditeur ne sait pas quand vous lisez son mail |
 | **Rechercher les mises à jour** | activé par défaut : au démarrage, Quai Mail demande à GitHub le numéro de la dernière version publiée |
+| **Notifications des nouveaux mails** | activé par défaut : une notification de Windows quand un mail arrive et que Quai Mail n'est pas au premier plan |
 | **Vider le cache** | efface les dossiers et en-têtes gardés sur cet ordinateur ; tout est relu sur vos serveurs, rien n'est perdu |
 
 Les réglages s'appliquent et s'enregistrent immédiatement, sans bouton « Enregistrer ». La version installée est affichée en bas des réglages.
@@ -89,6 +101,10 @@ Quand une nouvelle version est publiée, un bandeau l'annonce en haut de la fen�
 3. ferme Quai Mail, installe la nouvelle version sans rien demander, puis relance Quai Mail **au même endroit** : même compte, même dossier, même mail ouvert, brouillon rouvert.
 
 Avec la version portable (zip), le bouton ouvre la page de la version sur GitHub.
+
+### Liens mail (« mailto: »)
+
+Pour que les liens mail des pages web et des documents ouvrent Quai Mail : Paramètres de Windows, **Applications**, **Applications par défaut**, choisir **Quai Mail** pour **MAILTO** (Quai Mail ne se met jamais par défaut tout seul). Un lien ouvre alors un nouveau message prérempli dans la fenêtre de Quai Mail ; rien n'est envoyé sans **Envoyer**.
 
 ## Fermer Quai Mail avec un message en cours
 
@@ -111,6 +127,6 @@ Quai Mail ne se connecte qu'aux serveurs mail de vos comptes, aux sites des imag
 
 ## Limites actuelles
 
-Version 0.4 : pas encore de recherche, de déplacement, de suppression ni de réception en direct (version 0.5), ni de connexion à Gmail / Outlook par le navigateur (0.6). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes ne peuvent pas encore être autorisées pour un expéditeur.
+Version 0.5 : pas encore de connexion à Gmail / Outlook.com par le navigateur (version 0.6). La réception en direct surveille la boîte de réception (pas les autres dossiers). Les messages s'écrivent en texte simple (pas de mise en forme). Un brouillon fait dans un autre logiciel se lit dans Brouillons mais ne se reprend pas encore. Les images distantes ne peuvent pas encore être autorisées pour un expéditeur.
 
 Affichage : le moteur WebView2 de Microsoft (déjà présent sur Windows 11 et la plupart des Windows 10) est nécessaire. S'il manque, Quai Mail le dit et donne le lien officiel.

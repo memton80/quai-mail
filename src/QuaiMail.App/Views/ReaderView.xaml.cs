@@ -116,7 +116,7 @@ public sealed partial class ReaderView : UserControl
             };
             var environment = await CoreWebView2Environment.CreateWithOptionsAsync(string.Empty, _dataFolder, options);
             await Body.EnsureCoreWebView2Async(environment);
-            Lock(Body.CoreWebView2, environment);
+            Lock(Body.CoreWebView2!, environment);
             _logger.LogInformation("Lecture : WebView2 {Version} prête, verrouillée", environment.BrowserVersionString);
         }
         catch (Exception ex)
