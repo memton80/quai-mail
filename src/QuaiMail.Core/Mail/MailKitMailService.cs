@@ -438,7 +438,7 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         return new MailFolderInfo(folder.FullName, folder.Name, depth, role, canSelect, canSelect ? folder.Unread : 0, canSelect ? folder.Count : 0);
     }
 
-    private static MessageHeader ToHeader(IMessageSummary summary)
+    internal static MessageHeader ToHeader(IMessageSummary summary)
     {
         var from = summary.Envelope?.From?.Mailboxes.FirstOrDefault();
         var date = summary.Envelope?.Date ?? summary.InternalDate ?? DateTimeOffset.MinValue;
@@ -467,21 +467,31 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         await session.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (!session.Client.IsConnected || !session.Client.IsAuthenticated)
+            var reused = session.Client.IsConnected && session.Client.IsAuthenticated;
+            if (!reused)
             {
-                var password = _credentials.GetPassword(account.Id)
-                    ?? throw new MailConnectionException(MailError.MissingPassword, Describe(account.Imap), "IMAP");
-                if (session.Client.IsConnected)
-                {
-                    await session.Client.DisconnectAsync(true, cancellationToken).ConfigureAwait(false);
-                }
-
-                await ConnectAsync(session.Client, account.Imap, "IMAP", account.UserName, password, cancellationToken).ConfigureAwait(false);
+                await ReconnectAsync(session.Client, account, cancellationToken).ConfigureAwait(false);
             }
 
             try
             {
                 return await action(session.Client, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (reused && !session.Client.IsConnected && Classify(ex) is MailError.ConnectionFailed or MailError.Protocol
+                                       && !cancellationToken.IsCancellationRequested)
+            {
+                // Connexion gardée ouverte, coupée entre-temps (veille, réseau, serveur) : une reconnexion automatique, un essai de plus.
+                _logger.LogInformation("IMAP {Server} : connexion coupée, reconnexion ({Type})", Describe(account.Imap), ex.GetType().Name);
+                await ReconnectAsync(session.Client, account, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    return await action(session.Client, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception retry) when (Classify(retry) is { } error)
+                {
+                    _logger.LogWarning("IMAP {Server} : {Error} ({Type})", Describe(account.Imap), error, retry.GetType().Name);
+                    throw new MailConnectionException(error, Describe(account.Imap), "IMAP", retry);
+                }
             }
             catch (Exception ex) when (Classify(ex) is { } error)
             {
@@ -506,6 +516,25 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         {
             session.Gate.Release();
         }
+    }
+
+    private async Task ReconnectAsync(ImapClient client, Account account, CancellationToken cancellationToken)
+    {
+        var password = _credentials.GetPassword(account.Id)
+            ?? throw new MailConnectionException(MailError.MissingPassword, Describe(account.Imap), "IMAP");
+        if (client.IsConnected)
+        {
+            try
+            {
+                await client.DisconnectAsync(false, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Déjà coupée.
+            }
+        }
+
+        await ConnectAsync(client, account.Imap, "IMAP", account.UserName, password, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task ConnectAsync(MailService client, MailServer server, string protocol, string userName, string password, CancellationToken cancellationToken)
@@ -550,6 +579,7 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
         TimeoutException => MailError.Timeout,
         IOException { InnerException: SocketException { SocketErrorCode: SocketError.TimedOut } } => MailError.Timeout,
         IOException => MailError.ConnectionFailed,
+        ServiceNotConnectedException => MailError.ConnectionFailed,
         ImapProtocolException or SmtpProtocolException or ImapCommandException or SmtpCommandException or ProtocolException or CommandException => MailError.Protocol,
         FolderNotFoundException => MailError.Protocol,
         _ => null,

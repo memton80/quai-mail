@@ -53,6 +53,47 @@ public sealed partial class FakeImapServer : FakeServer
 
     public List<FakeFolder> Folders { get; } = [];
 
+    /// <summary>Annonce IDLE (sinon le client doit interroger le serveur de lui-même).</summary>
+    public bool SupportsIdle { get; set; } = true;
+
+    private readonly List<(Connection Connection, FakeFolder Folder)> _idlers = [];
+
+    /// <summary>Nombre de connexions en IDLE en ce moment.</summary>
+    public int Idling
+    {
+        get
+        {
+            lock (_idlers)
+            {
+                return _idlers.Count;
+            }
+        }
+    }
+
+    /// <summary>Un nouveau mail arrive : ajouté au dossier, et annoncé (EXISTS) aux connexions en IDLE sur ce dossier.</summary>
+    public async Task DeliverAsync(string folderName, FakeMessage message)
+    {
+        var folder = Folder(folderName);
+        List<Connection> listeners;
+        lock (_idlers)
+        {
+            folder.Messages.Add(message);
+            listeners = [.. _idlers.Where(i => i.Folder == folder).Select(i => i.Connection)];
+        }
+
+        foreach (var connection in listeners)
+        {
+            try
+            {
+                await connection.WriteAsync($"* {folder.Messages.Count} EXISTS\r\n", CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Connexion déjà coupée.
+            }
+        }
+    }
+
     public FakeFolder Folder(string name) => Folders.Single(f => f.Name == name);
 
     /// <summary>Remplit un dossier de <paramref name="count"/> mails (UID 1 à count, du plus ancien au plus récent).</summary>
@@ -187,6 +228,36 @@ public sealed partial class FakeImapServer : FakeServer
                     await connection.WriteAsync($"{tag} OK UID MOVE terminé\r\n", cancellationToken);
                     break;
 
+                case "IDLE" when selected is not null:
+                    await connection.WriteAsync("+ En attente\r\n", cancellationToken);
+                    lock (_idlers)
+                    {
+                        _idlers.Add((connection, selected));
+                    }
+
+                    try
+                    {
+                        while (await connection.ReadLineAsync(cancellationToken) is { } idleLine && !idleLine.Equals("DONE", StringComparison.OrdinalIgnoreCase))
+                        {
+                        }
+                    }
+                    finally
+                    {
+                        lock (_idlers)
+                        {
+                            _idlers.RemoveAll(i => i.Connection == connection);
+                        }
+                    }
+
+                    await connection.WriteAsync($"{tag} OK IDLE terminé\r\n", cancellationToken);
+                    break;
+
+                case "UID SEARCH" when selected is not null && args.Count >= 3 && args[1].Equals("UID", StringComparison.OrdinalIgnoreCase):
+                    var rangeMax = selected.Messages.Count == 0 ? 0 : selected.Messages.Max(m => m.Uid);
+                    var inRange = selected.Messages.Where(m => InSet(args[2], m.Uid, rangeMax)).Select(m => m.Uid.ToString(CultureInfo.InvariantCulture));
+                    await connection.WriteAsync($"* SEARCH {string.Join(' ', inRange)}\r\n{tag} OK UID SEARCH terminé\r\n", cancellationToken);
+                    break;
+
                 case "UID SEARCH" when selected is not null:
                     // Recherche simplifiée : un mail correspond si l'un des textes cherchés est dans son objet, son expéditeur ou son corps.
                     var texts = Tokenize(rest).Skip(2).Where(t => !t.All(char.IsUpper) && !t.Equals("UTF-8", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -228,9 +299,9 @@ public sealed partial class FakeImapServer : FakeServer
         }
     }
 
-    private static string Capabilities(Connection connection, bool authenticated) =>
+    private string Capabilities(Connection connection, bool authenticated) =>
         !connection.IsTls ? "IMAP4rev1 STARTTLS LOGINDISABLED"
-        : authenticated ? "IMAP4rev1 UNSELECT UIDPLUS MOVE"
+        : authenticated ? $"IMAP4rev1 UNSELECT UIDPLUS MOVE{(SupportsIdle ? " IDLE" : string.Empty)}"
         : "IMAP4rev1 AUTH=PLAIN SASL-IR";
 
     private bool CheckPlain(string base64)

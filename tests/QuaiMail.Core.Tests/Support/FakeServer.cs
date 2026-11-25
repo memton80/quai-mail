@@ -35,6 +35,22 @@ public abstract class FakeServer : IAsyncDisposable
 
     public int ConnectionCount { get; private set; }
 
+    private readonly List<TcpClient> _open = [];
+
+    /// <summary>Coupe brutalement toutes les connexions en cours (réseau perdu, serveur redémarré).</summary>
+    public void DropConnections()
+    {
+        lock (_open)
+        {
+            foreach (var client in _open)
+            {
+                client.Close();
+            }
+
+            _open.Clear();
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _stop.CancelAsync();
@@ -84,6 +100,11 @@ public abstract class FakeServer : IAsyncDisposable
             }
 
             ConnectionCount++;
+            lock (_open)
+            {
+                _open.Add(client);
+            }
+
             var task = Task.Run(async () =>
             {
                 using (client)
@@ -127,6 +148,7 @@ public abstract class FakeServer : IAsyncDisposable
     {
         private Stream _stream = stream;
         private readonly MemoryStream _pending = new();
+        private readonly SemaphoreSlim _write = new(1, 1);
 
         public bool IsTls { get; private set; }
 
@@ -142,8 +164,16 @@ public abstract class FakeServer : IAsyncDisposable
 
         public async Task WriteAsync(byte[] bytes, CancellationToken cancellationToken)
         {
-            await _stream.WriteAsync(bytes, cancellationToken);
-            await _stream.FlushAsync(cancellationToken);
+            await _write.WaitAsync(cancellationToken);
+            try
+            {
+                await _stream.WriteAsync(bytes, cancellationToken);
+                await _stream.FlushAsync(cancellationToken);
+            }
+            finally
+            {
+                _write.Release();
+            }
         }
 
         /// <summary>Une ligne sans son CRLF, ou <c>null</c> si le client a fermé.</summary>
