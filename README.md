@@ -14,7 +14,7 @@
   · Gratuit · Sans compte · Sans publicité
 </p>
 
-> **Projet en cours de construction.** Version 0.2 : comptes IMAP / SMTP (réglages détectés, mot de passe dans le coffre de Windows), dossiers et liste des mails. Viennent ensuite la lecture (0.3) et l'écriture (0.4).
+> **Projet en cours de construction.** Version 0.3 : comptes IMAP / SMTP (réglages détectés, mot de passe dans le coffre de Windows), dossiers, liste et lecture des mails (affichage verrouillé, images distantes bloquées, pièces jointes). Vient ensuite l'écriture (0.4).
 
 ## Ce que sera Quai Mail
 

@@ -4,9 +4,9 @@
 
 | Dossier | Contenu |
 |---|---|
-| `src/QuaiMail.Core` | sans interface : comptes et détection des réglages (`Accounts/`), IMAP / SMTP par MailKit (`Mail/MailKitMailService.cs`), cache SQLite (`Cache/`), mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
-| `src/QuaiMail.App` | WinUI 3 : fenêtre et ses trois volets, ajout de compte (`Views/AccountDialog.xaml`), coffre de Windows (`Services/PasswordVaultCredentialStore.cs`), bandeau de mise à jour, dialogues, réglages, installation des mises à jour (`Services/UpdateInstaller.cs`), test de fumée (`SmokeTest.cs`, `Services/SmokeMailService.cs`), gabarit de lecture des mails (`Assets/Mail`) |
-| `tests/QuaiMail.Core.Tests` | xUnit : comptes et détection, service MailKit contre de faux serveurs IMAP / SMTP locaux en TLS (`Support/FakeImapServer.cs`, `FakeSmtpServer.cs`), cache SQLite, view-models, mises à jour, réglages, brouillons, état de la fenêtre, clés de traduction |
+| `src/QuaiMail.Core` | sans interface : comptes et détection des réglages (`Accounts/`), lecture (`Reading/` : nettoyage du HTML, gabarit, pièces jointes), IMAP / SMTP par MailKit (`Mail/MailKitMailService.cs`), cache SQLite (`Cache/`), mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
+| `src/QuaiMail.App` | WinUI 3 : fenêtre et ses trois volets, ajout de compte (`Views/AccountDialog.xaml`), lecture dans la WebView2 verrouillée (`Views/ReaderView.xaml.cs`), coffre de Windows (`Services/PasswordVaultCredentialStore.cs`), bandeau de mise à jour, dialogues, réglages, installation des mises à jour (`Services/UpdateInstaller.cs`), test de fumée (`SmokeTest.cs`, `Services/SmokeMailService.cs`), gabarit de lecture des mails (`Assets/Mail`) |
+| `tests/QuaiMail.Core.Tests` | xUnit : nettoyage du HTML avec des mails piégés (`Reading/HtmlCleanerTests.cs`), comptes et détection, service MailKit contre de faux serveurs IMAP / SMTP locaux en TLS (`Support/FakeImapServer.cs`, `FakeSmtpServer.cs`), cache SQLite, view-models, mises à jour, réglages, brouillons, état de la fenêtre, clés de traduction |
 | `installer/QuaiMail.iss` | installateur Inno Setup (par utilisateur, sans droits administrateur) |
 | `tools/make_icon.py` | génère l'icône (Pillow) |
 
@@ -49,6 +49,10 @@ Le CI rejoue toute la chaîne à chaque run (étape « Mise à jour en place »)
 ## Ajouter un texte à l'interface
 
 Toutes les chaînes sont dans `src/QuaiMail.App/Strings/fr-FR/Resources.resw`, utilisées par `{l:Str Key=…}` dans le XAML, `Loc.Get` dans l'application et `IStrings` dans les view-models. Un test vérifie que chaque clé utilisée existe.
+
+## WebView2 de lecture
+
+La seule page web de Quai Mail est le corps d'un mail. Chaîne : `MessageContent.BodyHtml` (HtmlSanitizer) → `ReaderPage.Build` (gabarit `reader.html`, politique CSP) → `ReaderView` sert la page depuis la mémoire à `https://message.quaimail.example/page/<n>` et refuse toute autre adresse (sauf la feuille de style, hôte virtuel `reader.quaimail.example`). Toute modification de ces règles se fait avec un test de mail piégé à l'appui ; le test de fumée vérifie les réglages de la WebView2 et l'absence de requête vers l'extérieur.
 
 ## Styles
 
