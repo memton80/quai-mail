@@ -288,9 +288,6 @@
   <data name="Mailbox_Reconnect" xml:space="preserve">
     <value>Se reconnecter</value>
   </data>
-  <data name="Mailbox_Reconnected" xml:space="preserve">
-    <value>{0} : connexion rétablie.</value>
-  </data>
   <data name="AccountEditor_RequiresAppPassword" xml:space="preserve">
     <value>{0} demande un mot de passe d'application, à créer dans les réglages de sécurité de votre compte.</value>
   </data>

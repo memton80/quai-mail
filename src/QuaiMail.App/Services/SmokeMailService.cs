@@ -13,6 +13,9 @@ internal sealed class SmokeMailService : IMailService
 {
     public const string Password = "mot de passe du test de fumée";
 
+    /// <summary>Jeton d'accès accepté pour un compte connecté par le navigateur (fournisseur simulé).</summary>
+    public const string AccessToken = "jeton d'accès du test de fumée";
+
     private static readonly DateTimeOffset Newest = new(2026, 11, 25, 9, 30, 0, TimeSpan.FromHours(1));
 
     private static readonly MailFolderInfo[] Folders =
@@ -33,7 +36,7 @@ internal sealed class SmokeMailService : IMailService
     ];
 
     public Task VerifyAsync(Account account, string password, CancellationToken cancellationToken = default) =>
-        password == Password
+        password == (account.Auth == AccountAuth.Password ? Password : AccessToken)
             ? Task.CompletedTask
             : Task.FromException(new MailConnectionException(MailError.Authentication, $"{account.Imap.Host}:{account.Imap.Port}", "IMAP"));
 

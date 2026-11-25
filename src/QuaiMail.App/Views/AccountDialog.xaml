@@ -25,6 +25,23 @@
                 Header="{l:Str Key=AccountDialog_Name}"
                 PlaceholderText="{l:Str Key=AccountDialog_NamePlaceholder}"
                 Text="{x:Bind Editor.DisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <StackPanel Style="{StaticResource SignInPanelStyle}" Visibility="{x:Bind ui:UiHelpers.VisibleIf(Editor.CanSignIn)}">
+                <Button
+                    x:Name="GoogleButton"
+                    Click="OnSignInGoogleClick"
+                    Content="{l:Str Key=AccountDialog_SignInGoogle}"
+                    IsEnabled="{x:Bind ui:UiHelpers.Not(Editor.IsBusy), Mode=OneWay}"
+                    Style="{StaticResource SignInButtonStyle}"
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Editor.CanSignInWithGoogle)}" />
+                <Button
+                    x:Name="MicrosoftButton"
+                    Click="OnSignInMicrosoftClick"
+                    Content="{l:Str Key=AccountDialog_SignInMicrosoft}"
+                    IsEnabled="{x:Bind ui:UiHelpers.Not(Editor.IsBusy), Mode=OneWay}"
+                    Style="{StaticResource SignInButtonStyle}"
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Editor.CanSignInWithMicrosoft)}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=AccountDialog_SignInHint}" />
+            </StackPanel>
             <PasswordBox Header="{l:Str Key=AccountDialog_Password}" Password="{x:Bind Editor.Password, Mode=TwoWay}" />
             <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=AccountDialog_PasswordHint}" />
 
@@ -32,6 +49,11 @@
                 IsClosable="False"
                 IsOpen="{x:Bind Editor.HasHint, Mode=OneWay}"
                 Message="{x:Bind Editor.Hint, Mode=OneWay}"
+                Severity="Informational" />
+            <InfoBar
+                IsClosable="False"
+                IsOpen="{x:Bind Editor.IsWaitingForBrowser, Mode=OneWay}"
+                Message="{l:Str Key=AccountDialog_SignInWaiting}"
                 Severity="Informational" />
             <InfoBar
                 IsClosable="False"

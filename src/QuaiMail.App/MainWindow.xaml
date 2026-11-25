@@ -145,6 +145,14 @@
                                 </Grid.ColumnDefinitions>
                                 <Grid.ContextFlyout>
                                     <MenuFlyout>
+                                        <MenuFlyoutItem
+                                            Click="OnReconnectAccountClick"
+                                            Text="{l:Str Key=Mailbox_Reconnect}"
+                                            Visibility="{x:Bind ui:UiHelpers.VisibleIf(UsesBrowserSignIn)}">
+                                            <MenuFlyoutItem.Icon>
+                                                <FontIcon Glyph="&#xE8D7;" />
+                                            </MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
                                         <MenuFlyoutItem Click="OnRemoveAccountClick" Text="{l:Str Key=Mailbox_RemoveAccount}">
                                             <MenuFlyoutItem.Icon>
                                                 <FontIcon Glyph="&#xE74D;" />

@@ -4,8 +4,8 @@
 
 | Dossier | Contenu |
 |---|---|
-| `src/QuaiMail.Core` | sans interface : comptes et détection des réglages (`Accounts/`), lecture (`Reading/` : nettoyage du HTML, gabarit, pièces jointes), rédaction (`Compose/` : réponses, destinataires, MIME ; `ViewModels/ComposerViewModel.cs`), IMAP / SMTP par MailKit (`Mail/MailKitMailService.cs`), réception en direct (`Mail/MailWatcher.cs`), cache SQLite et recherche FTS5 (`Cache/`), mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
-| `src/QuaiMail.App` | WinUI 3 : fenêtre et ses trois volets, ajout de compte (`Views/AccountDialog.xaml`), lecture dans la WebView2 verrouillée (`Views/ReaderView.xaml.cs`), rédaction (`Views/ComposerView.xaml`), coffre de Windows (`Services/PasswordVaultCredentialStore.cs`), bandeau de mise à jour, dialogues, réglages, installation des mises à jour (`Services/UpdateInstaller.cs`), test de fumée (`SmokeTest.cs`, `Services/SmokeMailService.cs`), gabarit de lecture des mails (`Assets/Mail`) |
+| `src/QuaiMail.Core` | sans interface : comptes et détection des réglages (`Accounts/`), connexion OAuth2 par le navigateur (`Accounts/OAuth/` : PKCE, retour local, jetons), lecture (`Reading/` : nettoyage du HTML, gabarit, pièces jointes), rédaction (`Compose/` : réponses, destinataires, MIME ; `ViewModels/ComposerViewModel.cs`), IMAP / SMTP par MailKit (`Mail/MailKitMailService.cs`), réception en direct (`Mail/MailWatcher.cs`), cache SQLite et recherche FTS5 (`Cache/`), mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
+| `src/QuaiMail.App` | WinUI 3 : fenêtre et ses trois volets, ajout de compte (`Views/AccountDialog.xaml`), lecture dans la WebView2 verrouillée (`Views/ReaderView.xaml.cs`), rédaction (`Views/ComposerView.xaml`), coffre de Windows (`Services/PasswordVaultCredentialStore.cs`), identifiants OAuth2 intégrés et fournisseur simulé du test de fumée (`Services/BrowserSignIn.cs`), bandeau de mise à jour, dialogues, réglages, installation des mises à jour (`Services/UpdateInstaller.cs`), test de fumée (`SmokeTest.cs`, `Services/SmokeMailService.cs`), gabarit de lecture des mails (`Assets/Mail`) |
 | `tests/QuaiMail.Core.Tests` | xUnit : nettoyage du HTML avec des mails piégés (`Reading/HtmlCleanerTests.cs`), comptes et détection, service MailKit contre de faux serveurs IMAP / SMTP locaux en TLS (`Support/FakeImapServer.cs`, `FakeSmtpServer.cs`), cache SQLite, view-models, mises à jour, réglages, brouillons, état de la fenêtre, clés de traduction |
 | `installer/QuaiMail.iss` | installateur Inno Setup (par utilisateur, sans droits administrateur) |
 | `tools/make_icon.py` | génère l'icône (Pillow) |
@@ -28,12 +28,16 @@ La variable d'environnement `QUAI_MAIL_DATA_DIR` redirige toutes les données (r
 
 | Argument | Rôle |
 |---|---|
-| `--smoke-test <dossier>` | test de fumée du CI : réglages, thème sombre, brouillon simulé et « Garder ce brouillon ? », état de la fenêtre noté puis restauré, bandeau de mise à jour (release fictive, sans réseau) ; captures et rapport dans le dossier, code 0 ou 1 |
+| `--smoke-test <dossier>` | test de fumée du CI : réglages, thème sombre, brouillon simulé et « Garder ce brouillon ? », état de la fenêtre noté puis restauré, comptes, lecture, écriture, confort, connexion par le navigateur (fournisseur simulé), bandeau de mise à jour (release fictive, sans réseau) ; captures et rapport dans le dossier, code 0 ou 1 |
 | `--update-test <dossier> <installateur>` | mise à jour en place du CI : l'installateur local est présenté comme une release plus récente (vraie taille, vraie empreinte), un brouillon et un état de fenêtre sont simulés ; Quai Mail télécharge, vérifie, garde le brouillon, lance l'installateur et se ferme |
 | `--after-update` | passé par l'installateur quand il relance Quai Mail : restaure l'état noté dans `updates/reopen.txt`, une fois |
 | `--unregister-notifications` | passé par le désinstallateur : retire Quai Mail des notifications de Windows, sans fenêtre |
 | `mailto:…` | lien mail (Quai Mail choisi pour les liens mail) : nouveau message prérempli ; si Quai Mail est déjà ouvert, le lien lui est passé (instance unique, `Program.cs`) |
 | `--purge-secrets` | passé par le désinstallateur (effacement des données) : retire du coffre de Windows tous les mots de passe de Quai Mail, sans fenêtre |
+
+## Connexion par le navigateur (OAuth2)
+
+Inscription chez Google et Microsoft : `docs/OAUTH.md`. Pour une compilation locale avec les boutons, définir avant `dotnet publish` les variables d'environnement `QuaiMailGoogleClientId`, `QuaiMailGoogleClientSecret` et `QuaiMailMicrosoftClientId` (sinon les boutons sont masqués). Les tests de `QuaiMail.Core` simulent le navigateur et le point d'émission des jetons, et les faux serveurs IMAP / SMTP acceptent `AUTH=XOAUTH2` : aucun vrai compte Google ou Microsoft n'est utilisé.
 
 ## Tests sans vrai compte
 

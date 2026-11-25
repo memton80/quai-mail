@@ -14,7 +14,7 @@
   · Gratuit · Sans compte · Sans publicité
 </p>
 
-> **Projet en cours de construction.** Version 0.5 : comptes IMAP / SMTP (réglages détectés, mot de passe dans le coffre de Windows), lecture sûre, écriture, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail. Vient ensuite la connexion à Gmail et Outlook.com par le navigateur (0.6).
+> **Projet en cours de construction.** Version 0.6 : comptes IMAP / SMTP (réglages détectés, mot de passe dans le coffre de Windows), Gmail et Outlook.com par le navigateur (sans mot de passe), lecture sûre, écriture, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail.
 
 ## Ce que sera Quai Mail
 
@@ -22,7 +22,7 @@
 - Lire, répondre, transférer, pièces jointes, brouillons enregistrés en local.
 - Application Windows native (WinUI 3). Le corps des mails est affiché par un WebView2 **verrouillé** : pas de JavaScript, images distantes bloquées par défaut, aucun lien suivi sans votre accord.
 - **Aucune publicité, aucun pistage, aucun compte à créer.** Quai Mail ne parle qu'à vos serveurs mail et à GitHub, pour savoir s'il existe une nouvelle version (désactivable).
-- Mots de passe gardés dans le coffre de Windows.
+- Mots de passe gardés dans le coffre de Windows ; Gmail et Outlook.com par leur page de connexion officielle, sans que Quai Mail voie votre mot de passe.
 
 ## Toujours à jour, en un clic
 

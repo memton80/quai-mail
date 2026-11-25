@@ -103,6 +103,7 @@ internal static class SmokeTest
             await DraftAsync(shell, dialogs, services.GetRequiredService<DraftStore>(), hwnd, directory, report);
             await WindowStateAsync(shell, services.GetRequiredService<AppPaths>(), report);
             await AccountsAsync(window, services, dialogs, hwnd, directory, report);
+            await BrowserSignInAsync(window, services, dialogs, hwnd, directory, report);
             await UpdateBannerAsync(window, services, hwnd, directory, report);
 
             report.Add("Test de fumée : OK");
@@ -559,6 +560,61 @@ internal static class SmokeTest
         await DiscardAsync(composer, dialogs);
         Check(mail.Sent.Count == sent, "un lien mailto ne doit rien envoyer");
         report.Add("Lien mailto : brouillon prérempli, rien envoyé");
+    }
+
+    /// <summary>
+    /// Connexion par le navigateur (fournisseur simulé : le « navigateur » suit aussitôt le retour local, jetons en
+    /// mémoire, aucune requête vers l'extérieur) : bouton « Se connecter avec Google » du formulaire, PKCE, jeton de
+    /// renouvellement dans le coffre de Windows et nulle part ailleurs, « Se reconnecter », retrait du compte.
+    /// </summary>
+    private static async Task BrowserSignInAsync(MainWindow window, IServiceProvider services, DialogService dialogs, IntPtr hwnd, string directory, List<string> report)
+    {
+        var embedded = BrowserSignIn.Embedded;
+        report.Add($"Inscription OAuth intégrée à cette compilation : Google {(embedded.For(AccountAuth.Google) is null ? "non" : "oui")}, Microsoft {(embedded.For(AccountAuth.Microsoft) is null ? "non" : "oui")}");
+
+        var mailbox = window.Mailbox;
+        var browser = services.GetRequiredService<SmokeBrowser>();
+        var credentials = services.GetRequiredService<ICredentialStore>();
+        var paths = services.GetRequiredService<AppPaths>();
+        var adding = window.AddAccountAsync();
+        await WaitForAsync(() => dialogs.Current is AccountDialog, "formulaire d'ajout de compte (navigateur)");
+        var dialog = (AccountDialog)dialogs.Current!;
+        var editor = dialog.Editor;
+        Check(editor is { CanSignInWithGoogle: true, CanSignInWithMicrosoft: true }, "boutons « Se connecter avec Google / Microsoft » absents");
+        editor.Address = "dominique@gmail.com";
+        await WithTimeout(editor.DetectAsync(), "détection Gmail");
+        Check(editor.Hint?.Contains(Loc.Get("AccountDialog_SignInGoogle"), StringComparison.Ordinal) == true, $"conseil Gmail : « {editor.Hint} »");
+        await Task.Delay(800);
+        await CaptureAsync(hwnd, directory, "19-connexion-navigateur.png", report);
+
+        dialog.ClickSignInWithGoogle();
+        var account = await WithTimeout(adding, "connexion Google") ?? throw new InvalidOperationException($"Vérification en échec : compte Google non ajouté ({editor.ErrorMessage})");
+        Check(account.Auth == AccountAuth.Google, "compte enregistré sans la connexion Google");
+        var opened = browser.Opened.Single();
+        var query = System.Web.HttpUtility.ParseQueryString(opened.Query);
+        Check(
+            opened.GetLeftPart(UriPartial.Path) == "https://accounts.google.com/o/oauth2/v2/auth" && query["code_challenge_method"] == "S256"
+            && query["redirect_uri"]?.StartsWith("http://", StringComparison.Ordinal) == true && new Uri(query["redirect_uri"]!).IsLoopback,
+            $"page de connexion : {opened.GetLeftPart(UriPartial.Path)}");
+        Check(credentials.GetPassword(account.Id) == SmokeTokenEndpoint.RefreshToken, "jeton de renouvellement absent du coffre de Windows");
+        var json = File.ReadAllText(paths.AccountsFile);
+        Check(
+            !json.Contains(SmokeTokenEndpoint.RefreshToken, StringComparison.Ordinal) && !json.Contains(SmokeMailService.AccessToken, StringComparison.Ordinal)
+            && json.Contains("\"auth\": \"google\"", StringComparison.Ordinal),
+            "accounts.json : jeton écrit ou connexion Google absente");
+        await WaitForAsync(() => mailbox.Items.Any(i => i.IsAccount && i.AccountId == account.Id && i.UsesBrowserSignIn), "compte Google affiché");
+        report.Add("Connexion par le navigateur : page officielle (PKCE), retour local, jeton de renouvellement dans le coffre de Windows seulement");
+
+        Check(await WithTimeout(window.ReconnectAccountAsync(account.Id), "se reconnecter"), $"reconnexion refusée : {mailbox.ErrorMessage}");
+        Check(browser.Opened.Count == 2 && System.Web.HttpUtility.ParseQueryString(browser.Opened[1].Query)["login_hint"] == "dominique@gmail.com", "« Se reconnecter » n'a pas rouvert la page de connexion");
+        report.Add("Se reconnecter : nouvelle page de connexion pour le même compte");
+
+        var removing = mailbox.RemoveAccountAsync(account.Id);
+        await WaitForAsync(() => dialogs.Current is not null, "retrait du compte Google");
+        dialogs.Choose(ContentDialogResult.Primary);
+        Check(await WithTimeout(removing, "retrait du compte Google"), "compte Google non retiré");
+        Check(credentials.GetPassword(account.Id) is null, "jeton de renouvellement resté dans le coffre après le retrait");
+        report.Add("Retrait du compte Google : jeton de renouvellement effacé du coffre");
     }
 
     /// <summary>Ferme le message en cours : « Garder ce brouillon ? » → Supprimer.</summary>

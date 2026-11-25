@@ -66,21 +66,13 @@ public sealed class OAuthFlow : IDisposable
     /// <param name="loginHint">Adresse saisie, proposée sur la page du fournisseur.</param>
     public async Task<OAuthTokens> SignInAsync(OAuthProvider provider, string? loginHint, CancellationToken cancellationToken = default)
     {
-        var port = FreePort();
-        var redirect = $"http://{provider.RedirectHost}:{port}/";
         var state = Base64Url(RandomNumberGenerator.GetBytes(24));
         var verifier = Base64Url(RandomNumberGenerator.GetBytes(48));
         var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
 
-        using var listener = new HttpListener();
-        listener.Prefixes.Add($"http://{provider.RedirectHost}:{port}/");
-        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
-        if (provider.RedirectHost != "localhost")
-        {
-            listener.Prefixes.Add($"http://localhost:{port}/");
-        }
-
-        listener.Start();
+        var listening = Listen(provider);
+        using var listener = listening.Listener;
+        var redirect = listening.Redirect;
         var uri = AuthorizationUri(provider, redirect, state, challenge, loginHint);
         if (!_launcher.Open(uri))
         {
@@ -93,7 +85,19 @@ public sealed class OAuthFlow : IDisposable
         HttpListenerContext context;
         try
         {
-            context = await listener.GetContextAsync().WaitAsync(timeout.Token).ConfigureAwait(false);
+            // Seul le retour du fournisseur compte (code ou erreur) ; toute autre requête (icône…) reçoit un 404.
+            while (true)
+            {
+                context = await listener.GetContextAsync().WaitAsync(timeout.Token).ConfigureAwait(false);
+                var parameters = System.Web.HttpUtility.ParseQueryString(context.Request.Url?.Query ?? string.Empty);
+                if (parameters["code"] is not null || parameters["error"] is not null)
+                {
+                    break;
+                }
+
+                context.Response.StatusCode = 404;
+                context.Response.Close();
+            }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -146,6 +150,32 @@ public sealed class OAuthFlow : IDisposable
         }, cancellationToken);
 
     public void Dispose() => _http.Dispose();
+
+    /// <summary>
+    /// Écoute le retour sur l'ordinateur même, sur un port libre. Si Windows refuse 127.0.0.1 à un utilisateur sans
+    /// droits d'administrateur (cela arrive), « localhost », toujours permis, le remplace (Google accepte les deux).
+    /// </summary>
+    private (HttpListener Listener, string Redirect) Listen(OAuthProvider provider)
+    {
+        foreach (var host in provider.RedirectHost == "localhost" ? ["localhost"] : new[] { provider.RedirectHost, "localhost" })
+        {
+            var port = FreePort();
+            var listener = new HttpListener();
+            listener.Prefixes.Add($"http://{host}:{port}/");
+            try
+            {
+                listener.Start();
+                return (listener, $"http://{host}:{port}/");
+            }
+            catch (HttpListenerException ex) when (host != "localhost")
+            {
+                _logger.LogInformation("Retour local sur {Host} refusé ({Code}) ; essai avec localhost", host, ex.ErrorCode);
+                listener.Close();
+            }
+        }
+
+        throw new OAuthException(OAuthError.Invalid, "retour local impossible");
+    }
 
     /// <summary>Adresse de la page de connexion (adresse officielle du fournisseur, construite ici).</summary>
     public static Uri AuthorizationUri(OAuthProvider provider, string redirect, string state, string challenge, string? loginHint)

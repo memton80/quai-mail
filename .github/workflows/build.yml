@@ -111,8 +111,14 @@ jobs:
         if: matrix.platform == 'x64'
         run: dotnet test --project tests/QuaiMail.Core.Tests/QuaiMail.Core.Tests.csproj -c Release
 
+      # Identifiants de Quai Mail chez Google et Microsoft (connexion par le navigateur, docs/OAUTH.md) : lus par
+      # MSBuild dans l'environnement, intégrés au programme. Absents (dépôt dérivé, secrets non créés) : pas de bouton.
       - name: Publish
         shell: pwsh
+        env:
+          QuaiMailGoogleClientId: ${{ secrets.QUAI_MAIL_GOOGLE_CLIENT_ID }}
+          QuaiMailGoogleClientSecret: ${{ secrets.QUAI_MAIL_GOOGLE_CLIENT_SECRET }}
+          QuaiMailMicrosoftClientId: ${{ secrets.QUAI_MAIL_MICROSOFT_CLIENT_ID }}
         run: |
           dotnet publish src/QuaiMail.App/QuaiMail.App.csproj `
             -c Release `
@@ -231,14 +237,17 @@ jobs:
       - name: Test de fumée (application installée, lancement réel)
         if: matrix.platform == 'x64'
         shell: pwsh
+        env:
+          OAUTH_GOOGLE: ${{ secrets.QUAI_MAIL_GOOGLE_CLIENT_ID != '' }}
+          OAUTH_MICROSOFT: ${{ secrets.QUAI_MAIL_MICROSOFT_CLIENT_ID != '' }}
         run: |
           $out = Join-Path $env:RUNNER_TEMP 'smoke'
           $exe = Join-Path $env:QUAI_MAIL_INSTALL_DIR 'QuaiMail.exe'
           $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test', "`"$out`"" -PassThru
           $null = $process.Handle
-          if (-not $process.WaitForExit(240000)) {
+          if (-not $process.WaitForExit(300000)) {
             $process.Kill()
-            Write-Host "::error::Le test de fumée n'a pas rendu la main en 240 s."
+            Write-Host "::error::Le test de fumée n'a pas rendu la main en 300 s."
             $failed = $true
           } elseif ($process.ExitCode -ne 0) {
             Write-Host "::error::Le test de fumée a échoué (code $($process.ExitCode))."
@@ -257,6 +266,16 @@ jobs:
               Where-Object { $_.ProviderName -in '.NET Runtime', 'Application Error', 'Windows Error Reporting' } |
               Select-Object -First 6 | ForEach-Object { $_.Message }
             throw 'Test de fumée en échec.'
+          }
+          # Connexion par le navigateur : intégrée exactement quand les secrets existent.
+          $google = if ($env:OAUTH_GOOGLE -eq 'true') { 'oui' } else { 'non' }
+          $microsoft = if ($env:OAUTH_MICROSOFT -eq 'true') { 'oui' } else { 'non' }
+          $expected = "Inscription OAuth intégrée à cette compilation : Google $google, Microsoft $microsoft"
+          if (-not (Select-String -Path (Join-Path $out 'smoke-report.txt') -SimpleMatch $expected -Quiet)) {
+            throw "Inscription OAuth : « $expected » attendu dans le rapport."
+          }
+          if ($google -eq 'non' -or $microsoft -eq 'non') {
+            Write-Host "::warning::Secrets OAuth absents : « Se connecter avec Google / Microsoft » n'est pas proposé par cette compilation (voir docs/OAUTH.md)."
           }
 
       # Le bouton « Mettre à jour » pour de vrai (repris de Quai) : Quai Mail installé, avec un brouillon ouvert, se voit

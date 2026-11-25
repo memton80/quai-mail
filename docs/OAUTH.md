@@ -4,7 +4,7 @@ Gmail et Outlook.com refusent (ou refuseront) les mots de passe en IMAP / SMTP :
 
 Pour cela, Quai Mail doit être **inscrit** chez Google et chez Microsoft. C'est fait une fois, avec les comptes du propriétaire du projet (Alexandre). Cette page dit exactement quoi cliquer. Rien de payant n'est nécessaire.
 
-À la fin, trois valeurs sont à ranger dans les **secrets du dépôt GitHub** (jamais dans le code) : le CI les intègre à la compilation.
+À la fin, trois valeurs sont à ranger dans les **secrets du dépôt GitHub** (jamais dans le code) : le CI les intègre à la compilation (variables d'environnement `QuaiMailGoogleClientId`, `QuaiMailGoogleClientSecret`, `QuaiMailMicrosoftClientId` lues par MSBuild ; les mêmes servent pour une compilation locale). Sans elles, Quai Mail fonctionne, simplement sans les boutons de connexion par le navigateur.
 
 | Secret GitHub | Où le trouver |
 |---|---|
@@ -41,6 +41,7 @@ Dans GitHub : dépôt `memton80/quai-mail`, **Settings**, **Secrets and variable
 
 ## Ce que fait Quai Mail ensuite
 
-- **Se connecter avec Google / Microsoft** dans « Ajouter un compte » ouvre le navigateur par défaut sur la page officielle de connexion (flux « code d'autorisation » avec PKCE, retour sur `http://127.0.0.1:<port>` de l'ordinateur seulement).
+- **Se connecter avec Google / Microsoft** dans « Ajouter un compte » ouvre le navigateur par défaut sur la page officielle de connexion (flux « code d'autorisation » avec PKCE, retour sur `http://127.0.0.1:<port>` pour Google, `http://localhost:<port>` pour Microsoft, sur l'ordinateur même seulement).
+- Si l'autorisation expire ou est retirée : clic droit sur le compte, **Se reconnecter**.
 - Quai Mail garde le jeton de renouvellement dans le coffre de Windows, jamais dans un fichier ni un journal ; le jeton d'accès (une heure) reste en mémoire.
 - Retirer le compte, ou désinstaller avec effacement des données, efface ce jeton.

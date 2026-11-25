@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using QuaiMail.Core;
 using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Accounts.OAuth;
 using QuaiMail.Core.Cache;
 using QuaiMail.Core.Drafts;
 using QuaiMail.Core.Localization;
@@ -61,6 +62,24 @@ internal static class AppServices
         services.AddSingleton(provider => new MailCache(paths.CacheDatabase, provider.GetService<ILogger<MailCache>>()));
         services.AddSingleton(_ => new ProviderAutoconfig(testing ? new NoNetworkHandler() : null));
         services.AddSingleton<MailSettingsDiscovery>();
+
+        // Connexion par le navigateur (Gmail, Outlook.com) : identifiants intégrés à la compilation. Tests de fumée :
+        // fournisseur simulé (navigateur qui suit le retour local, jetons en mémoire), aucune requête vers l'extérieur.
+        services.AddSingleton(testing ? BrowserSignIn.Smoke : BrowserSignIn.Embedded);
+        if (testing)
+        {
+            services.AddSingleton<SmokeBrowser>();
+            services.AddSingleton<SmokeTokenEndpoint>();
+            services.AddSingleton(provider => new OAuthFlow(
+                provider.GetRequiredService<SmokeBrowser>(), provider.GetRequiredService<SmokeTokenEndpoint>(), provider.GetService<ILogger<OAuthFlow>>()));
+        }
+        else
+        {
+            services.AddSingleton(provider => new OAuthFlow(provider.GetRequiredService<ILauncher>(), null, provider.GetService<ILogger<OAuthFlow>>()));
+        }
+
+        services.AddSingleton(provider => new AccessTokens(
+            provider.GetRequiredService<ICredentialStore>(), provider.GetRequiredService<OAuthFlow>(), provider.GetRequiredService<OAuthClients>()));
         if (testing)
         {
             services.AddSingleton<IMailService, SmokeMailService>();
@@ -70,9 +89,9 @@ internal static class AppServices
         else
         {
             services.AddSingleton<IMailService>(provider =>
-                new MailKitMailService(provider.GetRequiredService<ICredentialStore>(), provider.GetService<ILogger<MailKitMailService>>()));
+                new MailKitMailService(provider.GetRequiredService<ICredentialStore>(), provider.GetService<ILogger<MailKitMailService>>(), provider.GetRequiredService<AccessTokens>()));
             services.AddSingleton<IMailWatcher>(provider =>
-                new MailKitMailWatcher(provider.GetRequiredService<ICredentialStore>(), provider.GetService<ILogger<MailKitMailWatcher>>()));
+                new MailKitMailWatcher(provider.GetRequiredService<ICredentialStore>(), provider.GetService<ILogger<MailKitMailWatcher>>(), provider.GetRequiredService<AccessTokens>()));
             services.AddSingleton<AppNotifier>();
             services.AddSingleton<INotifier>(provider => provider.GetRequiredService<AppNotifier>());
         }

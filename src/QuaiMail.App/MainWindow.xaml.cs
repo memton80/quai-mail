@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Input;
 using QuaiMail.App.Services;
 using QuaiMail.Core;
 using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Localization;
 using QuaiMail.Core.Mail;
 using QuaiMail.Core.ViewModels;
 using Windows.Graphics;
@@ -154,11 +155,39 @@ public sealed partial class MainWindow : Window
         var editor = _services.GetRequiredService<AccountEditorViewModel>();
         if (await _dialogs.ShowAccountDialogAsync(editor) is { } account)
         {
+            // Après une connexion dans le navigateur, Quai Mail revient au premier plan (si Windows le permet).
+            Activate();
             await Mailbox.OnAccountAddedAsync(account);
             return account;
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// « Se reconnecter » (compte Gmail ou Outlook.com dont l'autorisation a expiré) : page de connexion dans le
+    /// navigateur, puis le compte reprend (dossiers, réception en direct).
+    /// </summary>
+    internal async Task<bool> ReconnectAccountAsync(string accountId)
+    {
+        var accounts = _services.GetRequiredService<AccountStore>();
+        if (accounts.Find(accountId) is not { } account)
+        {
+            return false;
+        }
+
+        var editor = _services.GetRequiredService<AccountEditorViewModel>();
+        Mailbox.ErrorMessage = null;
+        if (!await editor.ReconnectAsync(account))
+        {
+            Mailbox.ErrorMessage = _services.GetRequiredService<IStrings>().Format("Mailbox_AccountError", account.Title, editor.ErrorMessage ?? string.Empty);
+            return false;
+        }
+
+        Activate();
+        StartWatching();
+        await Mailbox.OnAccountAddedAsync(account);
+        return true;
     }
 
     /// <summary>Fermeture de la fenêtre (bouton, Alt+F4) : propose de garder le brouillon en cours.</summary>
@@ -259,6 +288,21 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ajout de compte interrompu");
+        }
+    }
+
+    private async void OnReconnectAccountClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if ((sender as FrameworkElement)?.DataContext is NavItemViewModel item)
+            {
+                await ReconnectAccountAsync(item.AccountId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Reconnexion du compte interrompue");
         }
     }
 

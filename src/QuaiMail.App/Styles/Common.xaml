@@ -510,4 +510,15 @@
         <Setter Property="IsTextSelectionEnabled" Value="True" />
     </Style>
 
+    <!-- Ajout de compte : connexion par le navigateur (Gmail, Outlook.com). -->
+    <Style x:Key="SignInPanelStyle" TargetType="StackPanel">
+        <Setter Property="Spacing" Value="8" />
+    </Style>
+    <Style
+        x:Key="SignInButtonStyle"
+        BasedOn="{StaticResource DefaultButtonStyle}"
+        TargetType="Button">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+
 </ResourceDictionary>

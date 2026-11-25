@@ -36,6 +36,17 @@
     <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
+  <!--
+    Identifiants de Quai Mail chez Google et Microsoft (connexion par le navigateur, docs/OAUTH.md) : lus à la
+    compilation dans les variables d'environnement QuaiMailGoogleClientId, QuaiMailGoogleClientSecret et
+    QuaiMailMicrosoftClientId (secrets du dépôt GitHub, jamais dans le code). Absents : boutons de connexion masqués.
+  -->
+  <ItemGroup>
+    <AssemblyMetadata Include="QuaiMail.GoogleClientId" Value="$(QuaiMailGoogleClientId)" />
+    <AssemblyMetadata Include="QuaiMail.GoogleClientSecret" Value="$(QuaiMailGoogleClientSecret)" />
+    <AssemblyMetadata Include="QuaiMail.MicrosoftClientId" Value="$(QuaiMailMicrosoftClientId)" />
+  </ItemGroup>
+
   <ItemGroup>
     <PublishReadyToRunExclude Include="System.Private.CoreLib.dll;Microsoft.Windows.SDK.NET.dll;Microsoft.WinUI.dll;WinRT.Runtime.dll" />
   </ItemGroup>

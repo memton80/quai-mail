@@ -88,6 +88,10 @@ public sealed partial class AccountEditorViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
 
+    /// <summary>La page de connexion du fournisseur est ouverte dans le navigateur : Quai Mail attend son retour.</summary>
+    [ObservableProperty]
+    public partial bool IsWaitingForBrowser { get; set; }
+
     /// <summary>Réglages du serveur affichés (détectés, ou à saisir).</summary>
     [ObservableProperty]
     public partial bool ShowServerSettings { get; set; }
@@ -155,7 +159,7 @@ public sealed partial class AccountEditorViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var tokens = await _flow.SignInAsync(provider, address, cancellationToken);
+            var tokens = await WaitForBrowserAsync(_flow.SignInAsync(provider, address, cancellationToken));
             await _mail.VerifyAsync(account, tokens.AccessToken, cancellationToken);
             _tokens.Store(account, tokens);
             _accounts.Save(account);
@@ -195,7 +199,7 @@ public sealed partial class AccountEditorViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var tokens = await _flow.SignInAsync(provider, account.UserName, cancellationToken);
+            var tokens = await WaitForBrowserAsync(_flow.SignInAsync(provider, account.UserName, cancellationToken));
             await _mail.VerifyAsync(account, tokens.AccessToken, cancellationToken);
             _tokens.Store(account, tokens);
             _logger.LogInformation("Compte {Id} reconnecté ({Provider})", account.Id, provider.Name);
@@ -214,6 +218,19 @@ public sealed partial class AccountEditorViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private async Task<OAuthTokens> WaitForBrowserAsync(Task<OAuthTokens> signIn)
+    {
+        IsWaitingForBrowser = true;
+        try
+        {
+            return await signIn;
+        }
+        finally
+        {
+            IsWaitingForBrowser = false;
         }
     }
 
