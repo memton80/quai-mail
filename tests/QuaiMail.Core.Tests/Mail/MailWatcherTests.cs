@@ -82,11 +82,14 @@ public sealed class MailWatcherTests : IAsyncLifetime
         }
 
         await WaitForAsync(() => Polls() > 0);
-        var polls = Polls();
         _imap.Folder("INBOX").Messages.Add(new FakeMessage(4, "Relevé", "Banque", "banque@example.org", Now.AddMinutes(3)));
         await WaitForAsync(() => _events.Count == 1);
 
-        Assert.True(Polls() > polls);
+        Assert.Equal("Relevé", Assert.Single(_events[0].Messages).Subject);
+        lock (_imap.Commands)
+        {
+            Assert.DoesNotContain(_imap.Commands, c => c.StartsWith("IDLE", StringComparison.Ordinal));
+        }
     }
 
     [Fact]
