@@ -583,7 +583,8 @@ internal static class SmokeTest
         if (!BrowserSignIn.Available)
         {
             // Pas encore proposée : boutons grisés « à venir », l'ajout par mot de passe reste la voie normale.
-            Check(!dialog.SignInButtonsEnabled && !editor.CanSignIn, "les boutons de connexion par le navigateur doivent être grisés");
+            Check(!editor.CanSignIn, "connexion par le navigateur proposée alors qu'elle est à venir");
+            await WaitForAsync(() => dialog.IsLoaded && !dialog.SignInButtonsEnabled, "boutons de connexion par le navigateur grisés");
             Check(editor.GoogleSignInText == Loc.Get("AccountDialog_SignInGoogleSoon") && editor.MicrosoftSignInText == Loc.Get("AccountDialog_SignInMicrosoftSoon"), "mention « à venir » absente");
             editor.Address = "dominique@outlook.fr";
             await WithTimeout(editor.DetectAsync(), "détection Outlook.com");
