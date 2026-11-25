@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/logo.png" width="96" alt="Logo de Quai Mail">
+</p>
+
 <h1 align="center">Quai Mail</h1>
 
 <p align="center">
@@ -5,7 +9,12 @@
   Un client mail de base, gratuit, pensé pour Windows 11. De la même famille que <a href="https://github.com/memton80/quai-ssh">Quai</a> et <a href="https://github.com/memton80/quai-pdf">Quai PDF</a>.
 </p>
 
-> **Projet en cours de démarrage.** Première étape : la chaîne de mise à jour (même mécanisme que Quai et Quai PDF), puis les comptes IMAP / SMTP, la lecture et l'écriture.
+<p align="center">
+  <a href="https://github.com/memton80/quai-mail/releases/latest"><b>Télécharger Quai Mail pour Windows</b></a>
+  · Gratuit · Sans compte · Sans publicité
+</p>
+
+> **Projet en cours de démarrage.** Version 0.1 : la coquille (fenêtre, réglages, mise à jour automatique). Viennent ensuite les comptes IMAP / SMTP (0.2), la lecture (0.3) et l'écriture (0.4).
 
 ## Ce que sera Quai Mail
 
@@ -19,8 +28,19 @@
 
 Comme Quai : quand une nouvelle version sort, un bandeau la propose. Un clic sur **Mettre à jour** la télécharge, vérifie qu'elle est bien celle publiée, l'installe, puis Quai Mail redémarre tout seul au même endroit (il propose d'abord de garder votre brouillon en cours).
 
-## Pour les développeurs
+## Installer Quai Mail
 
+1. Téléchargez **`QuaiMail-Setup-x64.exe`** depuis la [dernière version](https://github.com/memton80/quai-mail/releases/latest) (ou `QuaiMail-Setup-arm64.exe` pour un PC Snapdragon / ARM).
+2. Lancez-le : pas besoin d'être administrateur, tout est inclus.
+
+> Au premier lancement, Windows peut afficher « Windows a protégé votre ordinateur » : Quai Mail est un projet indépendant et ses fichiers ne sont pas encore signés. Cliquez sur **Informations complémentaires**, puis **Exécuter quand même**.
+
+Fonctionne sur Windows 10 et Windows 11. Une version portable (zip, sans installation) est aussi proposée.
+
+## En savoir plus
+
+- [Le guide](docs/GUIDE.md) : la fenêtre, les réglages, les mises à jour, où sont vos données, les limites actuelles.
+- [Pour les développeurs](docs/DEVELOPPEMENT.md) : organisation du code, tests, compilation, publication.
 - [Consignes du projet](CLAUDE.md) · [Décisions techniques](docs/DECISIONS.md) · [Mission de départ](docs/PROMPT-CLAUDE-CODE.md)
 - Une idée, un bug ? [Ouvrez un ticket](https://github.com/memton80/quai-mail/issues).
 
