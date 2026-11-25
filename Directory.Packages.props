@@ -1,0 +1,37 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Windows App SDK : métapaquet et composants à la même version (voir QuaiMail.App.csproj et docs/DECISIONS.md). -->
+    <WindowsAppSdkVersion>2.6.5</WindowsAppSdkVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- QuaiMail.Core -->
+    <!--
+      Paquets de mail (MailKit / MimeKit, Microsoft.Data.Sqlite, WebView2) : à ajouter ici au moment de s'en servir,
+      avec une version vérifiée sur nuget.org et une ligne dans docs/DECISIONS.md (licence comprise).
+    -->
+    <!-- Comparaison des versions pour les mises à jour (règles SemVer), comme Quai. -->
+    <PackageVersion Include="Semver" Version="3.0.0" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
+    <!-- QuaiMail.App -->
+    <PackageVersion Include="Microsoft.WindowsAppSDK" Version="$(WindowsAppSdkVersion)" />
+    <!-- Composants du Windows App SDK neutralisés (ExcludeAssets="all" dans QuaiMail.App.csproj). -->
+    <PackageVersion Include="Microsoft.WindowsAppSDK.AI" Version="$(WindowsAppSdkVersion)" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.ML" Version="$(WindowsAppSdkVersion)" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Search" Version="$(WindowsAppSdkVersion)" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Widgets" Version="$(WindowsAppSdkVersion)" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.DWrite" Version="$(WindowsAppSdkVersion)" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Runtime" Version="$(WindowsAppSdkVersion)" />
+    <PackageVersion Include="Microsoft.Windows.AI.MachineLearning" Version="2.4.89" />
+    <PackageVersion Include="System.Numerics.Tensors" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.15" />
+    <PackageVersion Include="Serilog" Version="4.4.0" />
+    <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <!-- Tests -->
+    <PackageVersion Include="xunit.v3" Version="4.0.3" />
+  </ItemGroup>
+</Project>

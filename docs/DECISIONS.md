@@ -1,0 +1,11 @@
+# Décisions techniques
+
+Une ligne par décision : date, choix, raison.
+
+- 2026-11-25 : projet calqué sur [Quai](https://github.com/memton80/quai-ssh) et [Quai PDF](https://github.com/memton80/quai-pdf) — même stack (WinUI 3 non packagé, .NET 10, Windows App SDK 2.6.5 avec les mêmes composants neutralisés, CommunityToolkit.Mvvm, Microsoft.Extensions + Serilog, xunit.v3, Inno Setup, CI GitHub Actions avec test de fumée), même découpage Core / App / tests, mêmes règles de version et de release. Le code commun (réglages JSON, mises à jour, localisation `{l:Str}`, thème, dialogues, capture d'écran du test de fumée) est repris de Quai PDF, pas réécrit.
+- 2026-11-25 : **les mises à jour sont la priorité n°1** (demande d'Alexandre) : même mécanisme que Quai et Quai PDF (`Updates/`, `UpdateBannerViewModel`, SHA-256 du `digest` GitHub, Inno Setup silencieux avec `/RELAUNCH=1`, `--after-update`, réglage `checkForUpdates`), prouvé par le CI à chaque run, avant toute fonction de mail.
+- 2026-11-25 : **WebView2 accepté, verrouillé, uniquement pour afficher le corps des mails** (accord d'Alexandre) — le HTML des mails n'a pas d'équivalent natif dans WinUI 3. Contrepartie de la règle « pas d'application web cachée » de Quai PDF : JavaScript désactivé, HTML nettoyé, politique CSP sans chargement distant, images distantes bloquées par défaut, navigation interdite, liens ouverts dans le navigateur après confirmation, aucun JavaScript livré (contrôlé par le CI).
+- 2026-11-25 : CSS jamais dans le HTML (règle d'Alexandre) : gabarit `Assets/Mail/reader.html` sans style, styles dans `Assets/Mail/mail.css` servis par nom d'hôte virtuel ; contrôlé par le CI.
+- 2026-11-25 : v1 en IMAP / SMTP avec mot de passe (ou mot de passe d'application) ; OAuth2 Gmail / Outlook en jalon ultérieur — Gmail et Outlook refusent les mots de passe classiques en IMAP, d'où la nécessité de l'OAuth2 pour eux, qui demande d'inscrire l'application chez Google et Microsoft.
+- 2026-11-25 : nouvel `AppId` Inno Setup propre à Quai Mail (jamais celui de Quai ou de Quai PDF) : les trois applications s'installent côte à côte.
+- 2026-11-25 : réglage `blockRemoteImages` (vrai par défaut) à la place de `showThumbnails` de Quai PDF : confidentialité d'abord (pas de pixel espion).

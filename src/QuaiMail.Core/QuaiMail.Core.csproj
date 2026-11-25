@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>QuaiMail.Core</RootNamespace>
+    <Platforms>AnyCPU;x64;ARM64</Platforms>
+    <!-- Analyse de compatibilité trimming / AOT à la compilation : l'application est réduite à la publication. -->
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Comparaison des versions pour les mises à jour (règles SemVer), comme Quai. -->
+    <PackageReference Include="Semver" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="QuaiMail.Core.Tests" />
+  </ItemGroup>
+
+</Project>
