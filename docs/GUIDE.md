@@ -1,6 +1,6 @@
 # Guide de Quai Mail
 
-> **Version 0.10 : clés de Kleopatra et mails signés vérifiés.** Comptes IMAP / SMTP, lecture sûre, écriture, signature OpenPGP, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail, expéditeurs sûrs et mode méfiant contre l'hameçonnage, marque du web sur les pièces jointes, comptes repliables, **sélection de plusieurs mails** (`Ctrl+A`), et maintenant les **clés de Kleopatra copiées dans Quai Mail** en un clic et la **vérification des mails signés** reçus (bandeau, clé cherchée dans Kleopatra puis sur keys.openpgp.org). La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir »).
+> **Version 0.11 : volet de gauche réductible en rail d'icônes.** Le bouton ≡ (ou `Ctrl+B`) réduit le volet des comptes en une colonne d'icônes. Comptes IMAP / SMTP, lecture sûre, écriture, signature OpenPGP, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail, expéditeurs sûrs et mode méfiant contre l'hameçonnage, marque du web sur les pièces jointes, comptes repliables, **sélection de plusieurs mails** (`Ctrl+A`), les **clés de Kleopatra copiées dans Quai Mail** en un clic et la **vérification des mails signés** reçus (bandeau, clé cherchée dans Kleopatra puis sur keys.openpgp.org). La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir »).
 
 ## La fenêtre
 
