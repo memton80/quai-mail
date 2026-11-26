@@ -36,9 +36,25 @@ public sealed partial class NavItemViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasUnread))]
+    [NotifyPropertyChangedFor(nameof(RailUnread))]
+    [NotifyPropertyChangedFor(nameof(HasRailUnread))]
     public partial int Unread { get; set; }
 
     public bool HasUnread => Unread > 0;
+
+    /// <summary>
+    /// Ligne d'un compte : non lus de tous ses dossiers (sans Indésirables ni Corbeille), qu'il soit déplié ou non. Sert au
+    /// rail d'icônes, où les dossiers ne sont pas montrés.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RailUnread))]
+    [NotifyPropertyChangedFor(nameof(HasRailUnread))]
+    public partial int AccountUnread { get; set; }
+
+    /// <summary>Pastille du rail : tous les non lus d'un compte, ou ceux de la boîte unifiée.</summary>
+    public int RailUnread => IsAccount ? AccountUnread : Unread;
+
+    public bool HasRailUnread => RailUnread > 0;
 
     /// <summary>
     /// Ligne d'un compte : ses dossiers sont affichés (vrai) ou repliés. Replié, la ligne montre dans <see cref="Unread"/>

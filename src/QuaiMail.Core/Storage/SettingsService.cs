@@ -85,6 +85,7 @@ public sealed class JsonSettingsService : ISettingsService
         && a.ShowNotifications == b.ShowNotifications
         && a.CheckForUpdates == b.CheckForUpdates
         && a.LookUpPgpKeys == b.LookUpPgpKeys
+        && a.NavPaneCompact == b.NavPaneCompact
         && a.CollapsedAccounts.SequenceEqual(b.CollapsedAccounts, StringComparer.Ordinal);
 
     private AppSettings Load()

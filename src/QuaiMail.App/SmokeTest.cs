@@ -637,6 +637,22 @@ internal static class SmokeTest
         Check(settings.Current.CollapsedAccounts.Length == 0, "compte déplié encore noté replié");
         report.Add("Volet : un compte se replie et se déplie (dossier affiché gardé), choix gardé dans les réglages");
 
+        // Bouton « menu » : le volet se réduit en rail d'icônes (boîte unifiée et comptes, sans dossiers), le choix est
+        // gardé dans les réglages, et le dossier affiché ne change pas.
+        var paneWidth = window.NavPaneWidth;
+        Check(paneWidth > 200 && !settings.Current.NavPaneCompact, $"volet de départ déployé attendu ({paneWidth})");
+        mailbox.TogglePaneCommand.Execute(null);
+        await WaitForAsync(() => window.NavPaneWidth is > 0 and < 100, "volet réduit en rail d'icônes");
+        Check(settings.Current.NavPaneCompact, "volet réduit non gardé dans les réglages");
+        Check(mailbox.RailItems.Count == 3 && mailbox.RailItems[0].IsUnified, $"rail : boîte unifiée et deux comptes attendus ({mailbox.RailItems.Count})");
+        Check(mailbox.SelectedItem == sentFolder && mailbox.SelectedRailItem?.AccountId == account.Id, "rail : le compte du dossier affiché doit être en surbrillance");
+        await Task.Delay(500);
+        await CaptureAsync(hwnd, directory, "18-volet-reduit.png", report);
+        mailbox.TogglePaneCommand.Execute(null);
+        await WaitForAsync(() => window.NavPaneWidth > 200, "volet redéployé");
+        Check(!settings.Current.NavPaneCompact && mailbox.SelectedItem == sentFolder, "volet redéployé : choix non gardé ou dossier changé");
+        report.Add("Volet : bouton « menu » réduit le volet en rail d'icônes et le redéploie, choix gardé dans les réglages");
+
         var removing = mailbox.RemoveAccountAsync(second.Id);
         await WaitForAsync(() => dialogs.Current is not null, "retrait du deuxième compte");
         dialogs.Choose(ContentDialogResult.Primary);

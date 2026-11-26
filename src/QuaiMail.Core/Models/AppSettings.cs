@@ -34,6 +34,9 @@ public sealed class AppSettings
     /// </summary>
     public string[] CollapsedAccounts { get; set; } = [];
 
+    /// <summary>Volet de gauche réduit en rail d'icônes (bouton « menu » en haut du volet). Déplié par défaut.</summary>
+    public bool NavPaneCompact { get; set; }
+
     public AppSettings Clone() => (AppSettings)MemberwiseClone();
 
     /// <summary>Ramène les valeurs dans leurs bornes (fichier modifié à la main, ancienne version…).</summary>

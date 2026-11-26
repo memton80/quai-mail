@@ -94,6 +94,19 @@ public sealed class SettingsServiceTests
     }
 
     [Fact]
+    public void The_pane_is_expanded_by_default_and_its_compact_choice_is_saved()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.File("settings.json");
+        var service = new JsonSettingsService(path);
+        Assert.False(service.Current.NavPaneCompact);
+
+        service.Update(s => s.NavPaneCompact = true);
+
+        Assert.True(new JsonSettingsService(path).Current.NavPaneCompact);
+    }
+
+    [Fact]
     public void A_null_list_of_collapsed_accounts_means_none()
     {
         using var temp = new TempDirectory();

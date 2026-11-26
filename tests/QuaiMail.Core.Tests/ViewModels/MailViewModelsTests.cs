@@ -199,6 +199,70 @@ public sealed class MailViewModelsTests : IDisposable
     }
 
     [Fact]
+    public async Task The_rail_lists_the_unified_box_and_the_accounts_with_their_total_unread_even_when_expanded()
+    {
+        var alice = AddAccount("alice@example.org");
+        var bob = AddAccount("bob@example.org");
+        _mail.Folders[alice.Id] =
+        [
+            new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 2, 4),
+            new MailFolderInfo("Listes", "Listes", 0, FolderRole.None, true, 3, 3),
+            new MailFolderInfo("Spam", "Spam", 0, FolderRole.Junk, true, 40, 40),
+        ];
+        _mail.Folders[bob.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 1, 1)];
+        var mailbox = Mailbox();
+        await mailbox.LoadAsync();
+        await WaitForAsync(() => !mailbox.Messages.IsLoading);
+
+        Assert.Equal(["Folder_Unified", "alice@example.org", "bob@example.org"], mailbox.RailItems.Select(i => i.Title));
+        Assert.Equal([3, 5, 1], mailbox.RailItems.Select(i => i.RailUnread));
+
+        // Un mail lu retire une pastille, dossier déplié ou non.
+        mailbox.SetExpanded(alice.Id, false);
+        mailbox.OnNewMail(alice, [Header(7)]);
+        Assert.Equal(6, mailbox.RailItems.Single(i => i.AccountId == alice.Id).RailUnread);
+    }
+
+    [Fact]
+    public async Task The_rail_highlights_the_account_of_the_folder_shown_and_a_click_opens_its_inbox()
+    {
+        var alice = AddAccount("alice@example.org");
+        var bob = AddAccount("bob@example.org");
+        _mail.Folders[alice.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 0, 0)];
+        _mail.Folders[bob.Id] =
+        [
+            new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 0, 0),
+            new MailFolderInfo("Sent", "Sent", 0, FolderRole.Sent, true, 0, 0),
+        ];
+        var mailbox = Mailbox();
+        await mailbox.LoadAsync();
+        await WaitForAsync(() => !mailbox.Messages.IsLoading);
+        Assert.True(mailbox.SelectedRailItem?.IsUnified);
+
+        mailbox.SelectedItem = mailbox.AllItems.Single(i => i.AccountId == bob.Id && i.Role == FolderRole.Sent);
+        Assert.Equal(bob.Id, mailbox.SelectedRailItem?.AccountId);
+
+        mailbox.ShowInbox(bob.Id);
+        Assert.Equal(FolderRole.Inbox, mailbox.SelectedItem?.Role);
+        Assert.Equal(bob.Id, mailbox.SelectedRailItem?.AccountId);
+    }
+
+    [Fact]
+    public void The_pane_choice_is_kept_in_the_settings_and_found_again_at_the_next_start()
+    {
+        var first = Mailbox();
+        Assert.False(first.IsPaneCompact);
+
+        first.TogglePaneCommand.Execute(null);
+        Assert.True(_settings.Current.NavPaneCompact);
+        Assert.True(Mailbox().IsPaneCompact);
+
+        first.TogglePaneCommand.Execute(null);
+        Assert.False(_settings.Current.NavPaneCompact);
+        Assert.False(Mailbox().IsPaneCompact);
+    }
+
+    [Fact]
     public async Task An_unreachable_server_shows_the_cache_and_a_clear_error()
     {
         var account = AddAccount("alice@example.org");

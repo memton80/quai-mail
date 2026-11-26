@@ -24,6 +24,18 @@
   <data name="Pane_Accounts" xml:space="preserve">
     <value>Comptes et dossiers</value>
   </data>
+  <data name="Pane_Collapse" xml:space="preserve">
+    <value>Réduire le volet (Ctrl+B)</value>
+  </data>
+  <data name="Pane_Expand" xml:space="preserve">
+    <value>Développer le volet (Ctrl+B)</value>
+  </data>
+  <data name="Nav_RailItemUnread" xml:space="preserve">
+    <value>{0}, {1} non lus</value>
+  </data>
+  <data name="Mailbox_ErrorIconName" xml:space="preserve">
+    <value>Erreur de connexion</value>
+  </data>
   <data name="Nav_AccountExpanded" xml:space="preserve">
     <value>{0}, déplié</value>
   </data>

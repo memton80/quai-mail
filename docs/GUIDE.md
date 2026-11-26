@@ -8,11 +8,11 @@ Trois volets, de gauche à droite :
 
 | Volet | Contenu |
 |---|---|
-| **Comptes et dossiers** | en haut, **Nouveau message** ; vos comptes mail et leurs dossiers (Boîte de réception, Envoyés…), avec le nombre de mails non lus ; en bas, **Ajouter un compte** et **Réglages** |
+| **Comptes et dossiers** | en haut, le bouton ≡ (réduit le volet) puis **Nouveau message** ; vos comptes mail et leurs dossiers (Boîte de réception, Envoyés…), avec le nombre de mails non lus ; en bas, **Ajouter un compte** et **Réglages** |
 | **Mails** | les mails du dossier choisi, du plus récent au plus ancien : expéditeur, objet, date ; les non lus en gras |
 | **Lecture** | le mail ouvert : expéditeur, destinataires, date, pièces jointes, puis son contenu ; ou le message que vous écrivez |
 
-Tout se fait aussi au clavier : `Tab` passe d'un volet à l'autre, les flèches parcourent les dossiers et les mails, `F5` actualise les dossiers, `Ctrl+N` écrit un nouveau message, `Ctrl+F` cherche ; dans la liste des mails, `Ctrl+A` les choisit tous et `Suppr` supprime les mails choisis.
+Tout se fait aussi au clavier : `Tab` passe d'un volet à l'autre, les flèches parcourent les dossiers et les mails, `F5` actualise les dossiers, `Ctrl+N` écrit un nouveau message, `Ctrl+F` cherche, `Ctrl+B` réduit ou déploie le volet de gauche ; dans la liste des mails, `Ctrl+A` les choisit tous et `Suppr` supprime les mails choisis.
 
 ## Ajouter un compte
 
@@ -38,6 +38,7 @@ Les boutons **Se connecter avec Google** et **Se connecter avec Microsoft** sont
 ## Dossiers et mails
 
 - **Replier un compte** : cliquez sur sa ligne (la flèche ▾ devant l'adresse) ; ses dossiers disparaissent du volet et la ligne montre ses mails non lus (sans les Indésirables ni la Corbeille). Un autre clic les fait revenir. Au clavier : `Entrée` ou `Espace` sur la ligne du compte, `←` pour replier, `→` pour déplier, et `←` sur un dossier remonte à son compte. Chaque compte reste replié ou déplié d'un lancement à l'autre, mises à jour comprises ; le dossier affiché reste affiché quand on replie son compte.
+- **Réduire le volet de gauche** : le bouton ≡ en haut du volet (ou `Ctrl+B`) le réduit en une colonne d'icônes, pour laisser plus de place aux mails. On y voit « Nouveau message », la boîte unifiée et un rond à initiales par compte, avec une pastille de mails non lus ; un clic sur un compte ouvre sa boîte de réception (les dossiers se retrouvent en redéployant le volet). « Ajouter un compte » et « Réglages » restent en bas, avec une info-bulle. Le choix est gardé d'un lancement à l'autre, mises à jour comprises.
 - Les dossiers particuliers (Boîte de réception, Brouillons, Envoyés, Archives, Indésirables, Corbeille) viennent en premier, puis les autres, sous-dossiers en retrait.
 - La liste montre les 50 mails les plus récents ; **Afficher les mails plus anciens**, en bas de la liste, charge les 50 suivants.
 - Quai Mail garde une copie des dossiers et des en-têtes (cache) pour les afficher tout de suite au démarrage, puis les met à jour depuis le serveur. Si un serveur est injoignable, un bandeau le dit et le cache reste affiché.

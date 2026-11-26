@@ -54,7 +54,12 @@ public sealed partial class MainWindow : Window
             {
                 DispatcherQueue.TryEnqueue(SyncNavSelection);
             }
+            else if (e.PropertyName == nameof(MailboxViewModel.IsPaneCompact))
+            {
+                ApplyPaneMode();
+            }
         };
+        ApplyPaneMode();
 
         Title = AppInfo.DisplayName;
         ExtendsContentIntoTitleBar = true;
@@ -332,6 +337,52 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             _logger.LogError(ex, "Retrait du compte interrompu");
+        }
+    }
+
+    /// <summary>Largeur du volet de gauche (déployé ou rail d'icônes), pour le test de fumée.</summary>
+    internal double NavPaneWidth => NavPane.ActualWidth;
+
+    /// <summary>Volet de gauche déployé (dossiers) ou réduit en rail d'icônes : le style porte largeur et marges.</summary>
+    private void ApplyPaneMode()
+    {
+        var key = Mailbox.IsPaneCompact ? "FolderRailStyle" : "FolderPaneStyle";
+        if (Application.Current.Resources.TryGetValue(key, out var style) && style is Style paneStyle)
+        {
+            NavPane.Style = paneStyle;
+        }
+    }
+
+    private void OnTogglePaneAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        Mailbox.TogglePaneCommand.Execute(null);
+    }
+
+    private void OnRefreshAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        if (Mailbox.HasAccounts && Mailbox.RefreshCommand.CanExecute(null))
+        {
+            Mailbox.RefreshCommand.Execute(null);
+        }
+    }
+
+    /// <summary>Rail d'icônes : un clic sur un compte (ou la boîte unifiée) ouvre sa boîte de réception, même s'il est déjà en surbrillance.</summary>
+    private void OnRailItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is NavItemViewModel item)
+        {
+            Mailbox.ShowInbox(item.AccountId);
+        }
+    }
+
+    /// <summary>Rail d'icônes, flèches haut / bas : ouvre la boîte de réception du compte choisi (la surbrillance qui suit le dossier affiché ne fait rien).</summary>
+    private void OnRailSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (RailList.SelectedItem is NavItemViewModel item && item.AccountId != Mailbox.SelectedRailItem?.AccountId)
+        {
+            Mailbox.ShowInbox(item.AccountId);
         }
     }
 

@@ -15,6 +15,8 @@
     <Grid x:Name="RootGrid">
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="F" Invoked="OnSearchAccelerator" Modifiers="Control" />
+            <KeyboardAccelerator Key="B" Invoked="OnTogglePaneAccelerator" Modifiers="Control" />
+            <KeyboardAccelerator Key="F5" Invoked="OnRefreshAccelerator" />
         </Grid.KeyboardAccelerators>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -72,7 +74,10 @@
             </Grid.ColumnDefinitions>
 
             <!-- Volet 1 : comptes et dossiers. -->
-            <Grid AutomationProperties.Name="{l:Str Key=Pane_Accounts}" Style="{StaticResource FolderPaneStyle}">
+            <Grid
+                x:Name="NavPane"
+                AutomationProperties.Name="{l:Str Key=Pane_Accounts}"
+                Style="{StaticResource FolderPaneStyle}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -81,7 +86,38 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
+                <!-- En-tête : bouton « menu » (réduit le volet en rail d'icônes), titre et actualisation. -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Button
+                        AutomationProperties.Name="{x:Bind ui:UiHelpers.PaneToggleName(Mailbox.IsPaneCompact), Mode=OneWay}"
+                        Command="{x:Bind Mailbox.TogglePaneCommand}"
+                        Style="{StaticResource PaneToggleButtonStyle}"
+                        ToolTipService.ToolTip="{x:Bind ui:UiHelpers.PaneToggleName(Mailbox.IsPaneCompact), Mode=OneWay}">
+                        <FontIcon Glyph="&#xE700;" Style="{StaticResource ButtonIconStyle}" />
+                    </Button>
+                    <TextBlock
+                        Grid.Column="1"
+                        Style="{StaticResource PaneTitleStyle}"
+                        Text="{l:Str Key=Pane_Accounts}"
+                        Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Mailbox.IsPaneCompact), Mode=OneWay}" />
+                    <Button
+                        Grid.Column="2"
+                        AutomationProperties.Name="{l:Str Key=Mailbox_Refresh}"
+                        Command="{x:Bind Mailbox.RefreshCommand}"
+                        Style="{StaticResource PaneIconButtonStyle}"
+                        ToolTipService.ToolTip="{l:Str Key=Mailbox_RefreshTooltip}"
+                        Visibility="{x:Bind ui:UiHelpers.VisibleIfBoth(Mailbox.HasAccounts, Mailbox.IsPaneExpanded), Mode=OneWay}">
+                        <FontIcon Glyph="&#xE72C;" Style="{StaticResource ButtonIconStyle}" />
+                    </Button>
+                </Grid>
+
                 <Button
+                    Grid.Row="1"
                     AutomationProperties.Name="{l:Str Key=Toolbar_NewMessage}"
                     Click="OnNewMessageClick"
                     IsEnabled="{x:Bind Mailbox.HasAccounts, Mode=OneWay}"
@@ -92,36 +128,25 @@
                     </Button.KeyboardAccelerators>
                     <StackPanel Style="{StaticResource ButtonContentStyle}">
                         <FontIcon Glyph="&#xE710;" Style="{StaticResource ButtonIconStyle}" />
-                        <TextBlock Text="{l:Str Key=Toolbar_NewMessage}" />
+                        <TextBlock Text="{l:Str Key=Toolbar_NewMessage}" Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Mailbox.IsPaneCompact), Mode=OneWay}" />
                     </StackPanel>
                 </Button>
 
-                <Grid Grid.Row="1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource PaneHeaderStyle}" Text="{l:Str Key=Pane_Accounts}" />
-                    <Button
-                        Grid.Column="1"
-                        AutomationProperties.Name="{l:Str Key=Mailbox_Refresh}"
-                        Command="{x:Bind Mailbox.RefreshCommand}"
-                        Style="{StaticResource PaneIconButtonStyle}"
-                        ToolTipService.ToolTip="{l:Str Key=Mailbox_RefreshTooltip}"
-                        Visibility="{x:Bind ui:UiHelpers.VisibleIf(Mailbox.HasAccounts), Mode=OneWay}">
-                        <Button.KeyboardAccelerators>
-                            <KeyboardAccelerator Key="F5" />
-                        </Button.KeyboardAccelerators>
-                        <FontIcon Glyph="&#xE72C;" Style="{StaticResource ButtonIconStyle}" />
-                    </Button>
-                </Grid>
-
+                <!-- Erreur de connexion : bandeau dans le volet déployé, icône avec info-bulle dans le rail. -->
                 <InfoBar
                     Grid.Row="2"
                     IsOpen="{x:Bind Mailbox.HasError, Mode=OneWay}"
                     Message="{x:Bind Mailbox.ErrorMessage, Mode=OneWay}"
                     Severity="Warning"
-                    Style="{StaticResource PaneInfoBarStyle}" />
+                    Style="{StaticResource PaneInfoBarStyle}"
+                    Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Mailbox.IsPaneCompact), Mode=OneWay}" />
+                <FontIcon
+                    Grid.Row="2"
+                    AutomationProperties.Name="{l:Str Key=Mailbox_ErrorIconName}"
+                    Glyph="&#xE7BA;"
+                    Style="{StaticResource RailErrorIconStyle}"
+                    ToolTipService.ToolTip="{x:Bind Mailbox.ErrorMessage, Mode=OneWay}"
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIfBoth(Mailbox.HasError, Mailbox.IsPaneCompact), Mode=OneWay}" />
 
                 <ListView
                     x:Name="NavList"
@@ -131,7 +156,7 @@
                     PreviewKeyDown="OnNavPreviewKeyDown"
                     SelectionChanged="OnNavSelectionChanged"
                     Style="{StaticResource NavListStyle}"
-                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Mailbox.HasAccounts), Mode=OneWay}">
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIfBoth(Mailbox.HasAccounts, Mailbox.IsPaneExpanded), Mode=OneWay}">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="vm:NavItemViewModel">
                             <Grid
@@ -184,10 +209,47 @@
                     </ListView.ItemTemplate>
                 </ListView>
 
+                <!--
+                    Rail d'icônes (volet réduit) : la boîte unifiée et chaque compte, sans leurs dossiers. Un clic (ou
+                    Entrée) ouvre la boîte de réception du compte ; la surbrillance suit le dossier affiché.
+                -->
+                <ListView
+                    x:Name="RailList"
+                    Grid.Row="3"
+                    AutomationProperties.Name="{l:Str Key=Pane_Accounts}"
+                    ItemClick="OnRailItemClick"
+                    ItemsSource="{x:Bind Mailbox.RailItems}"
+                    SelectedItem="{x:Bind Mailbox.SelectedRailItem, Mode=OneWay}"
+                    SelectionChanged="OnRailSelectionChanged"
+                    Style="{StaticResource RailListStyle}"
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIfBoth(Mailbox.HasAccounts, Mailbox.IsPaneCompact), Mode=OneWay}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NavItemViewModel">
+                            <Grid
+                                AutomationProperties.Name="{x:Bind ui:UiHelpers.RailItemName(Title, RailUnread), Mode=OneWay}"
+                                Style="{StaticResource RailItemStyle}"
+                                ToolTipService.ToolTip="{x:Bind ui:UiHelpers.RailItemName(Title, RailUnread), Mode=OneWay}">
+                                <FontIcon
+                                    Glyph="{x:Bind ui:UiHelpers.FolderGlyph(Role, IsAccount)}"
+                                    Style="{StaticResource RailIconStyle}"
+                                    Visibility="{x:Bind ui:UiHelpers.CollapsedIf(IsAccount)}" />
+                                <PersonPicture
+                                    DisplayName="{x:Bind Title}"
+                                    Style="{StaticResource RailAvatarStyle}"
+                                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(IsAccount)}" />
+                                <InfoBadge
+                                    Style="{StaticResource RailBadgeStyle}"
+                                    Value="{x:Bind RailUnread, Mode=OneWay}"
+                                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(HasRailUnread), Mode=OneWay}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
                 <StackPanel
                     Grid.Row="3"
                     Style="{StaticResource EmptyStatePanelStyle}"
-                    Visibility="{x:Bind ui:UiHelpers.VisibleIf(Mailbox.HasNoAccount), Mode=OneWay}">
+                    Visibility="{x:Bind ui:UiHelpers.VisibleIfBoth(Mailbox.HasNoAccount, Mailbox.IsPaneExpanded), Mode=OneWay}">
                     <FontIcon Glyph="&#xE716;" Style="{StaticResource EmptyStateIconStyle}" />
                     <TextBlock Style="{StaticResource EmptyStateTitleStyle}" Text="{l:Str Key=Pane_NoAccountTitle}" />
                     <TextBlock Style="{StaticResource EmptyStateHintStyle}" Text="{l:Str Key=Pane_NoAccountHint}" />
@@ -197,10 +259,11 @@
                     <Button
                         AutomationProperties.Name="{l:Str Key=Toolbar_AddAccount}"
                         Click="OnAddAccountClick"
-                        Style="{StaticResource PaneButtonStyle}">
+                        Style="{StaticResource PaneButtonStyle}"
+                        ToolTipService.ToolTip="{l:Str Key=Toolbar_AddAccount}">
                         <StackPanel Style="{StaticResource ButtonContentStyle}">
                             <FontIcon Glyph="&#xE710;" Style="{StaticResource ButtonIconStyle}" />
-                            <TextBlock Text="{l:Str Key=Toolbar_AddAccount}" />
+                            <TextBlock Text="{l:Str Key=Toolbar_AddAccount}" Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Mailbox.IsPaneCompact), Mode=OneWay}" />
                         </StackPanel>
                     </Button>
                     <Button
@@ -211,7 +274,7 @@
                         ToolTipService.ToolTip="{l:Str Key=Toolbar_SettingsTooltip}">
                         <StackPanel Style="{StaticResource ButtonContentStyle}">
                             <FontIcon Glyph="&#xE713;" Style="{StaticResource ButtonIconStyle}" />
-                            <TextBlock Text="{l:Str Key=Toolbar_Settings}" />
+                            <TextBlock Text="{l:Str Key=Toolbar_Settings}" Visibility="{x:Bind ui:UiHelpers.CollapsedIf(Mailbox.IsPaneCompact), Mode=OneWay}" />
                         </StackPanel>
                     </Button>
                 </StackPanel>

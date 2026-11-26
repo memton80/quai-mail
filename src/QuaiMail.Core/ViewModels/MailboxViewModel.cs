@@ -53,6 +53,7 @@ public sealed partial class MailboxViewModel : ObservableObject
         _tokens = tokens;
         _settings = settings;
         _collapsed = new HashSet<string>(settings?.Current.CollapsedAccounts ?? [], StringComparer.Ordinal);
+        IsPaneCompact = settings?.Current.NavPaneCompact ?? false;
         _accounts = accounts;
         _credentials = credentials;
         _mail = mail;
@@ -79,12 +80,36 @@ public sealed partial class MailboxViewModel : ObservableObject
     /// <summary>Toutes les lignes, dossiers des comptes repliés compris.</summary>
     public IReadOnlyList<NavItemViewModel> AllItems => _all;
 
+    /// <summary>Rail d'icônes (volet réduit) : la boîte unifiée et chaque compte, sans leurs dossiers.</summary>
+    public ObservableCollection<NavItemViewModel> RailItems { get; } = [];
+
+    /// <summary>Ligne du rail qui correspond au dossier affiché (son compte, ou la boîte unifiée).</summary>
+    public NavItemViewModel? SelectedRailItem =>
+        SelectedItem is { } selected ? RailItems.FirstOrDefault(i => i.AccountId == selected.AccountId) : null;
+
+    /// <summary>
+    /// Volet de gauche réduit en rail d'icônes (bouton « menu »). Gardé dans les réglages : il est donc retrouvé au
+    /// prochain lancement et après une mise à jour.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPaneExpanded))]
+    public partial bool IsPaneCompact { get; set; }
+
+    public bool IsPaneExpanded => !IsPaneCompact;
+
+    /// <summary>Réduit le volet en rail d'icônes, ou le redéploie.</summary>
+    [RelayCommand]
+    public void TogglePane() => IsPaneCompact = !IsPaneCompact;
+
+    partial void OnIsPaneCompactChanged(bool value) => _settings?.Update(s => s.NavPaneCompact = value);
+
     public MessageListViewModel Messages { get; }
 
     /// <summary>Volet de lecture.</summary>
     public ReaderViewModel Reader { get; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedRailItem))]
     public partial NavItemViewModel? SelectedItem { get; set; }
 
     [ObservableProperty]
@@ -390,9 +415,9 @@ public sealed partial class MailboxViewModel : ObservableObject
     {
         if (AccountLine(accountId) is { } account)
         {
-            account.Unread = account.IsExpanded
-                ? 0
-                : _all.Where(i => i.AccountId == accountId && i.CanSelect && i.Role is not (FolderRole.Junk or FolderRole.Trash)).Sum(i => i.Unread);
+            var total = _all.Where(i => i.AccountId == accountId && i.CanSelect && i.Role is not (FolderRole.Junk or FolderRole.Trash)).Sum(i => i.Unread);
+            account.AccountUnread = total;
+            account.Unread = account.IsExpanded ? 0 : total;
         }
     }
 
@@ -669,12 +694,20 @@ public sealed partial class MailboxViewModel : ObservableObject
                 Items.Add(item);
             }
 
+            RailItems.Clear();
+            foreach (var item in items.Where(i => i.IsAccount || i.IsUnified))
+            {
+                RailItems.Add(item);
+            }
+
             SelectedItem = items.FirstOrDefault(i => i.Folder is { } f && (i.AccountId, f.FullName) == selected);
         }
         finally
         {
             _rebuilding = false;
         }
+
+        OnPropertyChanged(nameof(SelectedRailItem));
 
         HasAccounts = accounts.Count > 0;
     }

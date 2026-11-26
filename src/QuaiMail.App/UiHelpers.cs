@@ -14,6 +14,16 @@ public static class UiHelpers
 
     public static bool Not(bool value) => !value;
 
+    /// <summary>Visible seulement si les deux conditions sont vraies (ex. bouton Actualiser : comptes présents et volet déployé).</summary>
+    public static Visibility VisibleIfBoth(bool first, bool second) => first && second ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Nom du bouton « menu » du volet : l'action qu'il déclenchera.</summary>
+    public static string PaneToggleName(bool isCompact) => Loc.Get(isCompact ? "Pane_Expand" : "Pane_Collapse");
+
+    /// <summary>Nom (et info-bulle) d'une ligne du rail d'icônes : titre, et non lus s'il y en a.</summary>
+    public static string RailItemName(string title, int unread) =>
+        unread > 0 ? Loc.Format("Nav_RailItemUnread", title, unread) : title;
+
     public static Microsoft.UI.Xaml.Controls.InfoBarSeverity WarningIf(bool value) =>
         value ? Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning : Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational;
 

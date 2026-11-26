@@ -49,6 +49,13 @@
         <Setter Property="RowSpacing" Value="8" />
     </Style>
 
+    <!-- Volet réduit en rail d'icônes (bouton « menu ») : 56 px, boutons de 40 px centrés. -->
+    <Style x:Key="FolderRailStyle" TargetType="Grid">
+        <Setter Property="Width" Value="56" />
+        <Setter Property="Padding" Value="8,0,8,12" />
+        <Setter Property="RowSpacing" Value="8" />
+    </Style>
+
     <Style x:Key="ContentSurfaceStyle" TargetType="Border">
         <Setter Property="Background" Value="{ThemeResource LayerFillColorDefaultBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
@@ -77,6 +84,14 @@
         TargetType="TextBlock">
         <Setter Property="Margin" Value="4,8,4,0" />
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- Titre du volet de gauche, aligné sur le bouton « menu » qui le précède. -->
+    <Style
+        x:Key="PaneTitleStyle"
+        BasedOn="{StaticResource PaneHeaderStyle}"
+        TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
     <Style
@@ -120,6 +135,14 @@
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
+    <!-- Bouton « menu » du volet : même largeur que les boutons du rail, pour rester sous le pouce quel que soit l'état. -->
+    <Style
+        x:Key="PaneToggleButtonStyle"
+        BasedOn="{StaticResource PaneIconButtonStyle}"
+        TargetType="Button">
+        <Setter Property="Width" Value="40" />
+    </Style>
+
     <Style x:Key="PaneInfoBarStyle" TargetType="InfoBar">
         <Setter Property="IsClosable" Value="False" />
     </Style>
@@ -145,6 +168,44 @@
         <Setter Property="Width" Value="16" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+    </Style>
+
+    <!-- Rail d'icônes : un compte (initiales) ou la boîte unifiée, avec sa pastille de non lus. -->
+    <Style x:Key="RailListStyle" TargetType="ListView">
+        <Setter Property="SelectionMode" Value="Single" />
+        <Setter Property="IsItemClickEnabled" Value="True" />
+        <Setter Property="Margin" Value="-8,0,-8,0" />
+    </Style>
+
+    <Style x:Key="RailItemStyle" TargetType="Grid">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="40" />
+    </Style>
+
+    <Style
+        x:Key="RailIconStyle"
+        BasedOn="{StaticResource NavIconStyle}"
+        TargetType="FontIcon">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="RailAvatarStyle" TargetType="PersonPicture">
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="RailBadgeStyle" TargetType="InfoBadge">
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="Margin" Value="0,2,-6,0" />
+    </Style>
+
+    <Style x:Key="RailErrorIconStyle" TargetType="FontIcon">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}" />
     </Style>
 
     <Style
