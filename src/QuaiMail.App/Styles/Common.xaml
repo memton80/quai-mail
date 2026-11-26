@@ -49,10 +49,13 @@
         <Setter Property="RowSpacing" Value="8" />
     </Style>
 
-    <!-- Volet réduit en rail d'icônes (bouton « menu ») : 56 px, boutons de 40 px centrés. -->
+    <!--
+        Volet réduit en rail d'icônes (bouton « menu ») : 64 px, mêmes marges (12) que le volet déployé, pour que le
+        bouton ≡ ne bouge pas d'un état à l'autre ; boutons de 40 px centrés.
+    -->
     <Style x:Key="FolderRailStyle" TargetType="Grid">
-        <Setter Property="Width" Value="56" />
-        <Setter Property="Padding" Value="8,0,8,12" />
+        <Setter Property="Width" Value="64" />
+        <Setter Property="Padding" Value="12,0,12,12" />
         <Setter Property="RowSpacing" Value="8" />
     </Style>
 
@@ -171,14 +174,30 @@
     </Style>
 
     <!-- Rail d'icônes : un compte (initiales) ou la boîte unifiée, avec sa pastille de non lus. -->
+    <!--
+        Conteneur d'une ligne du rail : sans le MinWidth (88) ni le retrait (16) d'un ListViewItem ordinaire, qui
+        poussaient les icônes à droite et coupaient les pastilles au bord du rail ; contenu centré.
+    -->
+    <Style
+        x:Key="RailItemContainerStyle"
+        BasedOn="{StaticResource DefaultListViewItemStyle}"
+        TargetType="ListViewItem">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
     <Style x:Key="RailListStyle" TargetType="ListView">
         <Setter Property="SelectionMode" Value="Single" />
         <Setter Property="IsItemClickEnabled" Value="True" />
-        <Setter Property="Margin" Value="-8,0,-8,0" />
+        <Setter Property="Margin" Value="-12,0,-12,0" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource RailItemContainerStyle}" />
     </Style>
 
+    <!-- Case d'une ligne du rail : même largeur que les boutons, la pastille reste dedans (coin haut droit). -->
     <Style x:Key="RailItemStyle" TargetType="Grid">
-        <Setter Property="Width" Value="32" />
+        <Setter Property="Width" Value="40" />
         <Setter Property="Height" Value="40" />
     </Style>
 
@@ -199,7 +218,7 @@
     <Style x:Key="RailBadgeStyle" TargetType="InfoBadge">
         <Setter Property="HorizontalAlignment" Value="Right" />
         <Setter Property="VerticalAlignment" Value="Top" />
-        <Setter Property="Margin" Value="0,2,-6,0" />
+        <Setter Property="Margin" Value="0,2,0,0" />
     </Style>
 
     <Style x:Key="RailErrorIconStyle" TargetType="FontIcon">
