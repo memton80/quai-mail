@@ -19,6 +19,12 @@ public sealed class AppSettings
     /// <summary>Notification de Windows à l'arrivée d'un mail (quand la fenêtre n'est pas au premier plan).</summary>
     public bool ShowNotifications { get; set; } = true;
 
+    /// <summary>
+    /// Agent de notification (<c>QuaiMailAgent.exe</c>, zone de notification) : quand Quai Mail est fermé, il surveille
+    /// les boîtes de réception et annonce les nouveaux mails. Démarré à la fermeture de Quai Mail. Vrai par défaut.
+    /// </summary>
+    public bool BackgroundAgent { get; set; } = true;
+
     /// <summary>Au démarrage, demander à GitHub si une version plus récente est publiée (comme Quai).</summary>
     public bool CheckForUpdates { get; set; } = true;
 

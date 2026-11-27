@@ -116,6 +116,10 @@ internal sealed class SmokeMailWatcher : IMailWatcher
 
     public void Watch(IReadOnlyList<Account> accounts) => Watched = accounts;
 
+    public void Wake()
+    {
+    }
+
     public void Deliver(Account account, IReadOnlyList<MessageHeader> messages) => NewMail?.Invoke(this, new NewMailEventArgs(account, messages));
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

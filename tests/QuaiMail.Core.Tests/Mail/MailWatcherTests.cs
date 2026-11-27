@@ -67,6 +67,37 @@ public sealed class MailWatcherTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Waking_up_checks_the_inbox_at_once_and_keeps_what_arrived_unseen()
+    {
+        _watcher.Watch([_account]);
+        await WaitForAsync(() => _imap.Idling == 1);
+
+        // Sortie de veille : connexion morte sans le savoir, un mail arrivé pendant ce temps (aucun EXISTS reçu).
+        _imap.Folder("INBOX").Messages.Add(new FakeMessage(4, "Pendant la veille", "Zoé", "zoe@example.org", Now.AddMinutes(4)));
+        _watcher.Wake();
+        await WaitForAsync(() => _events.Count == 1);
+
+        Assert.Equal("Pendant la veille", Assert.Single(_events[0].Messages).Subject);
+        await WaitForAsync(() => _imap.Idling == 1);
+    }
+
+    [Fact]
+    public async Task Waking_up_skips_the_wait_before_reconnecting()
+    {
+        await _watcher.DisposeAsync();
+        _watcher = Watcher(backoff: TimeSpan.FromMinutes(10));
+        _watcher.Watch([_account]);
+        await WaitForAsync(() => _imap.Idling == 1);
+
+        _imap.DropConnections();
+        await WaitForAsync(() => _imap.Idling == 0);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
+        _watcher.Wake();
+
+        await WaitForAsync(() => _watcher.Connections >= 2 && _imap.Idling == 1);
+    }
+
+    [Fact]
     public async Task Without_idle_the_server_is_polled()
     {
         _imap.SupportsIdle = false;
@@ -128,11 +159,11 @@ public sealed class MailWatcherTests : IAsyncLifetime
         Assert.Equal(2, _imap.ConnectionCount);
     }
 
-    private MailKitMailWatcher Watcher()
+    private MailKitMailWatcher Watcher(TimeSpan? backoff = null)
     {
         var watcher = new MailKitMailWatcher(_credentials, null, TestCertificate.Pinned)
         {
-            Backoff = [TimeSpan.FromMilliseconds(100)],
+            Backoff = [backoff ?? TimeSpan.FromMilliseconds(100)],
             PollInterval = TimeSpan.FromMilliseconds(200),
             Timeout = TimeSpan.FromSeconds(10),
         };

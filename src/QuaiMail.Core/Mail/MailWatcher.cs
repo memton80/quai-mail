@@ -28,6 +28,13 @@ public interface IMailWatcher : IAsyncDisposable
 
     /// <summary>Surveille exactement ces comptes (les autres sont arrêtés).</summary>
     void Watch(IReadOnlyList<Account> accounts);
+
+    /// <summary>
+    /// Vérifie tout de suite chaque boîte de réception, sans attendre la fin de l'IDLE ni de l'attente de reconnexion
+    /// (sortie de veille de l'ordinateur : les connexions sont souvent mortes sans le savoir). Les mails arrivés entre-temps
+    /// sont annoncés, comme après une coupure.
+    /// </summary>
+    void Wake();
 }
 
 /// <summary>
@@ -45,6 +52,9 @@ public sealed class MailKitMailWatcher : IMailWatcher
     private readonly ILogger _logger;
     private readonly RemoteCertificateValidationCallback _certificateValidation;
     private readonly ConcurrentDictionary<string, (Account Account, CancellationTokenSource Stop, Task Loop)> _watchers = new();
+
+    // Remplacé à chaque Wake (l'ancien, annulé, n'est jamais libéré : il n'a ni minuterie ni ressource).
+    private CancellationTokenSource _wake = new();
 
     public MailKitMailWatcher(ICredentialStore credentials, ILogger<MailKitMailWatcher>? logger = null, AccessTokens? tokens = null)
         : this(credentials, logger, null, tokens)
@@ -93,6 +103,8 @@ public sealed class MailKitMailWatcher : IMailWatcher
             _watchers[account.Id] = (account, stop, Task.Run(() => RunAsync(account, stop.Token)));
         }
     }
+
+    public void Wake() => Interlocked.Exchange(ref _wake, new CancellationTokenSource()).Cancel();
 
     public async ValueTask DisposeAsync()
     {
@@ -153,7 +165,8 @@ public sealed class MailKitMailWatcher : IMailWatcher
 
                 while (!stop.IsCancellationRequested && client.IsConnected)
                 {
-                    using var changed = new CancellationTokenSource(IdleTimeout);
+                    using var changed = CancellationTokenSource.CreateLinkedTokenSource(Volatile.Read(ref _wake).Token);
+                    changed.CancelAfter(IdleTimeout);
                     void OnCount(object? sender, EventArgs e) => changed.Cancel();
                     inbox.CountChanged += OnCount;
                     try
@@ -207,7 +220,12 @@ public sealed class MailKitMailWatcher : IMailWatcher
 
             try
             {
-                await Task.Delay(Backoff[Math.Min(attempt, Backoff.Length - 1)], stop).ConfigureAwait(false);
+                using var wait = CancellationTokenSource.CreateLinkedTokenSource(stop, Volatile.Read(ref _wake).Token);
+                await Task.Delay(Backoff[Math.Min(attempt, Backoff.Length - 1)], wait.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!stop.IsCancellationRequested)
+            {
+                // Réveillé : nouvelle tentative tout de suite.
             }
             catch (OperationCanceledException)
             {
