@@ -59,6 +59,14 @@ internal sealed class MailAgent : IDisposable
         _tray.AutoStartToggled += ToggleAutoStart;
         _tray.Resumed += OnResumed;
         _tray.Create();
+        if (_tray.IsShown)
+        {
+            _logger.LogInformation("Icône ajoutée à la zone de notification");
+        }
+        else
+        {
+            _logger.LogWarning("Zone de notification indisponible : l'icône sera ajoutée quand l'Explorateur sera prêt");
+        }
 
         var coordinator = new Thread(Coordinate, 256 * 1024) { IsBackground = true, Name = "Agent" };
         coordinator.Start();
@@ -152,7 +160,36 @@ internal sealed class MailAgent : IDisposable
         }
     }
 
-    private static Mutex? OpenAppMutex() => Mutex.TryOpenExisting(AgentInfo.AppRunningMutexName, out var mutex) ? mutex : null;
+    /// <summary>
+    /// Le verrou de Quai Mail, s'il est <em>tenu</em> (fenêtre ouverte). Qu'il existe ne suffit pas : Quai Mail qui se
+    /// ferme, ou l'agent lui-même, peut encore en avoir une poignée sans le tenir.
+    /// </summary>
+    private static Mutex? OpenAppMutex()
+    {
+        if (!Mutex.TryOpenExisting(AgentInfo.AppRunningMutexName, out var mutex))
+        {
+            return null;
+        }
+
+        bool free;
+        try
+        {
+            free = mutex.WaitOne(0);
+        }
+        catch (AbandonedMutexException)
+        {
+            free = true;
+        }
+
+        if (!free)
+        {
+            return mutex;
+        }
+
+        mutex.ReleaseMutex();
+        mutex.Dispose();
+        return null;
+    }
 
     private static bool IsAppRunning()
     {

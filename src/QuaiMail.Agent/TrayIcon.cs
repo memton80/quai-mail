@@ -47,6 +47,9 @@ internal sealed unsafe class TrayIcon : IDisposable
     /// <summary>Sortie de veille de l'ordinateur.</summary>
     public event Action? Resumed;
 
+    /// <summary>L'icône est dans la zone de notification.</summary>
+    public bool IsShown => _added;
+
     /// <summary>État de la case « Lancer avec Windows », lu à chaque ouverture du menu.</summary>
     public Func<bool> IsAutoStartEnabled { get; set; } = () => false;
 

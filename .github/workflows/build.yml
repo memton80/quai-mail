@@ -409,7 +409,7 @@ jobs:
             }
           }
           function Send-Command([int] $id) {
-            $window = [QuaiMailCi.User32]::FindWindow('QuaiMail.Agent', $null)
+            $window = [QuaiMailCi.User32]::FindWindow('QuaiMail.Agent', [NullString]::Value)
             if ($window -eq [IntPtr]::Zero) { throw "Fenêtre de l'agent introuvable." }
             [void][QuaiMailCi.User32]::PostMessage($window, 0x0111, [IntPtr]$id, [IntPtr]::Zero)
           }
@@ -443,6 +443,7 @@ jobs:
             $agent = Start-Process -FilePath $agentExe -PassThru
             $null = $agent.Handle
             Wait-Until { (Idling) -eq 1 } 90 'connexion de l''agent en IDLE'
+            if ((Count-Log 'Icône ajoutée à la zone de notification') -lt 1) { throw "L'icône de l'agent n'a pas été ajoutée à la zone de notification." }
 
             # 2. Un nouveau mail : notification (le journal ne contient que le nombre).
             New-Item -ItemType File (Join-Path $server 'deliver.txt') | Out-Null
@@ -463,6 +464,8 @@ jobs:
             Wait-Until { (Idling) -eq 0 -and (Count-Log 'En pause') -ge 1 } 60 'pause de l''agent'
             $appMutex.ReleaseMutex(); $appMutex.Dispose()
             Wait-Until { (Idling) -eq 1 -and (Count-Log 'reprise de la surveillance') -ge 1 } 60 'reprise après la fermeture'
+            Start-Sleep -Seconds 2
+            if ((Count-Log 'En pause') -ne 1 -or (Count-Log 'reprise de la surveillance') -ne 1) { throw 'Une seule pause et une seule reprise attendues.' }
 
             # 5. Menu de l'icône : « Lancer avec Windows » (coché, décoché, recoché), avec le chemin de l'agent installé.
             Send-Command 2; Wait-Until { AutoStart } 15 'lancement avec Windows activé'
