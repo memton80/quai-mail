@@ -401,25 +401,29 @@
                                             <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
+                                        <Rectangle
+                                            Grid.RowSpan="2"
+                                            Style="{x:Bind ui:UiHelpers.UnreadStyle(IsRead, 'MessageMarker'), Mode=OneWay}" />
                                         <TextBlock
-                                            FontWeight="{x:Bind ui:UiHelpers.StrongIfUnread(IsRead), Mode=OneWay}"
-                                            Style="{StaticResource MessageSenderStyle}"
+                                            Grid.Column="1"
+                                            Style="{x:Bind ui:UiHelpers.UnreadStyle(IsRead, 'MessageSender'), Mode=OneWay}"
                                             Text="{x:Bind Sender}" />
-                                        <StackPanel Grid.Column="1" Style="{StaticResource MessageMetaStyle}">
+                                        <StackPanel Grid.Column="2" Style="{StaticResource MessageMetaStyle}">
                                             <FontIcon
                                                 Glyph="&#xE734;"
                                                 Style="{StaticResource FlagIconStyle}"
                                                 Visibility="{x:Bind ui:UiHelpers.VisibleIf(IsFlagged), Mode=OneWay}" />
-                                            <TextBlock Style="{StaticResource MessageDateStyle}" Text="{x:Bind DateText}" />
+                                            <TextBlock Style="{x:Bind ui:UiHelpers.UnreadStyle(IsRead, 'MessageDate'), Mode=OneWay}" Text="{x:Bind DateText}" />
                                         </StackPanel>
                                         <TextBlock
                                             Grid.Row="1"
+                                            Grid.Column="1"
                                             Grid.ColumnSpan="2"
-                                            FontWeight="{x:Bind ui:UiHelpers.StrongIfUnread(IsRead), Mode=OneWay}"
-                                            Style="{StaticResource MessageSubjectStyle}"
+                                            Style="{x:Bind ui:UiHelpers.UnreadStyle(IsRead, 'MessageSubject'), Mode=OneWay}"
                                             Text="{x:Bind Subject}" />
                                     </Grid>
                                 </DataTemplate>

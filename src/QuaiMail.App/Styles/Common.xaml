@@ -289,6 +289,30 @@
         <Setter Property="TextWrapping" Value="NoWrap" />
     </Style>
 
+    <!-- Mail non lu : expéditeur en gras, objet et date en couleur d'accent, barre d'accent à gauche (comme Outlook). -->
+    <Style
+        x:Key="MessageSenderUnreadStyle"
+        BasedOn="{StaticResource MessageSenderStyle}"
+        TargetType="TextBlock">
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- Barre à gauche d'un mail : toujours là (transparente si lu), pour que lus et non lus restent alignés. -->
+    <Style x:Key="MessageMarkerStyle" TargetType="Rectangle">
+        <Setter Property="Width" Value="3" />
+        <Setter Property="RadiusX" Value="1.5" />
+        <Setter Property="RadiusY" Value="1.5" />
+        <Setter Property="Margin" Value="0,2" />
+        <Setter Property="Fill" Value="Transparent" />
+    </Style>
+
+    <Style
+        x:Key="MessageMarkerUnreadStyle"
+        BasedOn="{StaticResource MessageMarkerStyle}"
+        TargetType="Rectangle">
+        <Setter Property="Fill" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+    </Style>
+
     <Style x:Key="MessageMetaStyle" TargetType="StackPanel">
         <Setter Property="Orientation" Value="Horizontal" />
         <Setter Property="Spacing" Value="6" />
@@ -309,12 +333,28 @@
     </Style>
 
     <Style
+        x:Key="MessageDateUnreadStyle"
+        BasedOn="{StaticResource MessageDateStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style
         x:Key="MessageSubjectStyle"
         BasedOn="{StaticResource BodyTextBlockStyle}"
         TargetType="TextBlock">
         <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         <Setter Property="TextWrapping" Value="NoWrap" />
+    </Style>
+
+    <Style
+        x:Key="MessageSubjectUnreadStyle"
+        BasedOn="{StaticResource MessageSubjectStyle}"
+        TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
     <Style

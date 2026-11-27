@@ -76,8 +76,12 @@ public static class UiHelpers
 
     public static Windows.UI.Text.FontWeight StrongIf(bool value) => value ? FontWeights.SemiBold : FontWeights.Normal;
 
-    /// <summary>Mail non lu : expéditeur et objet en gras.</summary>
-    public static Windows.UI.Text.FontWeight StrongIfUnread(bool isRead) => StrongIf(!isRead);
+    /// <summary>
+    /// Style d'un texte de la liste des mails : <c>{nom}Style</c> s'il est lu, <c>{nom}UnreadStyle</c> sinon (gras, couleur
+    /// d'accent ; voir <c>Styles/Common.xaml</c>). Un style garde ses <c>ThemeResource</c> : la couleur suit le thème.
+    /// </summary>
+    public static Style UnreadStyle(bool isRead, string name) =>
+        (Style)Application.Current.Resources[isRead ? name + "Style" : name + "UnreadStyle"];
 
     /// <summary>Nom d'accessibilité d'un mail de la liste (« Non lu, Camille Martin, Réunion de jeudi, 9:30 »).</summary>
     public static string MessageName(string sender, string subject, string date, bool isRead) =>
