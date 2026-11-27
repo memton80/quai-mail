@@ -364,6 +364,7 @@ jobs:
       # (lancement avec Windows, arrêt), --quit, mise à jour avec l'agent lancé (arrêté puis relancé par l'installateur).
       - name: Agent de notification (mémoire, processeur, pause, menu, mise à jour)
         if: matrix.platform == 'x64'
+        timeout-minutes: 15
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -488,7 +489,10 @@ jobs:
             $installing = Get-Date
             $setup = (Resolve-Path 'QuaiMail-Setup-x64.exe').Path
             $log = Join-Path $root 'install-agent.log'
-            $install = Start-Process -FilePath $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', "/LOG=`"$log`"" -PassThru -Wait
+            # Pas de -Wait : il attendrait aussi l'agent relancé par l'installateur (processus enfant), donc indéfiniment.
+            $install = Start-Process -FilePath $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', "/LOG=`"$log`"" -PassThru
+            $null = $install.Handle
+            if (-not $install.WaitForExit(180000)) { throw "L'installateur n'a pas fini en 180 s (agent lancé)." }
             if ($install.ExitCode -ne 0) { Get-Content $log -Tail 40; throw "Mise à jour avec l'agent lancé en échec (code $($install.ExitCode))." }
             if (-not $agent.HasExited) { throw "L'ancien agent tourne encore après la mise à jour." }
             Wait-Until { (Get-Agent) -and (Get-Agent).StartTime -gt $installing } 60 'agent relancé par l''installateur'
@@ -502,9 +506,11 @@ jobs:
             Wait-Until { (Idling) -eq 0 } 30 'connexions fermées à l''arrêt'
             $agent = Start-Process -FilePath $agentExe -PassThru; $null = $agent.Handle
             Wait-Until { (Idling) -eq 1 } 90 'agent relancé'
-            $quit = Start-Process -FilePath $agentExe -ArgumentList '--quit' -PassThru -Wait
+            $quit = Start-Process -FilePath $agentExe -ArgumentList '--quit' -PassThru
+            $null = $quit.Handle; if (-not $quit.WaitForExit(30000)) { throw '--quit sans réponse en 30 s.' }
             if ($quit.ExitCode -ne 0 -or -not $agent.WaitForExit(15000)) { throw "--quit n'a pas arrêté l'agent (code $($quit.ExitCode))." }
-            $again = Start-Process -FilePath $agentExe -ArgumentList '--quit' -PassThru -Wait
+            $again = Start-Process -FilePath $agentExe -ArgumentList '--quit' -PassThru
+            $null = $again.Handle; if (-not $again.WaitForExit(30000)) { throw '--quit sans réponse en 30 s.' }
             if ($again.ExitCode -ne 1) { throw "--quit sans agent lancé : code $($again.ExitCode) (1 attendu)." }
 
             # Mémoire : la plus haute mesure de tout le test.
