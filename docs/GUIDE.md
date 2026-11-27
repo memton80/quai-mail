@@ -45,6 +45,11 @@ Les boutons **Se connecter avec Google** et **Se connecter avec Microsoft** sont
 - Ouvrir un mail le marque lu sur le serveur.
 - Avec plusieurs comptes, **Toutes les boîtes de réception** (en haut) les réunit, du plus récent au plus ancien.
 - **Réception en direct** : les nouveaux mails arrivent tout seuls en haut de la liste, sans rien actualiser. Si Quai Mail n'est pas au premier plan, une notification de Windows les annonce (expéditeur et objet) ; un clic dessus ramène à la boîte de réception. Les notifications se coupent dans les **Réglages**. Après une coupure (veille, réseau), Quai Mail se reconnecte tout seul et annonce ce qui est arrivé entre-temps.
+- **Quai Mail fermé : l'agent de notification** prend le relais. C'est la petite icône de Quai Mail dans la zone de notification (la flèche ^ des **icônes cachées**, à droite de la barre des tâches). Il surveille vos boîtes de réception et annonce chaque nouveau mail par une notification de Windows (expéditeur et objet) ; un clic dessus ouvre Quai Mail sur la bonne boîte de réception. Il est sobre : **moins de 10 Mo de mémoire**, aucune activité en attendant un mail (le serveur le prévient, il ne l'interroge pas), et il se met en pause pendant que Quai Mail est ouvert (jamais deux notifications pour le même mail). En sortie de veille, il vérifie tout de suite. Clic droit sur son icône :
+  - **Ouvrir Quai Mail** (aussi par un simple clic sur l'icône) ;
+  - **Lancer avec Windows** : coché, l'agent démarre à l'ouverture de votre session (activé d'office la première fois, sur une copie installée) ; décochez pour qu'il ne démarre plus avec Windows. Le Gestionnaire des tâches (onglet « Applications de démarrage ») peut aussi le couper, Quai Mail respecte ce choix ;
+  - **Arrêter l'agent** : il s'arrête tout de suite (il revient à la prochaine fermeture de Quai Mail, ou au prochain démarrage de Windows si « Lancer avec Windows » est coché).
+  Pour ne plus du tout l'utiliser : **Réglages → Prévenir des nouveaux mails quand Quai Mail est fermé**. L'agent démarre quand vous fermez Quai Mail ; il ne fait rien s'il n'y a aucun compte. Les mails arrivés pendant que l'ordinateur était éteint ne sont pas annoncés : Quai Mail les montre à l'ouverture.
 
 ## Chercher
 
@@ -138,6 +143,8 @@ Chaque pièce jointe enregistrée reçoit la **marque du web**, comme un fichier
 | **Bloquer les images distantes** | activé par défaut : les images hébergées sur Internet ne sont chargées que sur votre demande, l'expéditeur ne sait pas quand vous lisez son mail |
 | **Rechercher les mises à jour** | activé par défaut : au démarrage, Quai Mail demande à GitHub le numéro de la dernière version publiée |
 | **Notifications des nouveaux mails** | activé par défaut : une notification de Windows quand un mail arrive et que Quai Mail n'est pas au premier plan |
+| **Prévenir des nouveaux mails quand Quai Mail est fermé** | activé par défaut : l'agent de notification (icônes cachées) prend le relais à la fermeture de Quai Mail ; coupé, il s'arrête et ne démarre plus avec Windows |
+| **Lancer l'agent au démarrage de Windows** | l'agent démarre à l'ouverture de votre session (la même case que « Lancer avec Windows » dans le menu de son icône) |
 | **Chercher les clés des mails signés** | activé par défaut : la clé inconnue d'un mail signé est demandée à keys.openpgp.org (empreinte seulement) ; coupé, le bandeau propose **Chercher** |
 | **Vider le cache** | efface les dossiers et en-têtes gardés sur cet ordinateur ; tout est relu sur vos serveurs, rien n'est perdu |
 | **Expéditeurs sûrs** | la liste des adresses et domaines lus sans le mode méfiant ; le bouton à droite d'une ligne la retire |

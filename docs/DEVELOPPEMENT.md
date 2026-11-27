@@ -6,6 +6,8 @@
 |---|---|
 | `src/QuaiMail.Core` | sans interface : comptes et détection des réglages (`Accounts/`), connexion OAuth2 par le navigateur (`Accounts/OAuth/` : PKCE, retour local, jetons), lecture (`Reading/` : nettoyage du HTML, gabarit, pièces jointes), rédaction (`Compose/` : réponses, destinataires, MIME ; `ViewModels/ComposerViewModel.cs`), IMAP / SMTP par MailKit (`Mail/MailKitMailService.cs`), réception en direct (`Mail/MailWatcher.cs`), cache SQLite et recherche FTS5 (`Cache/`), signature OpenPGP (`Pgp/PgpKeyStore.cs`, `ViewModels/PgpKeysViewModel.cs`), mises à jour (`Updates/`), réglages et fichiers (`Storage/`), brouillons locaux (`Drafts/`), état de la fenêtre (`Models/WindowState.cs`, `Storage/WindowStateStore.cs`), view-models (`ViewModels/`) |
 | `src/QuaiMail.App` | WinUI 3 : fenêtre et ses trois volets, ajout de compte (`Views/AccountDialog.xaml`), lecture dans la WebView2 verrouillée (`Views/ReaderView.xaml.cs`), rédaction (`Views/ComposerView.xaml`), coffre de Windows (`Services/PasswordVaultCredentialStore.cs`), identifiants OAuth2 intégrés et fournisseur simulé du test de fumée (`Services/BrowserSignIn.cs`), bandeau de mise à jour, dialogues, réglages, installation des mises à jour (`Services/UpdateInstaller.cs`), test de fumée (`SmokeTest.cs`, `Services/SmokeMailService.cs`), gabarit de lecture des mails (`Assets/Mail`) |
+| `src/QuaiMail.Agent` | agent de notification `QuaiMailAgent.exe`, compilé en natif (Native AOT) : icône de la zone de notification en Win32 pur (`TrayIcon.cs`, `NativeMethods.cs`), surveillance par la réception en direct de `QuaiMail.Core` et pause pendant que Quai Mail est ouvert (`MailAgent.cs`) ; noms partagés, lancement avec Windows et pilotage depuis Quai Mail dans `QuaiMail.Core/Agent/` |
+| `tests/QuaiMail.FakeMailServer` | le faux serveur IMAP des tests, lancé seul : sert au CI pour tester l'agent installé (piloté par fichiers) |
 | `tests/QuaiMail.Core.Tests` | xUnit : nettoyage du HTML avec des mails piégés (`Reading/HtmlCleanerTests.cs`), comptes et détection, service MailKit contre de faux serveurs IMAP / SMTP locaux en TLS (`Support/FakeImapServer.cs`, `FakeSmtpServer.cs`), cache SQLite, view-models, mises à jour, réglages, brouillons, état de la fenêtre, clés de traduction |
 | `installer/QuaiMail.iss` | installateur Inno Setup (par utilisateur, sans droits administrateur) |
 | `tools/make_icon.py` | génère l'icône (Pillow) |
@@ -19,6 +21,7 @@ dotnet test --project tests/QuaiMail.Core.Tests/QuaiMail.Core.Tests.csproj
 dotnet build src/QuaiMail.App/QuaiMail.App.csproj -p:Platform=x64        (Windows seulement)
 dotnet publish src/QuaiMail.App/QuaiMail.App.csproj -c Release -r win-x64 -p:Platform=x64 -o publish/x64
 publish\x64\QuaiMail.exe --smoke-test %TEMP%\quaimail-smoke
+dotnet publish src/QuaiMail.Agent/QuaiMail.Agent.csproj -c Release -r win-x64 -p:Platform=x64 -o publish/agent-x64   (Windows : Native AOT ; copier QuaiMailAgent.exe à côté de QuaiMail.exe)
 python tools/make_icon.py src/QuaiMail.App/Assets/QuaiMail.ico src/QuaiMail.App/Assets/AppIcon.png docs/images/logo.png
 ```
 
@@ -33,6 +36,8 @@ La variable d'environnement `QUAI_MAIL_DATA_DIR` redirige toutes les données (r
 | `--after-update` | passé par l'installateur quand il relance Quai Mail : restaure l'état noté dans `updates/reopen.txt`, une fois |
 | `--unregister-notifications` | passé par le désinstallateur : retire Quai Mail des notifications de Windows, sans fenêtre |
 | `mailto:…` | lien mail (Quai Mail choisi pour les liens mail) : nouveau message prérempli ; si Quai Mail est déjà ouvert, le lien lui est passé (instance unique, `Program.cs`) |
+| `--inbox <compte>` | clic sur une notification de l'agent : Quai Mail s'ouvre sur la boîte de réception de ce compte (identifiant interne seulement) |
+| `QuaiMailAgent.exe --quit` | arrête l'agent ouvert (installateur avant de remplacer les fichiers, désinstallateur) ; code 0 s'il tournait, 1 sinon. À garder compatible : c'est l'agent **déjà installé** que l'installateur appelle |
 | `--purge-secrets` | passé par le désinstallateur (effacement des données) : retire du coffre de Windows tous les mots de passe de Quai Mail, sans fenêtre |
 
 ## Signature OpenPGP
@@ -48,6 +53,12 @@ Inscription chez Google et Microsoft : `docs/OAUTH.md`. Pour une compilation loc
 ## Tests sans vrai compte
 
 Aucun test n'utilise de vrai compte ni n'envoie de mail. Les tests de `QuaiMail.Core` démarrent de faux serveurs IMAP et SMTP sur `127.0.0.1` (port libre), en TLS ou STARTTLS avec un certificat auto-signé créé pour le test ; le service ne l'accepte que parce que le test l'épingle (sa validation normale le refuse, ce qui est testé aussi). Le faux SMTP refuse tout envoi et le compte ; pour tester l'envoi, son option `AcceptMail` lui fait recevoir le mail en mémoire, sans jamais l'acheminer. Seul `ComposerViewModel.SendCommand` (le bouton Envoyer) appelle `IMailService.SendAsync`. Le test de fumée de l'application utilise un serveur en mémoire (`SmokeMailService`) et une ressource du coffre de Windows réservée aux tests.
+
+## Agent de notification
+
+`QuaiMailAgent.exe` (règles d'Alexandre : 10 Mo de mémoire au plus, processeur au repos) : Native AOT, fenêtre Win32 cachée et `Shell_NotifyIcon`, `MailKitMailWatcher` (IDLE, jamais d'interrogation), ramasse-miettes poste de travail sans fil de fond, mémoire rendue à Windows après chaque activité (`GC.Collect` agressif puis `SetProcessWorkingSetSizeEx`) et tous les quarts d'heure. Coordination avec Quai Mail par des objets nommés de la session (`AgentInfo`) : Quai Mail tient le verrou `Local\QuaiMail.App.Running` tant que sa fenêtre est ouverte et signale `Local\QuaiMail.App.Started` en s'ouvrant ; l'agent coupe alors ses connexions et attend ce verrou (libéré à la fermeture, ou abandonné si Quai Mail plante). Quai Mail lance l'agent à sa fermeture (`Services/BackgroundAgent.cs`). L'installateur l'arrête (`--quit`) avant de remplacer les fichiers et le relance s'il tournait ; le désinstallateur l'arrête et retire la valeur `Run`.
+
+Le CI (étape « Agent de notification ») teste l'agent installé contre `tests/QuaiMail.FakeMailServer` (certificat « localhost » approuvé sur la machine du CI : la validation TLS de l'agent reste stricte) : connexion, notification d'un nouveau mail sans contenu dans le journal, processeur au repos (150 ms au plus en 30 s), pause et reprise (verrou simulé, puis le vrai Quai Mail ouvert par le menu), commandes du menu envoyées à sa fenêtre (`WM_COMMAND` 1 à 3), mise à jour avec l'agent lancé, `--quit`, désinstallation. La mémoire privée (colonne « Mémoire » du Gestionnaire des tâches) est mesurée pendant tout le test ; au-delà de 10 Mo, le CI échoue.
 
 ## Chaîne de mise à jour
 

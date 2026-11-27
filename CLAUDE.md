@@ -52,6 +52,7 @@ Avant d'écrire une brique toi-même, cherche une bibliothèque ou un composant 
 QuaiMail.sln
 src/QuaiMail.Core/          logique sans aucune dépendance UI (mail, cache, réglages, mises à jour, view-models)
 src/QuaiMail.App/           application WinUI 3 (vues, WebView2 de lecture, dialogues, test de fumée)
+src/QuaiMail.Agent/         agent de notification QuaiMailAgent.exe (Native AOT, zone de notification ; 10 Mo de mémoire au plus, vérifié par le CI)
 tests/QuaiMail.Core.Tests/  tests xUnit sur QuaiMail.Core (tournent aussi sous Linux)
 installer/QuaiMail.iss      installateur Inno Setup
 docs/DECISIONS.md           journal des choix techniques
