@@ -54,6 +54,17 @@ public sealed class MailCacheTests : IDisposable
     }
 
     [Fact]
+    public void Headers_can_be_filtered_on_read_or_unread()
+    {
+        _cache.SaveMessages("a", "INBOX", 5, [Header(1), Header(2) with { IsRead = true }, Header(3), Header(4) with { IsRead = true }]);
+
+        Assert.Equal([3u, 1u], _cache.GetMessages("a", "INBOX", 0, 10, ReadFilter.Unread).Select(m => m.Uid));
+        Assert.Equal([4u, 2u], _cache.GetMessages("a", "INBOX", 0, 10, ReadFilter.Read).Select(m => m.Uid));
+        Assert.Equal([2u], _cache.GetMessages("a", "INBOX", 1, 10, ReadFilter.Read).Select(m => m.Uid));
+        Assert.Equal(4, _cache.GetMessages("a", "INBOX", 0, 10, ReadFilter.All).Count);
+    }
+
+    [Fact]
     public void A_new_uidvalidity_drops_the_old_headers()
     {
         _cache.SaveMessages("a", "INBOX", 5, [Header(1), Header(2)]);

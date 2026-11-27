@@ -312,6 +312,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource SurfaceHeaderStyle}" Text="{x:Bind Messages.Title, Mode=OneWay}" />
                             <HyperlinkButton
@@ -320,6 +321,38 @@
                                 Content="{l:Str Key=Search_Server}"
                                 Style="{StaticResource SearchServerLinkStyle}"
                                 Visibility="{x:Bind ui:UiHelpers.VisibleIf(Messages.CanSearchServer), Mode=OneWay}" />
+                            <!-- Filtre lu / non lu du dossier affiché (recherché sur le serveur). -->
+                            <DropDownButton
+                                x:Name="ReadFilterButton"
+                                Grid.Column="2"
+                                AutomationProperties.Name="{l:Str Key=Filter_Button}"
+                                Style="{StaticResource ListFilterButtonStyle}"
+                                ToolTipService.ToolTip="{l:Str Key=Filter_Button}"
+                                Visibility="{x:Bind ui:UiHelpers.VisibleIf(Messages.CanFilter), Mode=OneWay}">
+                                <StackPanel Style="{StaticResource ListFilterContentStyle}">
+                                    <FontIcon Glyph="&#xE71C;" Style="{StaticResource ListFilterIconStyle}" />
+                                    <TextBlock Text="{x:Bind Messages.FilterLabel, Mode=OneWay}" />
+                                </StackPanel>
+                                <DropDownButton.Flyout>
+                                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                        <RadioMenuFlyoutItem
+                                            Command="{x:Bind Messages.ShowAllMessagesCommand}"
+                                            GroupName="ReadFilter"
+                                            IsChecked="{x:Bind Messages.IsFilterAll, Mode=OneWay}"
+                                            Text="{l:Str Key=Filter_All}" />
+                                        <RadioMenuFlyoutItem
+                                            Command="{x:Bind Messages.ShowUnreadOnlyCommand}"
+                                            GroupName="ReadFilter"
+                                            IsChecked="{x:Bind Messages.IsFilterUnread, Mode=OneWay}"
+                                            Text="{l:Str Key=Filter_Unread}" />
+                                        <RadioMenuFlyoutItem
+                                            Command="{x:Bind Messages.ShowReadOnlyCommand}"
+                                            GroupName="ReadFilter"
+                                            IsChecked="{x:Bind Messages.IsFilterRead, Mode=OneWay}"
+                                            Text="{l:Str Key=Filter_Read}" />
+                                    </MenuFlyout>
+                                </DropDownButton.Flyout>
+                            </DropDownButton>
                         </Grid>
                         <ProgressBar
                             Grid.Row="2"
@@ -450,7 +483,7 @@
                             Style="{StaticResource EmptyStatePanelStyle}"
                             Visibility="{x:Bind ui:UiHelpers.VisibleIf(Messages.IsEmpty), Mode=OneWay}">
                             <FontIcon Glyph="&#xE8C3;" Style="{StaticResource EmptyStateIconStyle}" />
-                            <TextBlock Style="{StaticResource EmptyStateTitleStyle}" Text="{l:Str Key=Pane_NoMessagesTitle}" />
+                            <TextBlock Style="{StaticResource EmptyStateTitleStyle}" Text="{x:Bind Messages.EmptyTitle, Mode=OneWay}" />
                         </StackPanel>
                     </Grid>
 

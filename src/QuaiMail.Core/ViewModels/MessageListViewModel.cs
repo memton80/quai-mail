@@ -65,9 +65,83 @@ public sealed partial class MessageListViewModel : ObservableObject
     /// <summary>Dossier choisi, chargé, sans aucun mail.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEmpty))]
+    [NotifyPropertyChangedFor(nameof(CanFilter))]
     public partial bool HasFolder { get; set; }
 
     public bool IsEmpty => HasFolder && !IsLoading && Messages.Count == 0;
+
+    /// <summary>
+    /// Filtre lu / non lu du dossier affiché (recherché sur le serveur, page par page). Revient à « Tous » quand on
+    /// change de dossier, comme Outlook : un dossier ne doit pas sembler vide à cause d'un filtre oublié.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFiltered))]
+    [NotifyPropertyChangedFor(nameof(IsFilterAll))]
+    [NotifyPropertyChangedFor(nameof(IsFilterUnread))]
+    [NotifyPropertyChangedFor(nameof(IsFilterRead))]
+    [NotifyPropertyChangedFor(nameof(FilterLabel))]
+    [NotifyPropertyChangedFor(nameof(EmptyTitle))]
+    public partial ReadFilter Filter { get; set; }
+
+    public bool IsFiltered => Filter != ReadFilter.All;
+
+    public bool IsFilterAll => Filter == ReadFilter.All;
+
+    public bool IsFilterUnread => Filter == ReadFilter.Unread;
+
+    public bool IsFilterRead => Filter == ReadFilter.Read;
+
+    /// <summary>Texte du bouton de filtre : le filtre en cours.</summary>
+    public string FilterLabel => _strings.Get(Filter switch
+    {
+        ReadFilter.Unread => "Filter_Unread",
+        ReadFilter.Read => "Filter_Read",
+        _ => "Filter_All",
+    });
+
+    /// <summary>Message de la liste vide : « Aucun mail », ou « Aucun mail non lu / lu » avec un filtre.</summary>
+    public string EmptyTitle => _strings.Get(Filter switch
+    {
+        ReadFilter.Unread => "Filter_NoUnread",
+        ReadFilter.Read => "Filter_NoRead",
+        _ => "Pane_NoMessagesTitle",
+    });
+
+    /// <summary>Le filtre s'applique au dossier (ou à la boîte unifiée) affiché, pas aux résultats d'une recherche.</summary>
+    public bool CanFilter => HasFolder && !IsSearching;
+
+    [RelayCommand]
+    private Task ShowAllMessagesAsync() => ApplyFilterAsync(ReadFilter.All);
+
+    [RelayCommand]
+    private Task ShowUnreadOnlyAsync() => ApplyFilterAsync(ReadFilter.Unread);
+
+    [RelayCommand]
+    private Task ShowReadOnlyAsync() => ApplyFilterAsync(ReadFilter.Read);
+
+    /// <summary>Change le filtre et recharge le dossier affiché (le cache filtré d'abord, puis le serveur).</summary>
+    public async Task ApplyFilterAsync(ReadFilter filter)
+    {
+        if (filter == Filter)
+        {
+            return;
+        }
+
+        Filter = filter;
+        if (IsSearching)
+        {
+            return;
+        }
+
+        if (_account is { } account && _folder is { } folder)
+        {
+            await ShowAsync(account, folder, _folderTitle ?? folder.Name);
+        }
+        else if (_unified.Count > 0)
+        {
+            await ShowUnifiedAsync(_unified, _folderTitle ?? string.Empty);
+        }
+    }
 
     /// <summary>Mail choisi dans la liste (ouvert dans le volet de lecture).</summary>
     [ObservableProperty]
@@ -142,8 +216,9 @@ public sealed partial class MessageListViewModel : ObservableObject
         var cancellation = Restart();
         if (_account?.Id != account.Id || _folder?.FullName != folder.FullName)
         {
-            // Autre dossier : rien de choisi (un même UID n'y désigne pas le même mail).
+            // Autre dossier : rien de choisi (un même UID n'y désigne pas le même mail), et plus de filtre.
             SelectedMessage = null;
+            Filter = ReadFilter.All;
         }
 
         _account = account;
@@ -158,12 +233,12 @@ public sealed partial class MessageListViewModel : ObservableObject
         HasFolder = true;
         ErrorMessage = null;
         HasMore = false;
-        Replace(_cache.GetMessages(account.Id, folder.FullName, 0, PageSize));
+        Replace(_cache.GetMessages(account.Id, folder.FullName, 0, PageSize, Filter));
 
         IsLoading = true;
         try
         {
-            var page = await _mail.GetMessagesAsync(account, folder.FullName, 0, PageSize, cancellation.Token);
+            var page = await _mail.GetMessagesAsync(account, folder.FullName, 0, PageSize, Filter, cancellation.Token);
             if (cancellation.IsCancellationRequested)
             {
                 return;
@@ -232,7 +307,8 @@ public sealed partial class MessageListViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            var page = await _mail.GetMessagesAsync(account, folder.FullName, Messages.Count, PageSize, cancellation.Token);
+            // Avec un filtre, les mails lus entre-temps ici ne comptent plus dans la liste du serveur.
+            var page = await _mail.GetMessagesAsync(account, folder.FullName, Messages.Count(m => m.Header.Matches(Filter)), PageSize, Filter, cancellation.Token);
             if (cancellation.IsCancellationRequested)
             {
                 return;
@@ -248,7 +324,7 @@ public sealed partial class MessageListViewModel : ObservableObject
                 Messages.Add(new MessageItemViewModel(account.Id, folder.FullName, header, _strings.Get("Draft_NoSubject"), now));
             }
 
-            HasMore = page.Messages.Count > 0 && _total > Messages.Count;
+            HasMore = page.Messages.Count > 0 && _total > Messages.Count(m => m.Header.Matches(Filter));
         }
         catch (MailConnectionException ex) when (!cancellation.IsCancellationRequested)
         {
@@ -322,6 +398,12 @@ public sealed partial class MessageListViewModel : ObservableObject
     public async Task ShowUnifiedAsync(IReadOnlyList<Account> accounts, string title)
     {
         var cancellation = Restart();
+        if (_unified.Count == 0)
+        {
+            // On arrive d'un dossier (ou de rien) : plus de filtre.
+            Filter = ReadFilter.All;
+        }
+
         _account = null;
         _folder = null;
         _unified = [.. accounts];
@@ -338,7 +420,7 @@ public sealed partial class MessageListViewModel : ObservableObject
         Messages.Clear();
         var now = _time.GetUtcNow();
         foreach (var (account, header) in accounts
-            .SelectMany(a => _cache.GetMessages(a.Id, "INBOX", 0, PageSize).Select(h => (a, h)))
+            .SelectMany(a => _cache.GetMessages(a.Id, "INBOX", 0, PageSize, Filter).Select(h => (a, h)))
             .OrderByDescending(p => p.h.Date).Take(PageSize))
         {
             Messages.Add(new MessageItemViewModel(account.Id, "INBOX", header, _strings.Get("Draft_NoSubject"), now));
@@ -390,7 +472,9 @@ public sealed partial class MessageListViewModel : ObservableObject
 
             try
             {
-                var page = await _mail.GetMessagesAsync(account, "INBOX", source.Skip, PageSize, cancellationToken);
+                // Avec un filtre, les mails de ce compte lus (ou remis non lus) ici ne comptent plus côté serveur.
+                var changed = Filter == ReadFilter.All ? 0 : Messages.Count(m => m.AccountId == account.Id && !m.Header.Matches(Filter));
+                var page = await _mail.GetMessagesAsync(account, "INBOX", Math.Max(0, source.Skip - changed), PageSize, Filter, cancellationToken);
                 _cache.SaveMessages(account.Id, "INBOX", page.UidValidity, page.Messages);
                 foreach (var header in page.Messages)
                 {
@@ -438,7 +522,7 @@ public sealed partial class MessageListViewModel : ObservableObject
         }
 
         var now = _time.GetUtcNow();
-        foreach (var header in headers.OrderBy(h => h.Date))
+        foreach (var header in headers.Where(h => h.Matches(Filter)).OrderBy(h => h.Date))
         {
             if (Find(accountId, folder, header.Uid) is null)
             {
@@ -492,6 +576,7 @@ public sealed partial class MessageListViewModel : ObservableObject
 
     /// <summary>Recherche en cours (résultats affichés à la place du dossier).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanFilter))]
     public partial bool IsSearching { get; set; }
 
     /// <summary>Texte cherché.</summary>
@@ -611,6 +696,7 @@ public sealed partial class MessageListViewModel : ObservableObject
         _folder = null;
         _unified = [];
         SelectedMessage = null;
+        Filter = ReadFilter.All;
         Messages.Clear();
         Title = _strings.Get("Pane_Messages");
         HasFolder = false;

@@ -132,10 +132,10 @@ public sealed class MailKitMailServiceTests : IAsyncLifetime
     {
         var account = Stored();
 
-        var first = await _service.GetMessagesAsync(account, "INBOX", 0, 50, TestContext.Current.CancellationToken);
-        var second = await _service.GetMessagesAsync(account, "INBOX", 50, 50, TestContext.Current.CancellationToken);
-        var last = await _service.GetMessagesAsync(account, "INBOX", 100, 50, TestContext.Current.CancellationToken);
-        var beyond = await _service.GetMessagesAsync(account, "INBOX", 120, 50, TestContext.Current.CancellationToken);
+        var first = await _service.GetMessagesAsync(account, "INBOX", 0, 50, ReadFilter.All, TestContext.Current.CancellationToken);
+        var second = await _service.GetMessagesAsync(account, "INBOX", 50, 50, ReadFilter.All, TestContext.Current.CancellationToken);
+        var last = await _service.GetMessagesAsync(account, "INBOX", 100, 50, ReadFilter.All, TestContext.Current.CancellationToken);
+        var beyond = await _service.GetMessagesAsync(account, "INBOX", 120, 50, ReadFilter.All, TestContext.Current.CancellationToken);
 
         Assert.Equal(120, first.Total);
         Assert.Equal(1u, first.UidValidity);
@@ -158,11 +158,38 @@ public sealed class MailKitMailServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Unread_or_read_only_headers_are_searched_on_the_server_and_come_by_pages()
+    {
+        var account = Stored();
+        var ct = TestContext.Current.CancellationToken;
+
+        // Boîte de réception du faux serveur : 120 mails, lus quand l'UID est un multiple de 3.
+        var unread = await _service.GetMessagesAsync(account, "INBOX", 0, 50, ReadFilter.Unread, ct);
+        var unreadEnd = await _service.GetMessagesAsync(account, "INBOX", 50, 50, ReadFilter.Unread, ct);
+        var read = await _service.GetMessagesAsync(account, "INBOX", 0, 50, ReadFilter.Read, ct);
+        var beyond = await _service.GetMessagesAsync(account, "INBOX", 40, 50, ReadFilter.Read, ct);
+
+        var allUnread = Enumerable.Range(1, 120).Where(i => i % 3 != 0).Reverse().Select(i => (uint)i).ToList();
+        Assert.Equal(80, unread.Total);
+        Assert.Equal(allUnread.Take(50), unread.Messages.Select(m => m.Uid));
+        Assert.Equal(allUnread.Skip(50), unreadEnd.Messages.Select(m => m.Uid));
+        Assert.All(unread.Messages, m => Assert.False(m.IsRead));
+        Assert.Equal(40, read.Total);
+        Assert.Equal(Enumerable.Range(1, 40).Select(i => (uint)(i * 3)).Reverse(), read.Messages.Select(m => m.Uid));
+        Assert.All(read.Messages, m => Assert.True(m.IsRead));
+        Assert.Empty(beyond.Messages);
+        Assert.Equal(40, beyond.Total);
+
+        // Rien n'est modifié : le dossier est ouvert en lecture seule.
+        Assert.DoesNotContain(_imap.Commands, c => c.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) || c.StartsWith("STORE", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task A_sub_folder_is_read_with_flags_and_non_ascii_subjects()
     {
         var account = Stored();
 
-        var page = await _service.GetMessagesAsync(account, "Archives/2026", 0, 50, TestContext.Current.CancellationToken);
+        var page = await _service.GetMessagesAsync(account, "Archives/2026", 0, 50, ReadFilter.All, TestContext.Current.CancellationToken);
 
         var message = Assert.Single(page.Messages);
         Assert.Equal("Facture d'électricité", message.Subject);

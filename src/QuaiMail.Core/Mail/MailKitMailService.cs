@@ -98,7 +98,7 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
             return (IReadOnlyList<MailFolderInfo>)FolderOrder.Sort(folders);
         }, cancellationToken);
 
-    public Task<MessagePage> GetMessagesAsync(Account account, string folder, int skip, int take, CancellationToken cancellationToken = default)
+    public Task<MessagePage> GetMessagesAsync(Account account, string folder, int skip, int take, ReadFilter filter, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(skip);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(take);
@@ -107,6 +107,11 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
             var mailFolder = await OpenAsync(client, folder, FolderAccess.ReadOnly, ct).ConfigureAwait(false);
             try
             {
+                if (filter != ReadFilter.All)
+                {
+                    return await FilteredPageAsync(mailFolder, skip, take, filter, ct).ConfigureAwait(false);
+                }
+
                 var count = mailFolder.Count;
                 var last = count - 1 - skip;
                 if (last < 0)
@@ -130,6 +135,27 @@ public sealed class MailKitMailService : IMailService, IAsyncDisposable
                 await CloseAsync(client, mailFolder).ConfigureAwait(false);
             }
         }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Page filtrée : UID SEARCH (UNSEEN ou SEEN) côté serveur, du plus grand UID (le plus récent) au plus petit, puis
+    /// les en-têtes de la page seulement.
+    /// </summary>
+    private static async Task<MessagePage> FilteredPageAsync(IMailFolder mailFolder, int skip, int take, ReadFilter filter, CancellationToken cancellationToken)
+    {
+        var query = filter == ReadFilter.Unread ? MailKit.Search.SearchQuery.NotSeen : MailKit.Search.SearchQuery.Seen;
+        var uids = await mailFolder.SearchAsync(query, cancellationToken).ConfigureAwait(false);
+        var page = uids.OrderByDescending(u => u.Id).Skip(skip).Take(take).ToList();
+        if (page.Count == 0)
+        {
+            return new MessagePage(mailFolder.UidValidity, uids.Count, []);
+        }
+
+        var request = new FetchRequest(
+            MessageSummaryItems.UniqueId | MessageSummaryItems.Envelope | MessageSummaryItems.Flags
+            | MessageSummaryItems.InternalDate | MessageSummaryItems.Size);
+        var summaries = await mailFolder.FetchAsync(page, request, cancellationToken).ConfigureAwait(false);
+        return new MessagePage(mailFolder.UidValidity, uids.Count, [.. summaries.Select(ToHeader).OrderByDescending(h => h.Uid)]);
     }
 
     public Task<MessageContent> GetMessageAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default) =>

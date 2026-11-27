@@ -273,6 +273,13 @@ public sealed partial class FakeImapServer : FakeServer
                     await connection.WriteAsync($"* SEARCH {string.Join(' ', inRange)}\r\n{tag} OK UID SEARCH terminé\r\n", cancellationToken);
                     break;
 
+                case "UID SEARCH" when selected is not null && args.Count == 2 && (args[1].Equals("SEEN", StringComparison.OrdinalIgnoreCase) || args[1].Equals("UNSEEN", StringComparison.OrdinalIgnoreCase)):
+                    // Filtre lu / non lu de la liste des mails.
+                    var wantSeen = args[1].Equals("SEEN", StringComparison.OrdinalIgnoreCase);
+                    var flagged = selected.Messages.Where(m => m.Seen == wantSeen).Select(m => m.Uid.ToString(CultureInfo.InvariantCulture));
+                    await connection.WriteAsync($"* SEARCH {string.Join(' ', flagged)}\r\n{tag} OK UID SEARCH terminé\r\n", cancellationToken);
+                    break;
+
                 case "UID SEARCH" when selected is not null:
                     // Recherche simplifiée : un mail correspond si l'un des textes cherchés est dans son objet, son expéditeur ou son corps.
                     var texts = Tokenize(rest).Skip(2).Where(t => !t.All(char.IsUpper) && !t.Equals("UTF-8", StringComparison.OrdinalIgnoreCase)).ToList();

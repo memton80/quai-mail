@@ -230,14 +230,20 @@ public sealed class MailCache
             .Take(10)
             .Select(term => "\"" + term.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"*"));
 
-    /// <summary>En-têtes en cache, du plus récent (plus grand UID) au plus ancien.</summary>
-    public IReadOnlyList<MessageHeader> GetMessages(string accountId, string folder, int skip, int take) =>
+    /// <summary>En-têtes en cache, du plus récent (plus grand UID) au plus ancien ; seulement les lus (ou non lus) avec un filtre.</summary>
+    public IReadOnlyList<MessageHeader> GetMessages(string accountId, string folder, int skip, int take, ReadFilter filter = ReadFilter.All) =>
         Query(connection =>
         {
             using var command = connection.CreateCommand();
-            command.CommandText = """
+            command.CommandText = $"""
                 SELECT uid, subject, from_name, from_address, date, is_read, is_flagged, size FROM messages
-                WHERE account = $account AND folder = $folder ORDER BY uid DESC LIMIT $take OFFSET $skip
+                WHERE account = $account AND folder = $folder{filter switch
+                {
+                    ReadFilter.Unread => " AND is_read = 0",
+                    ReadFilter.Read => " AND is_read = 1",
+                    _ => string.Empty,
+                }}
+                ORDER BY uid DESC LIMIT $take OFFSET $skip
                 """;
             command.Parameters.AddWithValue("$account", accountId);
             command.Parameters.AddWithValue("$folder", folder);

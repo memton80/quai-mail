@@ -621,6 +621,21 @@ internal static class SmokeTest
         Check(messages.SelectedMessages.Count == 0 && !three.Any(m => ShownUid() == m.Uid), "un mail supprimé est resté choisi ou ouvert");
         report.Add("Sélection : Ctrl+A choisit tout sans rien ouvrir ; lu / non lu et corbeille en une commande par dossier");
 
+        // Filtre de la liste par son vrai menu : « Non lus », puis « Lus » (recherchés sur le serveur), puis « Tous ».
+        Check(window.IsReadFilterShown, "bouton de filtre lu / non lu absent");
+        window.ChooseReadFilter(1);
+        await WaitForAsync(() => messages.Filter == ReadFilter.Unread && !messages.IsLoading, "filtre « Non lus »");
+        Check(messages.Messages.Count > 0 && messages.Messages.All(m => !m.IsRead), "filtre « Non lus » : liste vide ou mail lu affiché");
+        await Task.Delay(500);
+        await CaptureAsync(hwnd, directory, "25-filtre-non-lus.png", report);
+        window.ChooseReadFilter(2);
+        await WaitForAsync(() => messages.Filter == ReadFilter.Read && !messages.IsLoading, "filtre « Lus »");
+        Check(messages.Messages.Count > 0 && messages.Messages.All(m => m.IsRead), "filtre « Lus » : liste vide ou mail non lu affiché");
+        window.ChooseReadFilter(0);
+        await WaitForAsync(() => messages.Filter == ReadFilter.All && !messages.IsLoading, "filtre retiré");
+        Check(messages.Messages.Any(m => m.IsRead) && messages.Messages.Any(m => !m.IsRead), "« Tous » ne remontre pas lus et non lus");
+        report.Add("Filtre : « Non lus » et « Lus » cherchés sur le serveur par le vrai menu, puis retour à « Tous »");
+
         // Boîte de réception unifiée : un deuxième compte (même serveur de test).
         var accounts = services.GetRequiredService<AccountStore>();
         var credentials = services.GetRequiredService<ICredentialStore>();

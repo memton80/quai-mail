@@ -19,6 +19,14 @@ public enum FolderRole
 /// <param name="CanSelect">Faux pour un simple conteneur (\Noselect) : pas de mails dedans.</param>
 public sealed record MailFolderInfo(string FullName, string Name, int Depth, FolderRole Role, bool CanSelect, int Unread, int Total);
 
+/// <summary>Filtre de la liste des mails : tous, seulement les non lus, ou seulement les lus.</summary>
+public enum ReadFilter
+{
+    All,
+    Unread,
+    Read,
+}
+
 /// <summary>En-tête d'un mail dans une liste (rien du corps).</summary>
 public sealed record MessageHeader(
     uint Uid,
@@ -32,11 +40,19 @@ public sealed record MessageHeader(
 {
     /// <summary>Expéditeur tel qu'affiché : son nom, sinon son adresse.</summary>
     public string Sender => string.IsNullOrWhiteSpace(FromName) ? FromAddress : FromName;
+
+    /// <summary>Le mail passe le filtre (lu / non lu).</summary>
+    public bool Matches(ReadFilter filter) => filter switch
+    {
+        ReadFilter.Unread => !IsRead,
+        ReadFilter.Read => IsRead,
+        _ => true,
+    };
 }
 
 /// <summary>Une page d'en-têtes, du plus récent au plus ancien.</summary>
 /// <param name="UidValidity">Valeur UIDVALIDITY du dossier : si elle change, les identifiants en cache ne valent plus rien.</param>
-/// <param name="Total">Nombre total de mails dans le dossier.</param>
+/// <param name="Total">Nombre total de mails dans le dossier (qui passent le filtre demandé).</param>
 public sealed record MessagePage(uint UidValidity, int Total, IReadOnlyList<MessageHeader> Messages)
 {
     public static MessagePage Empty { get; } = new(0, 0, []);

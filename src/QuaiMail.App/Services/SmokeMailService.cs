@@ -43,25 +43,25 @@ internal sealed class SmokeMailService : IMailService
     public Task<IReadOnlyList<MailFolderInfo>> GetFoldersAsync(Account account, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<MailFolderInfo>>(Folders);
 
-    public async Task<MessagePage> GetMessagesAsync(Account account, string folder, int skip, int take, CancellationToken cancellationToken = default)
+    public async Task<MessagePage> GetMessagesAsync(Account account, string folder, int skip, int take, ReadFilter filter, CancellationToken cancellationToken = default)
     {
         // Un peu de délai, comme un vrai serveur : la barre de chargement apparaît.
         await Task.Delay(150, cancellationToken);
         var total = Folders.FirstOrDefault(f => f.FullName == folder)?.Total ?? 0;
-        var messages = Enumerable.Range(0, Math.Max(0, Math.Min(take, total - skip)))
-            .Select(i => total - skip - i)
-            .Select(uid => new MessageHeader(
-                (uint)uid,
-                folder == "Archives/2026" ? "Facture d'électricité" : folder == "INBOX" && uid == TrappedUid ? "Votre facture de novembre" : Subjects[uid % Subjects.Length],
-                folder == "INBOX" && uid == TrappedUid ? "Service client" : Senders[uid % Senders.Length],
-                $"contact{uid % Senders.Length}@example.org",
-                Newest.AddHours((uid - total) * 7),
-                uid <= total - 12,
-                uid % 17 == 0,
-                2048))
-            .ToList();
-        return new MessagePage(1, total, messages);
+        var all = Enumerable.Range(1, total).Reverse().Select(uid => Header(folder, uid, total)).Where(h => h.Matches(filter)).ToList();
+        return new MessagePage(1, all.Count, [.. all.Skip(skip).Take(take)]);
     }
+
+    private static MessageHeader Header(string folder, int uid, int total) =>
+        new(
+            (uint)uid,
+            folder == "Archives/2026" ? "Facture d'électricité" : folder == "INBOX" && uid == TrappedUid ? "Votre facture de novembre" : Subjects[uid % Subjects.Length],
+            folder == "INBOX" && uid == TrappedUid ? "Service client" : Senders[uid % Senders.Length],
+            $"contact{uid % Senders.Length}@example.org",
+            Newest.AddHours((uid - total) * 7),
+            uid <= total - 12,
+            uid % 17 == 0,
+            2048);
 
     /// <summary>UID du mail piégé de la boîte de réception (le plus récent).</summary>
     public const uint TrappedUid = 120;
@@ -168,7 +168,7 @@ internal sealed class SmokeMailService : IMailService
 
     public async Task<IReadOnlyList<MessageHeader>> SearchAsync(Account account, string folder, string text, int limit, CancellationToken cancellationToken = default)
     {
-        var page = await GetMessagesAsync(account, folder, 0, 200, cancellationToken);
+        var page = await GetMessagesAsync(account, folder, 0, 200, ReadFilter.All, cancellationToken);
         return [.. page.Messages.Where(m => m.Subject.Contains(text, StringComparison.OrdinalIgnoreCase) || m.FromName.Contains(text, StringComparison.OrdinalIgnoreCase)).Take(limit)];
     }
 

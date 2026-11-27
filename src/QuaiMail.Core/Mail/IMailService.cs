@@ -18,8 +18,11 @@ public interface IMailService
 
     Task<IReadOnlyList<MailFolderInfo>> GetFoldersAsync(Account account, CancellationToken cancellationToken = default);
 
-    /// <summary>En-têtes d'un dossier, du plus récent au plus ancien : <paramref name="skip"/> déjà affichés, puis <paramref name="take"/>.</summary>
-    Task<MessagePage> GetMessagesAsync(Account account, string folder, int skip, int take, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// En-têtes d'un dossier, du plus récent au plus ancien : <paramref name="skip"/> déjà affichés, puis
+    /// <paramref name="take"/>. Avec un filtre, seuls les mails lus (ou non lus) comptent, recherchés sur le serveur.
+    /// </summary>
+    Task<MessagePage> GetMessagesAsync(Account account, string folder, int skip, int take, ReadFilter filter, CancellationToken cancellationToken = default);
 
     /// <summary>Un mail complet (corps, pièces jointes), sans le marquer lu : c'est l'application qui le décide.</summary>
     Task<MessageContent> GetMessageAsync(Account account, string folder, uint uid, CancellationToken cancellationToken = default);

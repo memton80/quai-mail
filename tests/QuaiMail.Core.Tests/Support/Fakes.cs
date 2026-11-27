@@ -126,9 +126,9 @@ public sealed class FakeMailService : QuaiMail.Core.Mail.IMailService
             : Task.FromException<IReadOnlyList<QuaiMail.Core.Mail.MailFolderInfo>>(Failure);
     }
 
-    public async Task<QuaiMail.Core.Mail.MessagePage> GetMessagesAsync(QuaiMail.Core.Accounts.Account account, string folder, int skip, int take, CancellationToken cancellationToken = default)
+    public async Task<QuaiMail.Core.Mail.MessagePage> GetMessagesAsync(QuaiMail.Core.Accounts.Account account, string folder, int skip, int take, QuaiMail.Core.Mail.ReadFilter filter, CancellationToken cancellationToken = default)
     {
-        Calls.Add($"messages {folder} {skip}");
+        Calls.Add(filter == QuaiMail.Core.Mail.ReadFilter.All ? $"messages {folder} {skip}" : $"messages {folder} {skip} {filter}");
         if (Gate is { } gate)
         {
             await gate.Task.WaitAsync(cancellationToken);
@@ -139,7 +139,7 @@ public sealed class FakeMailService : QuaiMail.Core.Mail.IMailService
             throw Failure;
         }
 
-        var all = Messages.GetValueOrDefault(folder) ?? [];
+        var all = (Messages.GetValueOrDefault(folder) ?? []).Where(m => m.Matches(filter)).ToList();
         var page = all.AsEnumerable().Reverse().Skip(skip).Take(take).ToList();
         return new QuaiMail.Core.Mail.MessagePage(1, all.Count, page);
     }

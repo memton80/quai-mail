@@ -602,6 +602,24 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="Search_Server" xml:space="preserve">
     <value>Chercher aussi sur le serveur</value>
   </data>
+  <data name="Filter_Button" xml:space="preserve">
+    <value>Filtrer les mails : tous, non lus ou lus</value>
+  </data>
+  <data name="Filter_All" xml:space="preserve">
+    <value>Tous</value>
+  </data>
+  <data name="Filter_Unread" xml:space="preserve">
+    <value>Non lus</value>
+  </data>
+  <data name="Filter_Read" xml:space="preserve">
+    <value>Lus</value>
+  </data>
+  <data name="Filter_NoUnread" xml:space="preserve">
+    <value>Aucun mail non lu</value>
+  </data>
+  <data name="Filter_NoRead" xml:space="preserve">
+    <value>Aucun mail lu</value>
+  </data>
   <data name="Messages_MoveTo" xml:space="preserve">
     <value>Déplacer vers</value>
   </data>

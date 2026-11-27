@@ -478,6 +478,16 @@ public sealed partial class MainWindow : Window
     /// <summary>Choisit tous les mails affichés (Ctrl+A, clic droit, test de fumée).</summary>
     internal void SelectAllMessages() => MessageList.SelectAll();
 
+    /// <summary>Bouton du filtre lu / non lu affiché (test de fumée).</summary>
+    internal bool IsReadFilterShown => ReadFilterButton.Visibility == Visibility.Visible;
+
+    /// <summary>Choisit un filtre par la commande de son vrai menu : 0 = tous, 1 = non lus, 2 = lus (test de fumée).</summary>
+    internal void ChooseReadFilter(int index)
+    {
+        var item = (MenuFlyoutItem)((MenuFlyout)ReadFilterButton.Flyout).Items[index];
+        item.Command.Execute(item.CommandParameter);
+    }
+
     /// <summary>Choisit des mails voisins, comme Maj + clic (test de fumée).</summary>
     internal void SelectMessageRange(int first, int count)
     {

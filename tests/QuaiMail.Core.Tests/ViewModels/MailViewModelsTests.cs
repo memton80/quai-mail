@@ -304,6 +304,88 @@ public sealed class MailViewModelsTests : IDisposable
     }
 
     [Fact]
+    public async Task The_unread_filter_shows_only_unread_mails_page_after_page_even_once_some_are_read()
+    {
+        var account = AddAccount("alice@example.org");
+        _mail.Folders[account.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 60, 120)];
+        // UID pair = lu : 60 non lus sur 120.
+        _mail.Messages["INBOX"] = [.. Enumerable.Range(1, 120).Select(i => Header((uint)i))];
+        var mailbox = Mailbox();
+        await mailbox.LoadAsync();
+        var list = mailbox.Messages;
+        await WaitForAsync(() => !list.IsLoading && list.Messages.Count == 50);
+        Assert.False(list.IsFiltered);
+        Assert.True(list.CanFilter);
+        Assert.Equal("Filter_All", list.FilterLabel);
+
+        await list.ShowUnreadOnlyCommand.ExecuteAsync(null);
+
+        Assert.True(list.IsFilterUnread);
+        Assert.Equal("Filter_Unread", list.FilterLabel);
+        Assert.Equal(50, list.Messages.Count);
+        Assert.All(list.Messages, m => Assert.False(m.IsRead));
+        Assert.True(list.HasMore);
+        Assert.Equal("messages INBOX 0 Unread", _mail.Calls[^1]);
+
+        // Un mail lu entre-temps (ouvert) reste affiché, mais ne compte plus parmi les non lus du serveur.
+        var opened = list.Messages[0];
+        var read = opened.Header with { IsRead = true };
+        _mail.Messages["INBOX"][(int)read.Uid - 1] = read;
+        list.UpdateHeader(account.Id, "INBOX", read);
+        await list.LoadMoreCommand.ExecuteAsync(null);
+
+        Assert.Equal("messages INBOX 49 Unread", _mail.Calls[^1]);
+        Assert.Equal(Enumerable.Range(1, 120).Where(i => i % 2 == 1).Reverse().Select(i => (uint)i), list.Messages.Select(m => m.Uid));
+        Assert.False(list.HasMore);
+
+        // Retour à tous les mails.
+        await list.ShowAllMessagesCommand.ExecuteAsync(null);
+        Assert.False(list.IsFiltered);
+        Assert.Equal("messages INBOX 0", _mail.Calls[^1]);
+        Assert.Equal(50, list.Messages.Count);
+        Assert.Contains(list.Messages, m => m.IsRead);
+    }
+
+    [Fact]
+    public async Task The_read_filter_shows_only_read_mails_says_when_there_are_none_and_another_folder_drops_it()
+    {
+        var (mailbox, account) = await OpenInboxAsync();
+        _mail.Folders[account.Id].Add(new MailFolderInfo("Envoyés", "Envoyés", 0, FolderRole.Sent, true, 0, 1));
+        _mail.Messages["Envoyés"] = [Header(7)];
+        await mailbox.RefreshAsync();
+        var list = mailbox.Messages;
+
+        await list.ApplyFilterAsync(ReadFilter.Read);
+
+        Assert.Equal([4u, 2u], list.Messages.Select(m => m.Uid));
+        Assert.Equal("Filter_NoRead", list.EmptyTitle);
+
+        // Un nouveau mail (non lu) n'apparaît pas dans la liste des lus.
+        mailbox.OnNewMail(_accounts.Find(account.Id)!, [new MessageHeader(50, "Tout frais", "Léa", "lea@example.org", Now, false, false, 10)]);
+        Assert.DoesNotContain(list.Messages, m => m.Uid == 50);
+
+        // Aucun lu dans « Envoyés » ? Le filtre ne suit pas : autre dossier, tous ses mails.
+        mailbox.SelectedItem = mailbox.Items.Single(i => i.Folder?.FullName == "Envoyés");
+        await WaitForAsync(() => !list.IsLoading && list.Messages.Count == 1);
+
+        Assert.Equal(ReadFilter.All, list.Filter);
+        Assert.Equal("Pane_NoMessagesTitle", list.EmptyTitle);
+        Assert.Equal("messages Envoyés 0", _mail.Calls[^1]);
+    }
+
+    [Fact]
+    public async Task The_filter_is_hidden_during_a_search()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+
+        await mailbox.Messages.SearchAsync("Objet");
+
+        Assert.False(mailbox.Messages.CanFilter);
+        await mailbox.Messages.EndSearchAsync();
+        Assert.True(mailbox.Messages.CanFilter);
+    }
+
+    [Fact]
     public async Task Choosing_another_folder_while_loading_never_mixes_the_lists()
     {
         var account = AddAccount("alice@example.org");

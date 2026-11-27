@@ -259,6 +259,25 @@
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
+    <!-- Filtre lu / non lu : bouton discret (sans fond) à droite du titre de la liste, icône puis filtre en cours. -->
+    <Style x:Key="ListFilterButtonStyle" TargetType="DropDownButton">
+        <Setter Property="Margin" Value="0,8,8,0" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style x:Key="ListFilterContentStyle" TargetType="StackPanel">
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="Spacing" Value="6" />
+    </Style>
+
+    <Style x:Key="ListFilterIconStyle" TargetType="FontIcon">
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
     <Style x:Key="ListBusyBarStyle" TargetType="ProgressBar">
         <Setter Property="IsIndeterminate" Value="True" />
         <Setter Property="Margin" Value="16,0" />
