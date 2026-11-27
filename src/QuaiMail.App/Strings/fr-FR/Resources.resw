@@ -440,6 +440,9 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="Attachment_SaveFailedMessage" xml:space="preserve">
     <value>Quai Mail n'a pas pu écrire ce fichier à cet emplacement. Choisissez un autre dossier.</value>
   </data>
+  <data name="Attachment_PickerFailedMessage" xml:space="preserve">
+    <value>La fenêtre « Enregistrer sous » de Windows n'a pas pu s'ouvrir. Réessayez ; si le problème continue, le journal de Quai Mail indique la cause.</value>
+  </data>
   <data name="Attachment_SaveTooltip" xml:space="preserve">
     <value>Enregistrer la pièce jointe…</value>
   </data>

@@ -592,6 +592,27 @@ public sealed class MailViewModelsTests : IDisposable
     }
 
     [Fact]
+    public async Task An_attachment_without_extension_gets_one_and_a_failing_picker_is_reported()
+    {
+        var (mailbox, _) = await OpenInboxAsync();
+        var builder = new MimeKit.BodyBuilder { TextBody = "Voir pièces jointes" };
+        builder.Attachments.Add("facture", "contenu PDF"u8.ToArray(), new MimeKit.ContentType("application", "pdf"));
+        builder.Attachments.Add("donnees", "octets"u8.ToArray(), new MimeKit.ContentType("application", "x-inconnu"));
+        _mail.Contents[3] = new MimeKit.MimeMessage([new MimeKit.MailboxAddress("Bob", "bob@example.org")], [], "Pièces jointes", builder.ToMessageBody());
+        var reader = mailbox.Reader;
+        mailbox.Messages.SelectedMessage = mailbox.Messages.Messages.Single(m => m.Uid == 3);
+        await WaitForAsync(() => !reader.IsLoading && reader.HasAttachments);
+
+        // Sans extension, le sélecteur « Enregistrer sous » de Windows refuse de s'ouvrir.
+        Assert.Equal(["facture.pdf", "donnees.bin"], reader.Attachments.Select(a => a.FileName));
+
+        Files.Failure = new System.Runtime.InteropServices.COMException("sélecteur en échec", unchecked((int)0x80070057));
+        Assert.Null(await reader.SaveAttachmentAsync(reader.Attachments[0]));
+        Assert.Equal(["Attachment_SaveFailedTitle"], _dialogs.Errors);
+        Assert.Empty(Directory.GetFiles(_temp.Path, "facture*"));
+    }
+
+    [Fact]
     public async Task A_plain_text_mail_is_shown_with_clickable_links_and_nothing_active()
     {
         var (mailbox, _) = await OpenInboxAsync();

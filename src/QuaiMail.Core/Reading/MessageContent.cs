@@ -52,12 +52,14 @@ public sealed class MessageContent
         _attachments = [.. message.Attachments.Where(a => PgpSigned is null || !ReferenceEquals(a, PgpSigned[1]))];
         Attachments = [.. _attachments.Select((entity, index) =>
         {
-            var name = AttachmentRules.SafeFileName(entity switch
-            {
-                MimePart part => part.FileName,
-                MessagePart => (entity.ContentType.Name ?? "message") + ".eml",
-                _ => entity.ContentType.Name,
-            });
+            var name = AttachmentRules.AttachmentFileName(
+                entity switch
+                {
+                    MimePart part => part.FileName,
+                    MessagePart => (entity.ContentType.Name ?? "message") + ".eml",
+                    _ => entity.ContentType.Name,
+                },
+                entity.ContentType.MimeType);
             return new AttachmentInfo(index, name, entity.ContentType.MimeType, MeasureAsync(entity).GetAwaiter().GetResult(), AttachmentRules.IsExecutable(name));
         })];
     }

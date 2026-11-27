@@ -330,10 +330,13 @@ public sealed class FakeFileDialogs : QuaiMail.Core.Services.IFileDialogs
 
     public List<string> Suggested { get; } = [];
 
+    /// <summary>Le sélecteur de Windows qui échoue (COMException…).</summary>
+    public Exception? Failure { get; set; }
+
     public Task<string?> PickSaveLocationAsync(string suggestedFileName)
     {
         Suggested.Add(suggestedFileName);
-        return Task.FromResult(Answer);
+        return Failure is null ? Task.FromResult(Answer) : Task.FromException<string?>(Failure);
     }
 
     public List<string> ToAttach { get; } = [];

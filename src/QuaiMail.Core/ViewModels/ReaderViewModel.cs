@@ -407,7 +407,20 @@ public sealed partial class ReaderViewModel : ObservableObject
             return null;
         }
 
-        if (await _files.PickSaveLocationAsync(attachment.FileName) is not { } path)
+        // Le sélecteur de Windows peut échouer (COMException) : jamais en silence, l'utilisateur doit le savoir.
+        string? path;
+        try
+        {
+            path = await _files.PickSaveLocationAsync(attachment.FileName);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning("Sélecteur d'enregistrement en échec ({Error}, 0x{Code:X8})", ex.GetType().Name, ex.HResult);
+            await _dialogs.ShowErrorAsync(_strings.Get("Attachment_SaveFailedTitle"), _strings.Get("Attachment_PickerFailedMessage"));
+            return null;
+        }
+
+        if (path is null)
         {
             return null;
         }
@@ -416,9 +429,9 @@ public sealed partial class ReaderViewModel : ObservableObject
         {
             await AtomicFile.WriteAsync(path, (stream, ct) => content.WriteAttachmentAsync(attachment.Index, stream, ct));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning("Pièce jointe non enregistrée ({Error})", ex.GetType().Name);
+            _logger.LogWarning("Pièce jointe non enregistrée ({Error}, 0x{Code:X8})", ex.GetType().Name, ex.HResult);
             await _dialogs.ShowErrorAsync(_strings.Get("Attachment_SaveFailedTitle"), _strings.Get("Attachment_SaveFailedMessage"));
             return null;
         }

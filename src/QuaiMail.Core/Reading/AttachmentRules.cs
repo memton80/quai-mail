@@ -37,4 +37,23 @@ public static class AttachmentRules
 
         return cleaned.Length > 180 ? cleaned[..120] + Path.GetExtension(cleaned) : cleaned;
     }
+
+    /// <summary>
+    /// Nom proposé à l'enregistrement d'une pièce jointe : <see cref="SafeFileName"/>, avec une extension tirée du type
+    /// MIME s'il n'en a pas (« .bin » à défaut). Le sélecteur « Enregistrer sous » de Windows exige au moins un type de
+    /// fichier : sans extension, il refusait de s'ouvrir.
+    /// </summary>
+    public static string AttachmentFileName(string? name, string? mimeType)
+    {
+        var safe = SafeFileName(name);
+        if (!string.IsNullOrEmpty(Path.GetExtension(safe)))
+        {
+            return safe;
+        }
+
+        var extension = !string.IsNullOrWhiteSpace(mimeType) && MimeKit.MimeTypes.TryGetExtension(mimeType, out var known) && !string.IsNullOrEmpty(known)
+            ? known
+            : ".bin";
+        return safe + (extension.StartsWith('.') ? extension : "." + extension);
+    }
 }
