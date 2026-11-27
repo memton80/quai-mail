@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Agent de notification de Quai Mail (QuaiMailAgent.exe) : icône dans la zone de notification, nouveaux mails annoncés
+    quand Quai Mail est fermé. Règles strictes (décision d'Alexandre) : 10 Mo de mémoire au plus, processeur au repos
+    en attendant un mail. D'où : compilé en natif (Native AOT, ni JIT ni WinUI), une fenêtre Win32 cachée et
+    Shell_NotifyIcon, MailKit en IDLE (aucune interrogation), ramasse-miettes poste de travail sans fil de fond, mémoire
+    rendue à Windows après chaque activité. Le CI mesure tout cela sur l'agent installé (.github/workflows/build.yml).
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>QuaiMail.Agent</RootNamespace>
+    <AssemblyName>QuaiMailAgent</AssemblyName>
+    <!-- Description du fichier : nom affiché par Windows sur les notifications et dans le Gestionnaire des tâches. -->
+    <AssemblyTitle>Quai Mail</AssemblyTitle>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\QuaiMail.App\Assets\QuaiMail.ico</ApplicationIcon>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <PublishAot>true</PublishAot>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <EventSourceSupport>false</EventSourceSupport>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <MetricsSupport>false</MetricsSupport>
+    <ServerGarbageCollector>false</ServerGarbageCollector>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <!-- Permet un simple `dotnet build` sans préciser -r : le RID suit la plateforme. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == ''">
+    <RuntimeIdentifier Condition="'$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(Platform)' != 'ARM64'">win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuaiMail.Core\QuaiMail.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Même coffre de Windows que Quai Mail (un seul code, partagé). -->
+    <Compile Include="..\QuaiMail.App\Services\PasswordVaultCredentialStore.cs" Link="Shared\PasswordVaultCredentialStore.cs" />
+  </ItemGroup>
+
+</Project>
