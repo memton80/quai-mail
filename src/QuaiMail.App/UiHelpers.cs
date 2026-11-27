@@ -14,6 +14,8 @@ public static class UiHelpers
 
     public static bool Not(bool value) => !value;
 
+    public static bool Both(bool first, bool second) => first && second;
+
     /// <summary>Visible seulement si les deux conditions sont vraies (ex. bouton Actualiser : comptes présents et volet déployé).</summary>
     public static Visibility VisibleIfBoth(bool first, bool second) => first && second ? Visibility.Visible : Visibility.Collapsed;
 

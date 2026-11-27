@@ -84,6 +84,14 @@ public partial class App : Application
         }
 
         MainWindow = new MainWindow();
+        if (_smokeTestDirectory is null && _updateTestDirectory is null)
+        {
+            // Agent de notification : en pause tant que la fenêtre est ouverte, il prend le relais à sa fermeture.
+            var agent = Services.GetRequiredService<BackgroundAgent>();
+            agent.OnAppStarted();
+            MainWindow.Closed += (_, _) => agent.OnAppClosed();
+        }
+
         MainWindow.Activate();
 
         if (afterUpdate && _smokeTestDirectory is null && _updateTestDirectory is null)
@@ -136,11 +144,14 @@ public partial class App : Application
             MainWindow?.StartWatching();
             if (_smokeTestDirectory is null && _updateTestDirectory is null)
             {
-                // Lancé par un lien mailto: (Quai Mail choisi pour les liens mail), puis les liens suivants.
+                // Lancé par un lien mailto: (Quai Mail choisi pour les liens mail), puis les liens suivants. Lancé par un
+                // clic sur une notification de l'agent (--inbox) : boîte de réception de ce compte.
+                ShowInboxFrom(Environment.GetCommandLineArgs());
                 await OpenMailtoAsync(Environment.GetCommandLineArgs());
                 Program.Redirected += (_, arguments) => MainWindow?.DispatcherQueue.TryEnqueue(async () =>
                 {
                     MainWindow.Activate();
+                    ShowInboxFrom([arguments]);
                     await OpenMailtoAsync([arguments]);
                 });
             }
@@ -148,6 +159,15 @@ public partial class App : Application
         catch (Exception ex)
         {
             _logger.LogError(ex, "Chargement des comptes impossible");
+        }
+    }
+
+    private void ShowInboxFrom(IEnumerable<string> arguments)
+    {
+        if (Core.Agent.AgentLaunch.TryGetInbox(arguments, out var accountId))
+        {
+            _logger.LogInformation("Ouvert depuis une notification de l'agent : boîte de réception du compte");
+            Services.GetRequiredService<MailboxViewModel>().ShowInbox(accountId);
         }
     }
 

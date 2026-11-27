@@ -257,6 +257,12 @@ public sealed partial class MainWindow : Window
     /// </summary>
     internal void CloseForUpdate()
     {
+        // L'installateur arrête l'agent de notification et le relance une fois la mise à jour installée.
+        if (_services.GetService<BackgroundAgent>() is { } agent)
+        {
+            agent.ClosingForUpdate = true;
+        }
+
         _closeAllowed = true;
         Close();
     }

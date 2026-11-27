@@ -753,6 +753,15 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="Pgp_RemoveConfirm" xml:space="preserve">
     <value>Retirer</value>
   </data>
+  <data name="Settings_Agent" xml:space="preserve">
+    <value>Prévenir des nouveaux mails quand Quai Mail est fermé</value>
+  </data>
+  <data name="Settings_AgentDescription" xml:space="preserve">
+    <value>Un petit agent reste dans la zone de notification (icônes cachées de la barre des tâches) et surveille vos boîtes de réception : moins de 10 Mo de mémoire, aucune activité en attendant un mail. Il se met en pause pendant que Quai Mail est ouvert. Clic droit sur son icône pour l'arrêter.</value>
+  </data>
+  <data name="Settings_AgentAutoStart" xml:space="preserve">
+    <value>Lancer l'agent au démarrage de Windows</value>
+  </data>
   <data name="Settings_LookUpKeys" xml:space="preserve">
     <value>Chercher les clés des mails signés</value>
   </data>

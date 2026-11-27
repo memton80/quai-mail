@@ -25,6 +25,18 @@
                 <ToggleSwitch Header="{l:Str Key=Settings_Notifications}" IsOn="{x:Bind Settings.ShowNotifications, Mode=TwoWay}" />
                 <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_NotificationsDescription}" />
             </StackPanel>
+            <!-- Agent de notification : nouveaux mails annoncés quand Quai Mail est fermé (icône dans les icônes cachées). -->
+            <StackPanel Visibility="{x:Bind ui:UiHelpers.VisibleIf(Settings.AgentAvailable)}">
+                <ToggleSwitch
+                    Header="{l:Str Key=Settings_Agent}"
+                    IsEnabled="{x:Bind Settings.ShowNotifications, Mode=OneWay}"
+                    IsOn="{x:Bind Settings.BackgroundAgent, Mode=TwoWay}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_AgentDescription}" />
+                <CheckBox
+                    Content="{l:Str Key=Settings_AgentAutoStart}"
+                    IsChecked="{x:Bind Settings.AgentAutoStart, Mode=TwoWay}"
+                    IsEnabled="{x:Bind ui:UiHelpers.Both(Settings.ShowNotifications, Settings.BackgroundAgent), Mode=OneWay}" />
+            </StackPanel>
             <StackPanel>
                 <ToggleSwitch Header="{l:Str Key=Settings_Updates}" IsOn="{x:Bind Settings.CheckForUpdates, Mode=TwoWay}" />
                 <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_UpdatesDescription}" />

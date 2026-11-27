@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using QuaiMail.Core;
 using QuaiMail.Core.Accounts;
+using QuaiMail.Core.Agent;
 using QuaiMail.Core.Accounts.OAuth;
 using QuaiMail.Core.Cache;
 using QuaiMail.Core.Drafts;
@@ -191,6 +192,17 @@ internal static class AppServices
 
         services.AddSingleton(provider => new UpdateChecker(provider.GetRequiredService<IReleaseSource>(), AppInfo.Version, installerName));
         services.AddSingleton<IUpdateInstaller, UpdateInstaller>();
+
+        // Agent de notification (QuaiMailAgent.exe) : jamais lancé ni inscrit au démarrage pendant les tests de fumée.
+        if (testing)
+        {
+            services.AddSingleton<IBackgroundAgent, SmokeBackgroundAgent>();
+        }
+        else
+        {
+            services.AddSingleton<BackgroundAgent>();
+            services.AddSingleton<IBackgroundAgent>(provider => provider.GetRequiredService<BackgroundAgent>());
+        }
         services.AddSingleton<UpdateBannerViewModel>();
 
         return services.BuildServiceProvider();

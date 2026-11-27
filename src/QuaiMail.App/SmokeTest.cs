@@ -96,6 +96,17 @@ internal static class SmokeTest
             Check(settings.BlockRemoteImages, "images distantes bloquées par défaut");
             Check(settings.CheckForUpdates, "recherche des mises à jour active par défaut");
 
+            // Agent de notification : proposé, actif par défaut ; le couper l'arrête et le retire du démarrage de Windows
+            // (agent factice ici : ni registre ni processus touchés).
+            var agent = (SmokeBackgroundAgent)services.GetRequiredService<Core.Agent.IBackgroundAgent>();
+            Check(settings.AgentAvailable && settings.BackgroundAgent, "agent de notification proposé et actif par défaut");
+            settings.AgentAutoStart = true;
+            Check(agent.IsAutoStartEnabled, "lancement de l'agent avec Windows activé depuis les réglages");
+            settings.BackgroundAgent = false;
+            Check(agent.Stops == 1 && !agent.IsAutoStartEnabled && !settings.AgentAutoStart, "agent coupé : arrêté et retiré du démarrage de Windows");
+            settings.BackgroundAgent = true;
+            report.Add("Agent de notification : réglages OK (actif par défaut, coupé = arrêté et retiré du démarrage)");
+
             settings.ThemeIndex = 2;
             await Task.Delay(1000);
             await CaptureAsync(hwnd, directory, "3-sombre.png", report);
