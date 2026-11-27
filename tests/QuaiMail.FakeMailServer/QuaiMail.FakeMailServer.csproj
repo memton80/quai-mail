@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Faux serveur IMAP pour le CI (test de l'agent de notification installé) : le même que celui des tests de
+    QuaiMail.Core, lancé à part sur 127.0.0.1. Jamais livré, jamais de vrai compte.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>QuaiMail.FakeMailServer</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\QuaiMail.Core\QuaiMail.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\QuaiMail.Core.Tests\Support\FakeServer.cs" Link="Support\FakeServer.cs" />
+    <Compile Include="..\QuaiMail.Core.Tests\Support\FakeImapServer.cs" Link="Support\FakeImapServer.cs" />
+    <Compile Include="..\QuaiMail.Core.Tests\Support\TestCertificate.cs" Link="Support\TestCertificate.cs" />
+  </ItemGroup>
+
+</Project>

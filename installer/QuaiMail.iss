@@ -22,6 +22,9 @@
 
 #define AppName "Quai Mail"
 #define AppExe "QuaiMail.exe"
+; Agent de notification (zone de notification), voir src/QuaiMail.Agent et src/QuaiMail.Core/Agent/AgentInfo.cs.
+#define AgentExe "QuaiMailAgent.exe"
+#define AgentRunValue "QuaiMailAgent"
 ; Dossier des données (%LOCALAPPDATA%\QuaiMail : réglages, brouillons, journaux), voir AppPaths.cs.
 #define DataDir "QuaiMail"
 #define AppUrl "https://github.com/memton80/quai-mail"
@@ -65,7 +68,8 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
 
-; Mise à jour par-dessus une version ouverte : l'installateur propose de fermer Quai Mail.
+; Mise à jour par-dessus une version ouverte : l'installateur propose de fermer Quai Mail. L'agent de notification,
+; lui, est arrêté d'office avant (PrepareToInstall) puis relancé s'il tournait.
 CloseApplications=yes
 RestartApplications=no
 
@@ -95,6 +99,8 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 ; Mise à jour lancée par Quai Mail lui-même (/SILENT /RELAUNCH=1) : la nouvelle version redémarre une fois installée.
 Filename: "{app}\{#AppExe}"; Parameters: "--after-update"; WorkingDir: "{app}"; Flags: nowait; Check: RelaunchRequested
+; Agent de notification arrêté pour remplacer ses fichiers : la nouvelle version reprend aussitôt.
+Filename: "{app}\{#AgentExe}"; WorkingDir: "{app}"; Flags: nowait; Check: AgentWasRunning
 
 [Registry]
 ; « Ouvrir avec » pour les liens mailto: : Quai Mail apparaît dans les applications par défaut de Windows (l'utilisateur
@@ -118,6 +124,29 @@ Type: dirifempty; Name: "{localappdata}\{#DataDir}"
 [Code]
 var
   RemoveUserData: Boolean;
+  AgentStopped: Boolean;
+
+// Arrête l'agent de notification (QuaiMailAgent.exe --quit : code 0 s'il tournait et s'est arrêté).
+function StopAgent(Dir: String): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := False;
+  if FileExists(Dir + '\{#AgentExe}') then
+    Result := Exec(Dir + '\{#AgentExe}', '--quit', Dir, SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
+// Avant de remplacer les fichiers : l'agent ne doit plus tourner (il serait sinon verrouillé, ou fermé de force).
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  AgentStopped := StopAgent(ExpandConstant('{app}'));
+  Result := '';
+end;
+
+function AgentWasRunning(): Boolean;
+begin
+  Result := AgentStopped;
+end;
 
 // Installation demandée par le bouton « Mettre à jour » de Quai Mail : relancer l'application à la fin.
 function RelaunchRequested(): Boolean;
@@ -143,7 +172,14 @@ begin
   // Avant le retrait des fichiers : Quai Mail se retire des notifications de Windows, puis, si demandé, efface lui-même
   // ses mots de passe du coffre de Windows (comme Quai).
   if CurUninstallStep = usUninstall then
+  begin
+    // L'agent de notification s'arrête et ne se lance plus avec Windows (valeur Run, et son état dans le Gestionnaire
+    // des tâches).
+    StopAgent(ExpandConstant('{app}'));
+    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#AgentRunValue}');
+    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run', '{#AgentRunValue}');
     Exec(ExpandConstant('{app}\{#AppExe}'), '--unregister-notifications', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
   if (CurUninstallStep = usUninstall) and RemoveUserData then
     Exec(ExpandConstant('{app}\{#AppExe}'), '--purge-secrets', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 

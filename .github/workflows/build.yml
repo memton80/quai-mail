@@ -130,13 +130,23 @@ jobs:
             -o publish/${{ matrix.platform }}
           if ($LASTEXITCODE -ne 0) { throw "La publication a échoué (code $LASTEXITCODE)." }
 
+          # Agent de notification : compilé en natif (Native AOT), seul son exécutable rejoint Quai Mail.
+          dotnet publish src/QuaiMail.Agent/QuaiMail.Agent.csproj `
+            -c Release `
+            -r win-${{ matrix.platform }} `
+            -p:Platform=${{ matrix.platform }} `
+            -p:Version=${{ needs.version.outputs.version }} `
+            -o publish/agent-${{ matrix.platform }}
+          if ($LASTEXITCODE -ne 0) { throw "La publication de l'agent a échoué (code $LASTEXITCODE)." }
+          Copy-Item "publish/agent-${{ matrix.platform }}/QuaiMailAgent.exe" "publish/${{ matrix.platform }}/"
+
       - name: Vérification du contenu publié
         shell: pwsh
         run: |
           $dir = "publish/${{ matrix.platform }}"
           Get-ChildItem $dir | Sort-Object Name | Format-Table Name, Length -AutoSize | Out-String -Width 200
           $required = @(
-            'QuaiMail.exe', 'QuaiMail.dll', 'QuaiMail.Core.dll', 'QuaiMail.pri', 'Microsoft.WinUI.dll', 'Microsoft.Web.WebView2.Core.dll', 'WebView2Loader.dll',
+            'QuaiMail.exe', 'QuaiMailAgent.exe', 'QuaiMail.dll', 'QuaiMail.Core.dll', 'QuaiMail.pri', 'Microsoft.WinUI.dll', 'Microsoft.Web.WebView2.Core.dll', 'WebView2Loader.dll',
             'Assets/QuaiMail.ico', 'Assets/AppIcon.png', 'Assets/Mail/reader.html', 'Assets/Mail/mail.css', 'fr-FR/Microsoft.ui.xaml.dll.mui', 'en-US/Microsoft.ui.xaml.dll.mui')
           $missing = $required | Where-Object { -not (Test-Path (Join-Path $dir $_)) }
           if ($missing) { throw "Fichiers manquants dans la publication : $($missing -join ', ')" }
@@ -148,7 +158,9 @@ jobs:
           $forbidden = @(
             'Microsoft.UI.Xaml/Assets/map.html',
             'onnxruntime.dll', 'DirectML.dll', 'Microsoft.Windows.AI.Text.dll', 'Microsoft.Windows.Search.dll', 'Microsoft.Windows.Widgets.dll', 'DWriteCore.dll',
-            'PresentationFramework.dll', 'createdump.exe', 'mscordbi.dll', 'mscordaccore.dll', 'de-DE', 'ja-JP') |
+            'PresentationFramework.dll', 'createdump.exe', 'mscordbi.dll', 'mscordaccore.dll', 'de-DE', 'ja-JP',
+            # L'agent est un exécutable natif, sans runtime .NET à côté.
+            'QuaiMailAgent.dll', 'QuaiMailAgent.runtimeconfig.json', 'QuaiMailAgent.deps.json') |
             Where-Object { Test-Path (Join-Path $dir $_) }
           $web = Get-ChildItem $dir -Recurse -File -Include '*.html', '*.htm', '*.js' |
             Where-Object { $_.FullName -notmatch '[\\/]Assets[\\/]Mail[\\/]' } | Select-Object -First 5
@@ -195,6 +207,7 @@ jobs:
             '| | Mo |'
             '|---|---:|'
             "| Installée ($($files.Count) fichiers) | $(& $mb $installed) |"
+            "| dont l'agent de notification (natif) | $(& $mb (Get-Item "publish/$arch/QuaiMailAgent.exe").Length) |"
             "| Installateur | $(& $mb $setup) |"
             "| Zip | $(& $mb $zip) |"
             ''
@@ -214,7 +227,7 @@ jobs:
           }
 
           $dir = Join-Path $env:LOCALAPPDATA 'Programs\Quai Mail'
-          $missing = 'QuaiMail.exe', 'unins000.exe', 'QuaiMail.pri', 'QuaiMail.Core.dll', 'WebView2Loader.dll' | Where-Object { -not (Test-Path (Join-Path $dir $_)) }
+          $missing = 'QuaiMail.exe', 'QuaiMailAgent.exe', 'unins000.exe', 'QuaiMail.pri', 'QuaiMail.Core.dll', 'WebView2Loader.dll' | Where-Object { -not (Test-Path (Join-Path $dir $_)) }
           if ($missing) { throw "Fichiers installés manquants : $($missing -join ', ')" }
 
           $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{45AC4609-96F5-4C2C-A740-E243A390EA78}_is1'
@@ -344,6 +357,188 @@ jobs:
           $line
           @('### Mise à jour en place', '', $line, '') | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
 
+      # Agent de notification installé, contre un faux serveur IMAP local (TLS, IDLE ; jamais de vrai compte). Règles
+      # d'Alexandre vérifiées : au plus 10 Mo de mémoire privée (colonne « Mémoire » du Gestionnaire des tâches), mesurée
+      # pendant tout le test ; processeur au repos en attendant un mail. Puis : notification d'un nouveau mail, pause
+      # quand Quai Mail s'ouvre (verrou simulé, puis le vrai Quai Mail ouvert par le menu de l'icône), commandes du menu
+      # (lancement avec Windows, arrêt), --quit, mise à jour avec l'agent lancé (arrêté puis relancé par l'installateur).
+      - name: Agent de notification (mémoire, processeur, pause, menu, mise à jour)
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'agent'
+          $server = Join-Path $root 'server'
+          $data = Join-Path $root 'data'
+          New-Item -ItemType Directory -Force -Path $server, (Join-Path $data 'logs') | Out-Null
+          $agentExe = Join-Path $env:QUAI_MAIL_INSTALL_DIR 'QuaiMailAgent.exe'
+          $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          $limit = 10MB
+
+          Add-Type -Namespace QuaiMailCi -Name User32 -MemberDefinition @'
+          [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindow(string className, string windowName);
+          [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+          '@
+
+          $samples = [System.Collections.Generic.List[object]]::new()
+          function Get-Agent { Get-Process -Name QuaiMailAgent -ErrorAction SilentlyContinue | Select-Object -First 1 }
+          function Sample([string] $phase) {
+            $p = Get-Agent
+            if (-not $p) { return }
+            $private = $null
+            try { $private = (Get-Counter '\Process(QuaiMailAgent)\Working Set - Private' -ErrorAction Stop).CounterSamples[0].CookedValue } catch { }
+            if ($null -eq $private) { $private = (Get-CimInstance Win32_PerfFormattedData_PerfProc_Process -Filter "IDProcess=$($p.Id)").WorkingSetPrivate }
+            $samples.Add([pscustomobject]@{ Phase = $phase; Private = [double]$private; Commit = $p.PrivateMemorySize64; WorkingSet = $p.WorkingSet64; Threads = $p.Threads.Count })
+          }
+          function Read-Log([string] $pattern) {
+            $text = ''
+            foreach ($file in Get-ChildItem (Join-Path $data 'logs') -Filter $pattern -ErrorAction SilentlyContinue) {
+              $stream = [System.IO.File]::Open($file.FullName, 'Open', 'Read', 'ReadWrite')
+              try { $text += (New-Object System.IO.StreamReader($stream)).ReadToEnd() } finally { $stream.Dispose() }
+            }
+            $text
+          }
+          function Count-Log([string] $text) { ([regex]::Matches((Read-Log 'agent-*.log'), [regex]::Escape($text))).Count }
+          function Idling { if (Test-Path (Join-Path $server 'idling.txt')) { [int](Get-Content (Join-Path $server 'idling.txt')) } else { -1 } }
+          function Wait-Until([scriptblock] $condition, [int] $seconds, [string] $what) {
+            $deadline = (Get-Date).AddSeconds($seconds)
+            while (-not (& $condition)) {
+              if ((Get-Date) -gt $deadline) { throw "Délai dépassé ($seconds s) : $what" }
+              Sample $what
+              Start-Sleep -Milliseconds 300
+            }
+          }
+          function Send-Command([int] $id) {
+            $window = [QuaiMailCi.User32]::FindWindow('QuaiMail.Agent', $null)
+            if ($window -eq [IntPtr]::Zero) { throw "Fenêtre de l'agent introuvable." }
+            [void][QuaiMailCi.User32]::PostMessage($window, 0x0111, [IntPtr]$id, [IntPtr]::Zero)
+          }
+          function AutoStart { $run = Get-ItemProperty $runKey -ErrorAction SilentlyContinue; $run -and ($run.PSObject.Properties.Name -contains 'QuaiMailAgent') }
+
+          $fake = $null
+          $cert = $null
+          try {
+            # Faux serveur IMAP, son certificat « localhost » approuvé sur la machine du CI (validation TLS stricte inchangée).
+            dotnet build tests/QuaiMail.FakeMailServer/QuaiMail.FakeMailServer.csproj -c Release -o (Join-Path $root 'fake') | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Faux serveur IMAP non compilé.' }
+            $fake = Start-Process -FilePath dotnet -ArgumentList "`"$(Join-Path $root 'fake/QuaiMail.FakeMailServer.dll')`"", "`"$server`"" -PassThru -NoNewWindow `
+              -RedirectStandardOutput (Join-Path $root 'server.log') -RedirectStandardError (Join-Path $root 'server-error.log')
+            Wait-Until { Test-Path (Join-Path $server 'port.txt') } 60 'démarrage du faux serveur'
+            $port = [int](Get-Content (Join-Path $server 'port.txt'))
+            $cert = Import-Certificate -FilePath (Join-Path $server 'server.cer') -CertStoreLocation Cert:\LocalMachine\Root
+
+            # Un compte de test (données isolées), son mot de passe dans le coffre de Windows (effacé par --purge-secrets à la désinstallation).
+            $id = '0123456789abcdef0123456789abcdef'
+            @{ accounts = @(@{
+                id = $id; address = 'alice@example.org'; displayName = 'Compte de test'; userName = 'alice@example.org'
+                imap = @{ host = 'localhost'; port = $port; security = 'sslOnConnect' }
+                smtp = @{ host = 'localhost'; port = 1; security = 'sslOnConnect' } }) } |
+              ConvertTo-Json -Depth 5 | Set-Content (Join-Path $data 'accounts.json') -Encoding utf8
+            '{ "checkForUpdates": false }' | Set-Content (Join-Path $data 'settings.json') -Encoding utf8
+            powershell.exe -NoProfile -Command "[void][Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime]; (New-Object Windows.Security.Credentials.PasswordVault).Add((New-Object Windows.Security.Credentials.PasswordCredential('QuaiMail', '$id', 'mot de passe de test')))"
+            if ($LASTEXITCODE -ne 0) { throw 'Mot de passe de test non enregistré dans le coffre de Windows.' }
+            $env:QUAI_MAIL_DATA_DIR = $data
+
+            # 1. Démarrage : connexion TLS, IDLE.
+            $agent = Start-Process -FilePath $agentExe -PassThru
+            $null = $agent.Handle
+            Wait-Until { (Idling) -eq 1 } 90 'connexion de l''agent en IDLE'
+
+            # 2. Un nouveau mail : notification (le journal ne contient que le nombre).
+            New-Item -ItemType File (Join-Path $server 'deliver.txt') | Out-Null
+            Wait-Until { (Count-Log 'Notification affichée') -ge 1 } 60 'notification du nouveau mail'
+            if ((Read-Log 'agent-*.log') -cmatch 'Nouveau mail \d|test@example\.org|Expéditrice de test') { throw 'Le journal de l''agent contient le contenu d''un mail.' }
+
+            # 3. Au repos : processeur et mémoire (après la remise de mémoire qui suit l'activité).
+            $deadline = (Get-Date).AddSeconds(25); while ((Get-Date) -lt $deadline) { Sample 'après le mail'; Start-Sleep -Milliseconds 300 }
+            $agent.Refresh(); $cpuBefore = $agent.TotalProcessorTime
+            $deadline = (Get-Date).AddSeconds(30); while ((Get-Date) -lt $deadline) { Sample 'repos'; Start-Sleep -Milliseconds 300 }
+            $agent.Refresh(); $idleCpu = ($agent.TotalProcessorTime - $cpuBefore).TotalMilliseconds
+            if ($idleCpu -gt 150) { throw "Processeur au repos : $([math]::Round($idleCpu)) ms en 30 s (150 ms au plus)." }
+
+            # 4. Quai Mail s'ouvre (verrou simulé) : l'agent coupe ses connexions, puis reprend à sa fermeture.
+            $appMutex = [System.Threading.Mutex]::new($true, 'Local\QuaiMail.App.Running')
+            $started = $null
+            if ([System.Threading.EventWaitHandle]::TryOpenExisting('Local\QuaiMail.App.Started', [ref] $started)) { [void]$started.Set(); $started.Dispose() }
+            Wait-Until { (Idling) -eq 0 -and (Count-Log 'En pause') -ge 1 } 60 'pause de l''agent'
+            $appMutex.ReleaseMutex(); $appMutex.Dispose()
+            Wait-Until { (Idling) -eq 1 -and (Count-Log 'reprise de la surveillance') -ge 1 } 60 'reprise après la fermeture'
+
+            # 5. Menu de l'icône : « Lancer avec Windows » (coché, décoché, recoché), avec le chemin de l'agent installé.
+            Send-Command 2; Wait-Until { AutoStart } 15 'lancement avec Windows activé'
+            $value = (Get-ItemProperty $runKey).QuaiMailAgent
+            if ($value -ne "`"$agentExe`"") { throw "Lancement avec Windows inattendu : $value" }
+            Send-Command 2; Wait-Until { -not (AutoStart) } 15 'lancement avec Windows désactivé'
+            Send-Command 2; Wait-Until { AutoStart } 15 'lancement avec Windows réactivé'
+
+            # 6. « Ouvrir Quai Mail » : le vrai Quai Mail s'ouvre, l'agent se met en pause ; fermé, l'agent reprend.
+            $opened = Get-Date
+            Send-Command 1
+            Wait-Until { @(Get-Process -Name QuaiMail -ErrorAction SilentlyContinue | Where-Object { $_.StartTime -gt $opened -and $_.MainWindowHandle -ne 0 }).Count -gt 0 } 90 'ouverture de Quai Mail'
+            Wait-Until { (Count-Log 'En pause') -ge 2 } 60 'pause de l''agent pendant que Quai Mail est ouvert'
+            $app = Get-Process -Name QuaiMail | Where-Object { $_.StartTime -gt $opened } | Select-Object -First 1
+            $null = $app.CloseMainWindow()
+            if (-not $app.WaitForExit(60000)) { $app.Kill(); throw 'Quai Mail ne s''est pas fermé.' }
+            Wait-Until { (Count-Log 'reprise de la surveillance') -ge 2 -and (Idling) -eq 1 } 60 'reprise après la fermeture de Quai Mail'
+
+            # 7. Mise à jour avec l'agent lancé : arrêté avant de remplacer les fichiers, relancé ensuite.
+            $installing = Get-Date
+            $setup = (Resolve-Path 'QuaiMail-Setup-x64.exe').Path
+            $log = Join-Path $root 'install-agent.log'
+            $install = Start-Process -FilePath $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', "/LOG=`"$log`"" -PassThru -Wait
+            if ($install.ExitCode -ne 0) { Get-Content $log -Tail 40; throw "Mise à jour avec l'agent lancé en échec (code $($install.ExitCode))." }
+            if (-not $agent.HasExited) { throw "L'ancien agent tourne encore après la mise à jour." }
+            Wait-Until { (Get-Agent) -and (Get-Agent).StartTime -gt $installing } 60 'agent relancé par l''installateur'
+            Wait-Until { (Idling) -eq 1 } 90 'reconnexion du nouvel agent'
+            $agent = Get-Agent; $null = $agent.Handle
+
+            # 8. « Arrêter l'agent » (menu), puis --quit.
+            Send-Command 3
+            if (-not $agent.WaitForExit(15000)) { throw "L'agent ne s'est pas arrêté depuis son menu." }
+            if ($agent.ExitCode -ne 0) { throw "Agent arrêté avec le code $($agent.ExitCode)." }
+            Wait-Until { (Idling) -eq 0 } 30 'connexions fermées à l''arrêt'
+            $agent = Start-Process -FilePath $agentExe -PassThru; $null = $agent.Handle
+            Wait-Until { (Idling) -eq 1 } 90 'agent relancé'
+            $quit = Start-Process -FilePath $agentExe -ArgumentList '--quit' -PassThru -Wait
+            if ($quit.ExitCode -ne 0 -or -not $agent.WaitForExit(15000)) { throw "--quit n'a pas arrêté l'agent (code $($quit.ExitCode))." }
+            $again = Start-Process -FilePath $agentExe -ArgumentList '--quit' -PassThru -Wait
+            if ($again.ExitCode -ne 1) { throw "--quit sans agent lancé : code $($again.ExitCode) (1 attendu)." }
+
+            # Mémoire : la plus haute mesure de tout le test.
+            $measured = @($samples | Where-Object { $_.Private -gt 0 })
+            if ($measured.Count -lt 20) { throw "Trop peu de mesures de mémoire ($($measured.Count))." }
+            $peak = $measured | Sort-Object Private -Descending | Select-Object -First 1
+            $rest = @($measured | Where-Object Phase -eq 'repos')
+            $mib = { param($bytes) '{0:N1}' -f ($bytes / 1MB) }
+            $table = @(
+              '| Mesure | Valeur |', '|---|---:|'
+              "| Mémoire privée, la plus haute ($($measured.Count) mesures) | $(& $mib $peak.Private) Mo ($($peak.Phase)) |"
+              "| Mémoire privée au repos | $(& $mib ($rest | Measure-Object Private -Maximum).Maximum) Mo |"
+              "| Mémoire engagée au repos | $(& $mib ($rest | Measure-Object Commit -Maximum).Maximum) Mo |"
+              "| Fils d'exécution au repos | $(($rest | Measure-Object Threads -Maximum).Maximum) |"
+              "| Processeur au repos (30 s) | $([math]::Round($idleCpu)) ms |")
+            $table
+            @('### Agent de notification', '') + $table + @('') | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+            if ($peak.Private -gt $limit) { throw "Mémoire de l'agent : $(& $mib $peak.Private) Mo pendant « $($peak.Phase) » (10 Mo au plus)." }
+
+            # L'agent reste lancé, avec le lancement avec Windows : la désinstallation doit tout retirer.
+            Start-Process -FilePath $agentExe | Out-Null
+            Wait-Until { (Idling) -eq 1 } 90 'agent lancé avant la désinstallation'
+            'Agent de notification : OK'
+          } catch {
+            Write-Host "::error::$($_.Exception.Message)"
+            Write-Host '--- journal de l''agent ---'; Read-Log 'agent-*.log' | Write-Host
+            Write-Host '--- journal de Quai Mail ---'; (Read-Log 'quaimail-*.log') -split "`n" | Select-Object -Last 40 | Write-Host
+            Write-Host '--- faux serveur ---'; Get-Content (Join-Path $root 'server.log') -Tail 40 -ErrorAction SilentlyContinue
+            Get-Content (Join-Path $root 'server-error.log') -Tail 20 -ErrorAction SilentlyContinue
+            $samples | Select-Object -Last 15 | Format-Table -AutoSize | Out-String | Write-Host
+            throw
+          } finally {
+            New-Item -ItemType File -Force (Join-Path $server 'stop.txt') | Out-Null
+            if ($fake -and -not $fake.WaitForExit(10000)) { $fake.Kill() }
+            if ($cert) { Remove-Item -Path "Cert:\LocalMachine\Root\$($cert.Thumbprint)" -ErrorAction SilentlyContinue }
+          }
+
       - name: Captures du test de fumée
         if: always() && matrix.platform == 'x64'
         uses: actions/upload-artifact@v4
@@ -357,6 +552,8 @@ jobs:
             ${{ runner.temp }}/update/*.txt
             ${{ runner.temp }}/update/data/logs/*.log
             ${{ runner.temp }}/install.log
+            ${{ runner.temp }}/agent/data/logs/*.log
+            ${{ runner.temp }}/agent/*.log
           if-no-files-found: ignore
 
       - name: Désinstallation silencieuse (avec effacement des données)
@@ -376,6 +573,9 @@ jobs:
           $purge = Start-Process -FilePath (Join-Path $dir 'QuaiMail.exe') -ArgumentList '--purge-secrets' -PassThru -Wait
           if ($purge.ExitCode -ne 0) { throw "--purge-secrets a échoué (code $($purge.ExitCode))." }
 
+          # L'agent de notification tourne et se lance avec Windows (étape précédente) : la désinstallation doit tout retirer.
+          if (-not (Get-Process -Name QuaiMailAgent -ErrorAction SilentlyContinue)) { throw "L'agent de notification devrait tourner avant la désinstallation." }
+
           $uninstall = Start-Process -FilePath (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/PURGE=1' -PassThru -Wait
           if ($uninstall.ExitCode -ne 0) { throw "Désinstallation en échec (code $($uninstall.ExitCode))." }
 
@@ -392,6 +592,9 @@ jobs:
           $registered = Get-ItemProperty 'HKCU:\Software\RegisteredApplications' -ErrorAction SilentlyContinue
           if ($registered -and ($registered.PSObject.Properties.Name -contains 'Quai Mail')) { $left += 'inscription dans les applications par défaut' }
           if (Test-Path $data) { $left += 'données utilisateur' }
+          if (Get-Process -Name QuaiMailAgent -ErrorAction SilentlyContinue) { $left += 'agent de notification encore lancé' }
+          $run = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue
+          if ($run -and ($run.PSObject.Properties.Name -contains 'QuaiMailAgent')) { $left += "lancement de l'agent avec Windows" }
           if ($left) { throw "La désinstallation a laissé : $($left -join ' ; ')" }
           Write-Host 'Désinstallation complète : aucun fichier, raccourci ni entrée de registre restant.'
 
