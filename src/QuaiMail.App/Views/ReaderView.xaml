@@ -170,6 +170,7 @@
                             AutomationProperties.Name="{x:Bind ui:UiHelpers.AttachmentName(FileName, Size, IsExecutable)}"
                             Click="OnAttachmentClick"
                             Style="{StaticResource AttachmentButtonStyle}"
+                            Tag="{x:Bind}"
                             ToolTipService.ToolTip="{l:Str Key=Attachment_SaveTooltip}">
                             <StackPanel Style="{StaticResource ButtonContentStyle}">
                                 <FontIcon Glyph="{x:Bind ui:UiHelpers.AttachmentGlyph(IsExecutable)}" Style="{StaticResource ButtonIconStyle}" />

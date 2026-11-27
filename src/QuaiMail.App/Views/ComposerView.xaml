@@ -150,6 +150,7 @@
                             AutomationProperties.Name="{x:Bind ui:UiHelpers.RemoveAttachmentName(FileName)}"
                             Click="OnRemoveAttachmentClick"
                             Style="{StaticResource AttachmentButtonStyle}"
+                            Tag="{x:Bind}"
                             ToolTipService.ToolTip="{l:Str Key=Composer_RemoveAttachment}">
                             <StackPanel Style="{StaticResource ButtonContentStyle}">
                                 <FontIcon Glyph="&#xE723;" Style="{StaticResource ButtonIconStyle}" />

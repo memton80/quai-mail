@@ -422,6 +422,7 @@ public sealed partial class ReaderViewModel : ObservableObject
 
         if (path is null)
         {
+            _logger.LogInformation("Enregistrement de pièce jointe annulé (aucun emplacement choisi)");
             return null;
         }
 

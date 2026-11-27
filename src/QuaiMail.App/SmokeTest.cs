@@ -402,9 +402,14 @@ internal static class SmokeTest
         Check(!reader.OffersImages, "bandeau des images encore affiché");
         report.Add($"Images distantes : chargées seulement après « Afficher les images » ({view.AllowedRemoteImages} demandée(s))");
 
-        // Pièces jointes : enregistrement d'un bloc ; exécutable signalé (refusé ici), jamais ouvert.
-        var saved = await WithTimeout(reader.SaveAttachmentAsync(reader.Attachments[0]), "enregistrement de la pièce jointe");
-        Check(saved is not null && File.ReadAllText(saved) == "%PDF-1.7 facture de test", "pièce jointe enregistrée à l'identique");
+        // Pièces jointes : enregistrement d'un bloc ; exécutable signalé (refusé ici), jamais ouvert. Le vrai bouton est
+        // cliqué : l'élément doit lui arriver (ItemsRepeater ne remplit pas DataContext quand le modèle utilise x:Bind).
+        var first = reader.Attachments[0];
+        var saved = Path.Combine(directory, first.FileName);
+        await ClickAsync(view, (Button b) => b.Tag is Core.Reading.AttachmentInfo { Index: 0 }, "bouton de la pièce jointe");
+        var safety = services.GetRequiredService<AttachmentSafety>();
+        await WaitForAsync(() => File.Exists(saved) && safety.LastMarkedByWindows, "pièce jointe enregistrée par son bouton");
+        Check(File.ReadAllText(saved) == "%PDF-1.7 facture de test", "pièce jointe enregistrée à l'identique");
 
         // Marque du web posée par le gestionnaire de pièces jointes de Windows (antivirus, SmartScreen à l'ouverture).
         var zone = File.ReadAllText(saved + ":Zone.Identifier");
@@ -492,6 +497,16 @@ internal static class SmokeTest
         files.SmokeAttachments.Add(file);
         await WithTimeout(composer.AttachCommand.ExecuteAsync(null), "pièce jointe");
         Check(composer.Attachments.Count == 1, "pièce jointe ajoutée");
+
+        // Une pièce jointe de trop, retirée par son vrai bouton.
+        var extra = Path.Combine(directory, "a-retirer.txt");
+        File.WriteAllText(extra, "à retirer");
+        files.SmokeAttachments.Clear();
+        files.SmokeAttachments.Add(extra);
+        await WithTimeout(composer.AttachCommand.ExecuteAsync(null), "deuxième pièce jointe");
+        Check(composer.Attachments.Count == 2, "deuxième pièce jointe ajoutée");
+        await ClickAsync(window.Content, (Button b) => b.Tag is DraftAttachment { FileName: "a-retirer.txt" }, "bouton de retrait de la pièce jointe");
+        await WaitForAsync(() => composer.Attachments.Count == 1 && composer.Attachments[0].FileName == "piece-jointe.txt", "pièce jointe retirée par son bouton");
         await WithTimeout(composer.AutoSaveAsync(), "enregistrement automatique");
         var draftId = composer.Draft!.Id;
         Check(drafts.Load(draftId)?.Subject == "Test d'envoi de Quai Mail", "brouillon enregistré en local");
@@ -936,6 +951,33 @@ internal static class SmokeTest
         }
 
         await task;
+    }
+
+    /// <summary>Clique un vrai bouton de l'interface (par l'automatisation, comme un lecteur d'écran), une fois affiché.</summary>
+    private static async Task ClickAsync(Microsoft.UI.Xaml.DependencyObject root, Func<Button, bool> match, string step)
+    {
+        Button? button = null;
+        await WaitForAsync(() => (button = Find(root, match)) is not null, step);
+        new Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer(button!).Invoke();
+    }
+
+    private static Button? Find(Microsoft.UI.Xaml.DependencyObject root, Func<Button, bool> match)
+    {
+        if (root is Button button && match(button))
+        {
+            return button;
+        }
+
+        var count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            if (Find(Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i), match) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private static async Task WaitForAsync(Func<bool> condition, string step)

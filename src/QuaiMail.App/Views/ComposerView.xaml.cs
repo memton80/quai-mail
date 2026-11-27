@@ -38,9 +38,14 @@ public sealed partial class ComposerView : UserControl
     {
         try
         {
-            if ((sender as FrameworkElement)?.DataContext is DraftAttachment attachment)
+            // L'élément est dans Tag : ItemsRepeater ne remplit pas DataContext quand le modèle utilise x:Bind.
+            if ((sender as FrameworkElement)?.Tag is DraftAttachment attachment)
             {
                 Composer.RemoveAttachment(attachment);
+            }
+            else
+            {
+                _logger.LogWarning("Clic sur une pièce jointe à retirer sans pièce jointe associée");
             }
         }
         catch (Exception ex)

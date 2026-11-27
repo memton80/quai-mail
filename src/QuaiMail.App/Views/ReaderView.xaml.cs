@@ -414,9 +414,14 @@ public sealed partial class ReaderView : UserControl
     {
         try
         {
-            if ((sender as FrameworkElement)?.DataContext is AttachmentInfo attachment)
+            // L'élément est dans Tag : ItemsRepeater ne remplit pas DataContext quand le modèle utilise x:Bind.
+            if ((sender as FrameworkElement)?.Tag is AttachmentInfo attachment)
             {
                 await Reader.SaveAttachmentAsync(attachment);
+            }
+            else
+            {
+                _logger.LogWarning("Clic sur une pièce jointe sans pièce jointe associée");
             }
         }
         catch (Exception ex)
