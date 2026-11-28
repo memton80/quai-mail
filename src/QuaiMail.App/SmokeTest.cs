@@ -572,6 +572,19 @@ internal static class SmokeTest
         watcher.Deliver(account, [fresh]);
         await WaitForAsync(() => messages.Messages.Count > 0 && messages.Messages[0].Uid == 500, "mail reçu en direct en tête de liste");
         Check(inbox.Unread == unread + 1, $"compteur après un mail reçu : {inbox.Unread}");
+
+        // Pastille de la barre des tâches : suit les non lus, se coupe et revient avec le réglage.
+        var badge = services.GetRequiredService<TaskbarBadge>();
+        var expected = UnreadBadge.Text(mailbox.InboxUnread);
+        Check(mailbox.InboxUnread > 0 && expected is not null, $"aucun non lu pour la pastille ({mailbox.InboxUnread})");
+        await WaitForAsync(() => badge.LastText == expected, $"pastille « {expected} » ({mailbox.InboxUnread} non lus)");
+        Check(!badge.TaskbarAvailable || (badge.LastResult >= 0 && badge.LastIconSize >= 16), $"pastille refusée (0x{badge.LastResult:X8}, {badge.LastIconSize} px)");
+        var appSettings = services.GetRequiredService<ISettingsService>();
+        appSettings.Update(s => s.ShowUnreadBadge = false);
+        await WaitForAsync(() => badge.LastText is null, "pastille retirée (réglage coupé)");
+        appSettings.Update(s => s.ShowUnreadBadge = true);
+        await WaitForAsync(() => badge.LastText == expected, "pastille revenue (réglage remis)");
+        report.Add($"Pastille des non lus : « {expected} » sur l'icône de la barre des tâches ({(badge.TaskbarAvailable ? $"{badge.LastIconSize} px" : "barre des tâches absente")}), retirée puis remise par le réglage");
         mailbox.SelectedItem = mailbox.Items.First(i => i.Folder?.FullName == "Envoyés");
         ((SmokeNotifier)services.GetRequiredService<INotifier>()).Click(account.Id);
         await WaitForAsync(() => mailbox.SelectedItem == inbox && !messages.IsLoading, "clic sur une notification : boîte de réception");

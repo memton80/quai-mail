@@ -224,6 +224,42 @@ public sealed class MailViewModelsTests : IDisposable
     }
 
     [Fact]
+    public async Task The_taskbar_badge_counts_the_unread_of_every_inbox_only()
+    {
+        var alice = AddAccount("alice@example.org");
+        var bob = AddAccount("bob@example.org");
+        _mail.Folders[alice.Id] =
+        [
+            new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 2, 4),
+            new MailFolderInfo("Listes", "Listes", 0, FolderRole.None, true, 3, 3),
+            new MailFolderInfo("Spam", "Spam", 0, FolderRole.Junk, true, 40, 40),
+        ];
+        _mail.Folders[bob.Id] = [new MailFolderInfo("INBOX", "INBOX", 0, FolderRole.Inbox, true, 1, 1)];
+        var mailbox = Mailbox();
+        await mailbox.LoadAsync();
+        await WaitForAsync(() => !mailbox.Messages.IsLoading);
+
+        // Comme « Toutes les boîtes de réception » : ni les autres dossiers, ni la boîte unifiée comptée deux fois.
+        Assert.Equal(3, mailbox.InboxUnread);
+
+        // Compte replié : ses mails comptent toujours.
+        mailbox.SetExpanded(alice.Id, false);
+        mailbox.OnNewMail(alice, [Header(7)]);
+        Assert.Equal(4, mailbox.InboxUnread);
+    }
+
+    [Theory]
+    [InlineData(0, true, null)]
+    [InlineData(-1, true, null)]
+    [InlineData(1, true, "1")]
+    [InlineData(9, true, "9")]
+    [InlineData(10, true, "9+")]
+    [InlineData(21, true, "9+")]
+    [InlineData(21, false, null)]
+    public void The_badge_reads_like_discord(int unread, bool enabled, string? expected) =>
+        Assert.Equal(expected, UnreadBadge.Text(unread, enabled));
+
+    [Fact]
     public async Task The_rail_highlights_the_account_of_the_folder_shown_and_a_click_opens_its_inbox()
     {
         var alice = AddAccount("alice@example.org");

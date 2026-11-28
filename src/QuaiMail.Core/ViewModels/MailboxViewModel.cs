@@ -408,7 +408,19 @@ public sealed partial class MailboxViewModel : ObservableObject
         {
             unified.Unread = Math.Max(0, unified.Unread + delta);
         }
+
+        UpdateInboxUnread();
     }
+
+    /// <summary>
+    /// Non lus de toutes les boîtes de réception (comme la boîte unifiée, même avec un seul compte) : pastille sur
+    /// l'icône de Quai Mail dans la barre des tâches.
+    /// </summary>
+    [ObservableProperty]
+    public partial int InboxUnread { get; private set; }
+
+    private void UpdateInboxUnread() =>
+        InboxUnread = _all.Where(i => !i.IsUnified && i.Role == FolderRole.Inbox && i.CanSelect).Sum(i => i.Unread);
 
     /// <summary>Compte replié : sa ligne montre les non lus de ses dossiers (sans Indésirables ni Corbeille) ; déplié : rien.</summary>
     private void UpdateAccountUnread(string accountId)
@@ -684,6 +696,8 @@ public sealed partial class MailboxViewModel : ObservableObject
         {
             UpdateAccountUnread(account.Id);
         }
+
+        UpdateInboxUnread();
 
         _rebuilding = true;
         try

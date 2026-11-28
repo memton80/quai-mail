@@ -114,6 +114,7 @@ internal static class AppServices
         // Lecture : gabarit Assets/Mail/reader.html (lu une fois), liens ouverts dans le navigateur après confirmation,
         // pièces jointes enregistrées avec la marque du web (aussi pendant les tests de fumée : rien ne sort de l'ordinateur).
         services.AddSingleton<AttachmentSafety>();
+        services.AddSingleton<TaskbarBadge>();
         services.AddSingleton(provider => new TrustedSenders(paths, provider.GetService<ILogger<TrustedSenders>>()));
         services.AddSingleton<TrustedSendersViewModel>();
         services.AddSingleton<IAttachmentSafety>(provider => provider.GetRequiredService<AttachmentSafety>());

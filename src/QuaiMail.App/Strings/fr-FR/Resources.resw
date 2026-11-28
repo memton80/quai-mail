@@ -680,6 +680,18 @@ Le texte d'un lien peut montrer une autre destination que la vraie : ouvrez-le s
   <data name="Settings_Notifications" xml:space="preserve">
     <value>Notifications des nouveaux mails</value>
   </data>
+  <data name="Settings_UnreadBadge" xml:space="preserve">
+    <value>Pastille des non lus sur l'icône</value>
+  </data>
+  <data name="Settings_UnreadBadgeDescription" xml:space="preserve">
+    <value>Un rond rouge sur l'icône de Quai Mail dans la barre des tâches indique le nombre de mails non lus des boîtes de réception (« 9+ » au-delà de 9).</value>
+  </data>
+  <data name="Taskbar_UnreadOne" xml:space="preserve">
+    <value>1 mail non lu</value>
+  </data>
+  <data name="Taskbar_UnreadMany" xml:space="preserve">
+    <value>{0} mails non lus</value>
+  </data>
   <data name="Settings_NotificationsDescription" xml:space="preserve">
     <value>Une notification de Windows annonce chaque nouveau mail (expéditeur et objet) quand Quai Mail n'est pas au premier plan.</value>
   </data>

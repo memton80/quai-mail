@@ -1,6 +1,6 @@
 # Guide de Quai Mail
 
-> **Version 0.13 : l'agent de notification.** Quai Mail fermé, une petite icône dans les icônes cachées annonce vos nouveaux mails (moins de 10 Mo de mémoire, arrêt et démarrage avec Windows depuis son menu). Aussi : filtre lu / non lu de la liste, et le volet de gauche réductible en rail d'icônes (≡ ou `Ctrl+B`). Comptes IMAP / SMTP, lecture sûre, écriture, signature OpenPGP, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail, expéditeurs sûrs et mode méfiant contre l'hameçonnage, marque du web sur les pièces jointes, comptes repliables, **sélection de plusieurs mails** (`Ctrl+A`), les **clés de Kleopatra copiées dans Quai Mail** en un clic et la **vérification des mails signés** reçus (bandeau, clé cherchée dans Kleopatra puis sur keys.openpgp.org). La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir »).
+> **Version 0.14 : la pastille des non lus.** Un rond rouge sur l'icône de Quai Mail dans la barre des tâches donne le nombre de mails non lus de vos boîtes de réception, comme Discord (« 9+ » au-delà de 9). **Version 0.13 : l'agent de notification.** Quai Mail fermé, une petite icône dans les icônes cachées annonce vos nouveaux mails (moins de 10 Mo de mémoire, arrêt et démarrage avec Windows depuis son menu). Aussi : filtre lu / non lu de la liste, et le volet de gauche réductible en rail d'icônes (≡ ou `Ctrl+B`). Comptes IMAP / SMTP, lecture sûre, écriture, signature OpenPGP, recherche, corbeille, réception en direct avec notifications, boîte de réception unifiée, liens mail, expéditeurs sûrs et mode méfiant contre l'hameçonnage, marque du web sur les pièces jointes, comptes repliables, **sélection de plusieurs mails** (`Ctrl+A`), les **clés de Kleopatra copiées dans Quai Mail** en un clic et la **vérification des mails signés** reçus (bandeau, clé cherchée dans Kleopatra puis sur keys.openpgp.org). La connexion à Gmail et Outlook.com par le navigateur est annoncée (boutons grisés « à venir »).
 
 ## La fenêtre
 
@@ -11,6 +11,8 @@ Trois volets, de gauche à droite :
 | **Comptes et dossiers** | en haut, le bouton ≡ (réduit le volet) puis **Nouveau message** ; vos comptes mail et leurs dossiers (Boîte de réception, Envoyés…), avec le nombre de mails non lus ; en bas, **Ajouter un compte** et **Réglages** |
 | **Mails** | les mails du dossier choisi, du plus récent au plus ancien : expéditeur, objet, date ; les non lus en gras |
 | **Lecture** | le mail ouvert : expéditeur, destinataires, date, pièces jointes, puis son contenu ; ou le message que vous écrivez |
+
+Sur l'icône de Quai Mail dans la barre des tâches, une **pastille rouge** indique le nombre de mails non lus de toutes vos boîtes de réception (le même nombre que « Toutes les boîtes de réception » ; « 9+ » au-delà de 9). Elle disparaît quand tout est lu et se coupe dans les réglages.
 
 Tout se fait aussi au clavier : `Tab` passe d'un volet à l'autre, les flèches parcourent les dossiers et les mails, `F5` actualise les dossiers, `Ctrl+N` écrit un nouveau message, `Ctrl+F` cherche, `Ctrl+B` réduit ou déploie le volet de gauche ; dans la liste des mails, `Ctrl+A` les choisit tous et `Suppr` supprime les mails choisis.
 
@@ -143,6 +145,7 @@ Chaque pièce jointe enregistrée reçoit la **marque du web**, comme un fichier
 | **Bloquer les images distantes** | activé par défaut : les images hébergées sur Internet ne sont chargées que sur votre demande, l'expéditeur ne sait pas quand vous lisez son mail |
 | **Rechercher les mises à jour** | activé par défaut : au démarrage, Quai Mail demande à GitHub le numéro de la dernière version publiée |
 | **Notifications des nouveaux mails** | activé par défaut : une notification de Windows quand un mail arrive et que Quai Mail n'est pas au premier plan |
+| **Pastille des non lus sur l'icône** | activé par défaut : un rond rouge sur l'icône de la barre des tâches avec le nombre de mails non lus des boîtes de réception |
 | **Prévenir des nouveaux mails quand Quai Mail est fermé** | activé par défaut : l'agent de notification (icônes cachées) prend le relais à la fermeture de Quai Mail ; coupé, il s'arrête et ne démarre plus avec Windows |
 | **Lancer l'agent au démarrage de Windows** | l'agent démarre à l'ouverture de votre session (la même case que « Lancer avec Windows » dans le menu de son icône) |
 | **Chercher les clés des mails signés** | activé par défaut : la clé inconnue d'un mail signé est demandée à keys.openpgp.org (empreinte seulement) ; coupé, le bandeau propose **Chercher** |

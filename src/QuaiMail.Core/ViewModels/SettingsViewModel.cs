@@ -42,6 +42,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool ShowNotifications { get; set; }
 
+    /// <summary>Pastille des non lus sur l'icône de la barre des tâches.</summary>
+    [ObservableProperty]
+    public partial bool ShowUnreadBadge { get; set; }
+
     /// <summary><c>QuaiMailAgent.exe</c> est livré avec cette copie de Quai Mail (sinon, ses réglages sont cachés).</summary>
     public bool AgentAvailable { get; }
 
@@ -116,6 +120,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
+    partial void OnShowUnreadBadgeChanged(bool value)
+    {
+        if (!_loading)
+        {
+            _settings.Update(s => s.ShowUnreadBadge = value);
+        }
+    }
+
     partial void OnThemeIndexChanged(int value)
     {
         if (!_loading && Enum.IsDefined((AppTheme)value))
@@ -150,6 +162,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             BlockRemoteImages = current.BlockRemoteImages;
             CheckForUpdates = current.CheckForUpdates;
             ShowNotifications = current.ShowNotifications;
+            ShowUnreadBadge = current.ShowUnreadBadge;
             LookUpPgpKeys = current.LookUpPgpKeys;
             BackgroundAgent = current.BackgroundAgent;
             AgentAutoStart = _agent?.IsAutoStartEnabled == true;

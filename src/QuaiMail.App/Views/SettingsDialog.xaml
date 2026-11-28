@@ -25,6 +25,10 @@
                 <ToggleSwitch Header="{l:Str Key=Settings_Notifications}" IsOn="{x:Bind Settings.ShowNotifications, Mode=TwoWay}" />
                 <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_NotificationsDescription}" />
             </StackPanel>
+            <StackPanel>
+                <ToggleSwitch Header="{l:Str Key=Settings_UnreadBadge}" IsOn="{x:Bind Settings.ShowUnreadBadge, Mode=TwoWay}" />
+                <TextBlock Style="{StaticResource DialogHintStyle}" Text="{l:Str Key=Settings_UnreadBadgeDescription}" />
+            </StackPanel>
             <!-- Agent de notification : nouveaux mails annoncés quand Quai Mail est fermé (icône dans les icônes cachées). -->
             <StackPanel Visibility="{x:Bind ui:UiHelpers.VisibleIf(Settings.AgentAvailable)}">
                 <ToggleSwitch

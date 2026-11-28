@@ -2,11 +2,21 @@ using System.Runtime.InteropServices;
 
 namespace QuaiMail.App;
 
-/// <summary>Fonctions Win32 (taille de la fenêtre selon la mise à l'échelle, captures du test de fumée).</summary>
+/// <summary>Fonctions Win32 (taille de la fenêtre selon la mise à l'échelle, pastille des non lus, captures du test de fumée).</summary>
 internal static class NativeMethods
 {
     public const uint SRCCOPY = 0x00CC0020;
     public const uint CAPTUREBLT = 0x40000000;
+
+    /// <summary>Largeur des petites icônes (celle de l'icône superposée de la barre des tâches).</summary>
+    public const int SM_CXSMICON = 49;
+
+    [DllImport("user32.dll")]
+    public static extern int GetSystemMetricsForDpi(int index, uint dpi);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DestroyIcon(IntPtr icon);
 
     [DllImport("user32.dll")]
     public static extern uint GetDpiForWindow(IntPtr hwnd);

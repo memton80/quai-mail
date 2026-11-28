@@ -83,6 +83,7 @@ public sealed class JsonSettingsService : ISettingsService
         a.Theme == b.Theme
         && a.BlockRemoteImages == b.BlockRemoteImages
         && a.ShowNotifications == b.ShowNotifications
+        && a.ShowUnreadBadge == b.ShowUnreadBadge
         && a.CheckForUpdates == b.CheckForUpdates
         && a.LookUpPgpKeys == b.LookUpPgpKeys
         && a.NavPaneCompact == b.NavPaneCompact

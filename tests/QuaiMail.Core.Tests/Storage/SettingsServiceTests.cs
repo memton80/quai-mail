@@ -17,6 +17,7 @@ public sealed class SettingsServiceTests
         Assert.Equal(AppTheme.System, settings.Theme);
         Assert.True(settings.BlockRemoteImages);
         Assert.True(settings.ShowNotifications);
+        Assert.True(settings.ShowUnreadBadge);
     }
 
     [Fact]

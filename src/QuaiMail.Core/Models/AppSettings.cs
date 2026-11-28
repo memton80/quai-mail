@@ -20,6 +20,12 @@ public sealed class AppSettings
     public bool ShowNotifications { get; set; } = true;
 
     /// <summary>
+    /// Pastille rouge sur l'icône de Quai Mail dans la barre des tâches : nombre de mails non lus des boîtes de réception
+    /// (comme Discord). Vrai par défaut.
+    /// </summary>
+    public bool ShowUnreadBadge { get; set; } = true;
+
+    /// <summary>
     /// Agent de notification (<c>QuaiMailAgent.exe</c>, zone de notification) : quand Quai Mail est fermé, il surveille
     /// les boîtes de réception et annonce les nouveaux mails. Démarré à la fermeture de Quai Mail. Vrai par défaut.
     /// </summary>

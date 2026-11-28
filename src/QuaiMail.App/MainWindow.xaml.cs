@@ -28,7 +28,10 @@ public sealed partial class MainWindow : Window
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _autoSave;
     private readonly IMailWatcher _watcher;
     private readonly INotifier _notifier;
+    private readonly TaskbarBadge _badge;
+    private readonly Core.Storage.ISettingsService _appSettings;
     private bool _isActive = true;
+    private bool _badgeShown;
 
     // Fermeture : question en cours, puis fermeture accordée (brouillon gardé ou supprimé).
     private bool _closeRequested;
@@ -57,6 +60,10 @@ public sealed partial class MainWindow : Window
             else if (e.PropertyName == nameof(MailboxViewModel.IsPaneCompact))
             {
                 ApplyPaneMode();
+            }
+            else if (e.PropertyName == nameof(MailboxViewModel.InboxUnread))
+            {
+                UpdateBadge();
             }
         };
         ApplyPaneMode();
@@ -107,6 +114,21 @@ public sealed partial class MainWindow : Window
         var accounts = _services.GetRequiredService<AccountStore>();
         accounts.Changed += (_, _) => DispatcherQueue.TryEnqueue(() => _watcher.Watch(accounts.All));
         Activated += (_, e) => _isActive = e.WindowActivationState != WindowActivationState.Deactivated;
+
+        // Pastille des non lus sur l'icône de la barre des tâches (comme Discord). Le bouton de la barre des tâches
+        // n'existe qu'une fois la fenêtre affichée : premier dessin après la première activation.
+        _badge = _services.GetRequiredService<TaskbarBadge>();
+        _badge.Attach(WinRT.Interop.WindowNative.GetWindowHandle(this));
+        _appSettings = _services.GetRequiredService<Core.Storage.ISettingsService>();
+        _appSettings.Changed += (_, _) => DispatcherQueue.TryEnqueue(() => UpdateBadge());
+        Activated += (_, _) =>
+        {
+            if (!_badgeShown)
+            {
+                _badgeShown = true;
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => UpdateBadge(force: true));
+            }
+        };
         Closed += async (_, _) =>
         {
             try
@@ -158,6 +180,15 @@ public sealed partial class MainWindow : Window
         if (unread.Count > 0 && !_isActive && _services.GetRequiredService<Core.Storage.ISettingsService>().Current.ShowNotifications)
         {
             _notifier.Show(e.Account, unread);
+        }
+    }
+
+    /// <summary>Nombre de non lus des boîtes de réception sur l'icône de la barre des tâches (réglage « Pastille »).</summary>
+    private void UpdateBadge(bool force = false)
+    {
+        if (_badgeShown)
+        {
+            _badge.Show(Mailbox.InboxUnread, _appSettings.Current.ShowUnreadBadge, force);
         }
     }
 
